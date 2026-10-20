@@ -43,6 +43,13 @@ Nombre de las ramas: `tipo/numero-de-issue-descripcion-corta`
 
 Mensajes cortos, en presente y con el mismo prefijo que las ramas:
 
+```
+feat: agrega el cálculo de receptividad
+fix: corrige el área de los polígonos
+docs: actualiza el diagrama de componentes
+chore: configura postgres
+```
+
 ## Estado
 
 En etapa de análisis y diseño. Todavía no hay código.
