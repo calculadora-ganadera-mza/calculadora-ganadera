@@ -1,0 +1,11 @@
+# Corre ruff sobre el backend antes de cada commit.
+# Instalar una vez con: uvx pre-commit install
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.1  # misma versión que backend/uv.lock
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+        files: ^backend/
+      - id: ruff-format
+        files: ^backend/
