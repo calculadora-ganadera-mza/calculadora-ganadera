@@ -1,3 +1,18 @@
 from app.models.base import Base
+from app.models.field import ProductionUnit, Scenario
+from app.models.reference import AnimalCategory, Parameter, Zone
+from app.models.season import HerdCategory, HerdSeason, Season
+from app.models.user import User
 
-__all__ = ["Base"]
+__all__ = [
+    "AnimalCategory",
+    "Base",
+    "HerdCategory",
+    "HerdSeason",
+    "Parameter",
+    "ProductionUnit",
+    "Scenario",
+    "Season",
+    "User",
+    "Zone",
+]

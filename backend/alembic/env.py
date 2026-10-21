@@ -34,7 +34,13 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    connectable = create_engine(settings.database_url, poolclass=pool.NullPool)
+    # Solo el esquema public: la imagen de PostGIS trae tablas de tiger y
+    # topology en el search_path que no son nuestras.
+    connectable = create_engine(
+        settings.database_url,
+        poolclass=pool.NullPool,
+        connect_args={"options": "-c search_path=public"},
+    )
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
