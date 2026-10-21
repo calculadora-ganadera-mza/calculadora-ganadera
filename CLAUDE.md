@@ -16,7 +16,7 @@ Si algo no está definido en esos documentos, no inventarlo: preguntar.
 
 | Parte | Tecnología |
 |---|---|
-| Backend | Python 3.12 + FastAPI |
+| Backend | Python 3.14 + FastAPI |
 | Validación | Pydantic v2 y pydantic-settings |
 | Base de datos | PostgreSQL 16 + PostGIS 3 |
 | Acceso a datos | SQLAlchemy 2 (estilo 2.0, tipado) + GeoAlchemy2 |

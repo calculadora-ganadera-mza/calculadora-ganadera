@@ -1,0 +1,57 @@
+from logging.config import fileConfig
+
+from alembic import context
+from geoalchemy2 import alembic_helpers
+from sqlalchemy import create_engine, pool
+
+from app.core.config import settings
+from app.models import Base
+
+config = context.config
+
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
+
+target_metadata = Base.metadata
+
+GEOALCHEMY_OPTIONS = {
+    "include_object": alembic_helpers.include_object,
+    "process_revision_directives": alembic_helpers.writer,
+    "render_item": alembic_helpers.render_item,
+}
+
+
+def run_migrations_offline() -> None:
+    context.configure(
+        url=settings.database_url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
+        **GEOALCHEMY_OPTIONS,
+    )
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+def run_migrations_online() -> None:
+    # Solo el esquema public: la imagen de PostGIS trae tablas de tiger y
+    # topology en el search_path que no son nuestras.
+    connectable = create_engine(
+        settings.database_url,
+        poolclass=pool.NullPool,
+        connect_args={"options": "-c search_path=public"},
+    )
+    with connectable.connect() as connection:
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            **GEOALCHEMY_OPTIONS,
+        )
+        with context.begin_transaction():
+            context.run_migrations()
+
+
+if context.is_offline_mode():
+    run_migrations_offline()
+else:
+    run_migrations_online()

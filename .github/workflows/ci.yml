@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      db:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: calculadora_ganadera
+        ports:
+          - 5432:5432
+        # -h 127.0.0.1: la imagen arranca un servidor temporal sin red mientras
+        # instala PostGIS; así recién da listo cuando acepta conexiones de verdad.
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+psycopg://ci:ci@localhost:5432/calculadora_ganadera
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          python-version: "3.14"
+          enable-cache: true
+
+      - name: Instalar dependencias
+        run: uv sync --frozen
+
+      - name: Ruff
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Pruebas
+        run: uv run pytest
+
+  # Los pasos solo corren cuando exista frontend/package.json. Mientras tanto
+  # el trabajo pasa sin hacer nada.
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        if: hashFiles('frontend/package.json') != ''
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias
+        if: hashFiles('frontend/package.json') != ''
+        run: npm ci
+
+      - name: Lint
+        if: hashFiles('frontend/package.json') != ''
+        run: npm run lint
+
+      - name: Chequeo de tipos
+        if: hashFiles('frontend/package.json') != ''
+        run: npm run type-check
+
+      - name: Pruebas
+        if: hashFiles('frontend/package.json') != ''
+        run: npm run test:unit -- --run
+
+      - name: Build
+        if: hashFiles('frontend/package.json') != ''
+        run: npm run build
