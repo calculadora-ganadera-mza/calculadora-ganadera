@@ -30,7 +30,11 @@ jobs:
           --health-retries 10
 
     env:
-      DATABASE_URL: postgresql+psycopg://ci:ci@localhost:5432/calculadora_ganadera
+      DB_USERNAME: ci
+      DB_PASSWORD: ci
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_DATABASE: calculadora_ganadera
 
     steps:
       - uses: actions/checkout@v7
