@@ -125,7 +125,7 @@ PARAMETERS = [
 ANIMAL_CATEGORIES = [
     {
         "code": "cow",
-        "name": "Vaca",
+        "name": "Vaca con cría",
         "cow_equivalent": 1.0,
         "summer_water_l_day": 70,
         "winter_water_l_day": 37.5,
@@ -139,22 +139,22 @@ ANIMAL_CATEGORIES = [
     },
     {
         "code": "heifer",
-        "name": "Vaquillona",
+        "name": "Vaquillona de recría",
         "cow_equivalent": 0.7,
         "summer_water_l_day": 42.5,
         "winter_water_l_day": 20,
     },
     {
         "code": "calf",
-        "name": "Ternero",
+        "name": "Ternero de destete",
         "cow_equivalent": 0.5,
         "summer_water_l_day": 25,
         "winter_water_l_day": 12.5,
     },
     {
         "code": "steer",
-        "name": "Novillito",
-        "cow_equivalent": 0.7,
+        "name": "Novillo de recría",
+        "cow_equivalent": 0.8,
         "summer_water_l_day": 42.5,
         "winter_water_l_day": 20,
     },
