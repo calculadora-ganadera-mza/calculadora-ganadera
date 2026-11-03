@@ -1,0 +1,23 @@
+# Chequeos que corren antes de cada commit.
+# Instalar una vez con: uvx pre-commit install
+# La plantilla de pull request no se toca.
+exclude: ^\.github/pull_request_template\.md$
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: detect-private-key
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.1  # misma versión que backend/uv.lock
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+        files: ^backend/
+      - id: ruff-format
+        files: ^backend/

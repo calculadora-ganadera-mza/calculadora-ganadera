@@ -128,6 +128,7 @@ Todos son parámetros: el administrador los puede cambiar sin tocar el código.
 | Consumo diario en corral | 3,5% del peso vivo | Clúster |
 
 El equivalente vaca incluye el consumo del ternero hasta los 6 meses.
+El consumo de cada categoría se obtiene multiplicando su equivalencia en EV por el consumo de un EV. No se guarda aparte, para que cambiar el consumo de un EV actualice todas las categorías.
 
 ## 8. Costos y margen
 
