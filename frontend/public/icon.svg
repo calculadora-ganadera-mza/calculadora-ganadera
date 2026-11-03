@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#3d6b35"/>
+  <!-- Cuernos -->
+  <path d="M176 176 C 120 168 104 120 124 92" fill="none" stroke="#f4efe6" stroke-width="22" stroke-linecap="round"/>
+  <path d="M336 176 C 392 168 408 120 388 92" fill="none" stroke="#f4efe6" stroke-width="22" stroke-linecap="round"/>
+  <!-- Orejas -->
+  <ellipse cx="140" cy="226" rx="52" ry="26" transform="rotate(-20 140 226)" fill="#f4efe6"/>
+  <ellipse cx="372" cy="226" rx="52" ry="26" transform="rotate(20 372 226)" fill="#f4efe6"/>
+  <!-- Cabeza -->
+  <path d="M176 170 C 176 140 336 140 336 170 L 330 330 C 326 380 186 380 182 330 Z" fill="#f4efe6"/>
+  <!-- Hocico -->
+  <ellipse cx="256" cy="372" rx="78" ry="52" fill="#c9b79c"/>
+  <circle cx="230" cy="372" r="11" fill="#3d6b35"/>
+  <circle cx="282" cy="372" r="11" fill="#3d6b35"/>
+  <!-- Ojos -->
+  <circle cx="216" cy="250" r="13" fill="#2b2b2b"/>
+  <circle cx="296" cy="250" r="13" fill="#2b2b2b"/>
+</svg>
