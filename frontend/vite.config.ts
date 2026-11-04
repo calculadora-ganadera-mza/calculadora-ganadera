@@ -42,4 +42,18 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  server: {
+    // Los pedidos a /api van al backend, así el navegador no los bloquea por venir de otro puerto
+    proxy: {
+      '/api': {
+        target: process.env.API_PROXY_TARGET ?? 'http://localhost:8000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
+    // En Docker sobre Windows los cambios de archivos solo se detectan revisando cada tanto
+    watch: {
+      usePolling: process.env.WATCH_POLLING === 'true',
+    },
+  },
 })
