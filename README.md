@@ -22,6 +22,7 @@ App de seguimiento del ciclo ganadero: cría, recría y engorde.
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - [uv](https://docs.astral.sh/uv/getting-started/installation/), solo para instalar el pre-commit
+- [Node 24](https://nodejs.org/), solo si se trabaja en el frontend fuera de Docker (para que el editor, eslint y las pruebas anden en la compu)
 
 ### Primera vez
 
@@ -31,7 +32,7 @@ App de seguimiento del ciclo ganadero: cría, recría y engorde.
    cp .env.example .env
    ```
 
-2. Levantar la base y el backend:
+2. Levantar la base, el backend y el frontend:
 
    ```
    docker compose up -d
@@ -49,7 +50,7 @@ App de seguimiento del ciclo ganadero: cría, recría y engorde.
    uvx pre-commit install
    ```
 
-Con eso la API queda en http://localhost:8000. La documentación interactiva está en http://localhost:8000/docs y el estado del servicio en http://localhost:8000/health.
+Con eso la app queda en http://localhost:5173 y la API en http://localhost:8000. La documentación interactiva está en http://localhost:8000/docs y el estado del servicio en http://localhost:8000/health.
 
 ### Uso diario
 
@@ -57,16 +58,19 @@ Con eso la API queda en http://localhost:8000. La documentación interactiva est
 |---|---|
 | Levantar todo | `docker compose up -d` |
 | Ver los logs del backend | `docker compose logs -f backend` |
+| Ver los logs del frontend | `docker compose logs -f frontend` |
 | Aplicar migraciones nuevas | `docker compose run --rm backend alembic upgrade head` |
-| Correr las pruebas | `docker compose run --rm backend pytest` |
-| Revisar el formato | `docker compose run --rm backend ruff check .` |
+| Correr las pruebas del backend | `docker compose run --rm backend pytest` |
+| Correr las pruebas del frontend | `docker compose run --rm frontend npm run test:unit -- --run` |
+| Revisar el formato del backend | `docker compose run --rm backend ruff check .` |
+| Revisar el frontend (eslint y prettier) | `docker compose run --rm frontend sh -c "npm run lint && npm run format:check"` |
 | Apagar todo | `docker compose down` |
 
-El backend se recarga solo al guardar cambios en `backend/`. Las pruebas usan una base aparte (`<base>_test`) que se crea sola, así que no tocan los datos de desarrollo.
+El backend y el frontend se recargan solos al guardar cambios en `backend/` o `frontend/`. Las pruebas usan una base aparte (`<base>_test`) que se crea sola, así que no tocan los datos de desarrollo.
 
 ### Si cambian las dependencias
 
-Cuando alguien modifica `backend/pyproject.toml`, hay que reconstruir la imagen:
+Cuando alguien modifica `backend/pyproject.toml` o `frontend/package.json`, hay que reconstruir las imágenes:
 
 ```
 docker compose up -d --build
@@ -105,7 +109,7 @@ Nombre de las ramas: `tipo/numero-de-issue-descripcion-corta`
 
 - Todo pull request lo revisa y aprueba al menos otro integrante del equipo antes de integrarse.
 - Cada pull request resuelve una sola tarea y referencia su issue.
-- El CI corre ruff y las pruebas del backend en cada pull request, y tiene que pasar antes de integrarlo.
+- El CI corre ruff y las pruebas del backend, y eslint, prettier, los tipos, las pruebas y el build del frontend en cada pull request. Tiene que pasar antes de integrarlo.
 - Después de integrarlo, se borra la rama.
 
 ### Commits
@@ -121,4 +125,4 @@ chore: configura postgres
 
 ## Estado
 
-En desarrollo. Está listo el backend base: base de datos, migraciones, datos de referencia y pruebas. Todavía no hay calculadoras ni frontend.
+En desarrollo. Están listos el backend base (base de datos, migraciones, datos de referencia y pruebas) y el frontend base (PWA instalable con la navegación entre secciones). Todavía no hay calculadoras.
