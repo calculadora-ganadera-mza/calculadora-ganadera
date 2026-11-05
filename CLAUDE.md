@@ -72,6 +72,13 @@ backend/
   pyproject.toml
   Dockerfile
 frontend/
+  src/
+    views/          una pantalla por sección
+    components/     piezas reutilizables
+    router/         rutas
+    stores/         estado compartido (Pinia)
+    api/            pedidos al backend
+  public/           íconos de la PWA
 docs/
 docker-compose.yml
 .env.example
@@ -122,5 +129,8 @@ Traducción fija de los términos del dominio. El código usa la columna de la d
 - Migraciones: `docker compose run --rm backend alembic upgrade head`
 - Pruebas: `docker compose run --rm backend pytest`
 - Formato: `ruff check . && ruff format .` dentro de `backend/`
+- Pruebas del frontend: `npm run test:unit` dentro de `frontend/`
+- Lint y formato del frontend: `npm run lint` y `npm run format` dentro de `frontend/`
+- Tipos del frontend: `npm run type-check` dentro de `frontend/`
 
 (Actualizar esta sección si los comandos cambian.)
