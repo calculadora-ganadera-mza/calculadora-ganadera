@@ -81,6 +81,10 @@ jobs:
         if: hashFiles('frontend/package.json') != ''
         run: npm run lint
 
+      - name: Formato
+        if: hashFiles('frontend/package.json') != ''
+        run: npm run format:check
+
       - name: Chequeo de tipos
         if: hashFiles('frontend/package.json') != ''
         run: npm run type-check
