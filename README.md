@@ -22,7 +22,7 @@ App de seguimiento del ciclo ganadero: cría, recría y engorde.
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - [uv](https://docs.astral.sh/uv/getting-started/installation/), solo para instalar el pre-commit
-- [Node 24](https://nodejs.org/), solo si se trabaja en el frontend fuera de Docker (para que el editor, eslint y las pruebas anden en la compu)
+- [Node 24](https://nodejs.org/), solo para desarrollar el frontend fuera de Docker (editor, eslint y pruebas locales)
 
 ### Primera vez
 
@@ -73,8 +73,10 @@ El backend y el frontend se recargan solos al guardar cambios en `backend/` o `f
 Cuando alguien modifica `backend/pyproject.toml` o `frontend/package.json`, hay que reconstruir las imágenes:
 
 ```
-docker compose up -d --build
+docker compose up -d --build -V
 ```
+
+`-V` recrea el volumen de `node_modules` del frontend, para que tome las dependencias nuevas.
 
 ### Empezar de cero con la base
 

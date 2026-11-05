@@ -10,7 +10,7 @@ export default defineConfig({
   plugins: [
     vue(),
     vueDevTools(),
-    // Hace la app instalable en el celular y la actualiza sola cuando hay una versión nueva
+    // PWA: app instalable con actualización automática
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'icon.svg'],
@@ -43,7 +43,7 @@ export default defineConfig({
     },
   },
   server: {
-    // Los pedidos a /api van al backend, así el navegador no los bloquea por venir de otro puerto
+    // Reenvía /api al backend para evitar el bloqueo por CORS
     proxy: {
       '/api': {
         target: process.env.API_PROXY_TARGET ?? 'http://localhost:8000',
@@ -51,7 +51,7 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
-    // En Docker sobre Windows los cambios de archivos solo se detectan revisando cada tanto
+    // En Docker sobre Windows, los cambios se detectan por sondeo (polling)
     watch: {
       usePolling: process.env.WATCH_POLLING === 'true',
     },

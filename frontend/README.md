@@ -4,7 +4,7 @@ Vue 3 + Vite + TypeScript, con Pinia, Vue Router, vite-plugin-pwa y Vitest.
 
 ## Requisitos
 
-Con `docker compose up` desde la raíz del repositorio, la app queda en http://localhost:5173 sin instalar nada más.
+Con `docker compose up` desde la raíz del repositorio, la app queda en http://localhost:5173 sin instalaciones adicionales.
 
 Para trabajar fuera de Docker hace falta Node 24 (la misma versión que usa el CI). Con versiones anteriores a 22.19 las pruebas no arrancan.
 
@@ -18,7 +18,7 @@ Dentro de `frontend/`:
 | `npm run dev` | Levanta la app en http://localhost:5173 |
 | `npm run lint` | Revisa el código con eslint |
 | `npm run format` | Da formato al código con prettier |
-| `npm run format:check` | Revisa el formato sin cambiar nada (lo usa el CI) |
+| `npm run format:check` | Verifica el formato sin modificar archivos (lo usa el CI) |
 | `npm run type-check` | Revisa los tipos |
 | `npm run test:unit` | Corre las pruebas |
 | `npm run build` | Arma la versión para publicar en `dist/` |
