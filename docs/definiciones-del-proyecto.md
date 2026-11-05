@@ -1,6 +1,6 @@
 # Definiciones del proyecto
 
-Calculadora ganadera · actualizado al 20 de octubre de 2026
+Calculadora ganadera · actualizado al 4 de noviembre de 2026
 
 Este documento reúne las decisiones vigentes del proyecto. Es la referencia del equipo: si otro documento lo contradice, vale este.
 
@@ -36,16 +36,16 @@ Los datos no pertenecen a ninguna calculadora. Viven en cuatro niveles, y las ca
 
 | Nivel | Qué es | Qué guarda |
 |---|---|---|
-| Escenario | El establecimiento. | Nombre, zona y ubicación. |
+| Escenario | El establecimiento. | Nombre y ubicación. |
 | Unidad productiva | Un sector del campo que se usa para cría, recría o engorde. | Ambiente, polígono, superficie y aguadas. |
-| Campaña | Un ciclo anual del establecimiento. | Fecha de inicio y de fin, y precipitación registrada (opcional). |
-| Rodeo de la campaña | Los animales de una unidad en una campaña. | Cantidad por categoría, período de entore, estado del campo, porcentajes de reposición y de destete, y condición corporal al parto. |
+| Campaña | Un ciclo anual del establecimiento. | Fecha de inicio y de fin, y lluvia de la campaña anterior (opcional). |
+| Rodeo de la campaña | Los animales de una unidad en una campaña. | Cantidad por categoría, período de entore, estado del campo, porcentajes de reposición y de destete, destete precoz, suplementación y condición corporal al parto. |
 
-- **Zona:** una de las seis subzonas de la llanura, que se elige de una lista. Cada subzona tiene su lluvia media y su lluvia confiable.
-- **Categorías del rodeo:** el productor carga la cantidad de cada categoría de animal que tenga la unidad: vacas, toros, vaquillonas, terneros, novillitos u otras. Las categorías salen de una tabla que mantiene el administrador. No hace falta indicar para qué se usa la unidad.
+- **Categorías del rodeo:** el productor carga la cantidad de cada categoría de animal que tenga la unidad: vacas, toros, vaquillonas, novillos de recría u otras. Las categorías salen de una tabla que mantiene el administrador. No hace falta indicar para qué se usa la unidad.
+- **Terneros:** no se cargan. La aplicación los calcula a partir de las vacas.
 - **Rodeo por unidad:** el productor puede repartir su hacienda entre varias unidades. Cada cálculo se hace sobre el rodeo de esa unidad, no sobre el total del establecimiento.
 - **Subdivisión interna:** si una unidad se divide en lotes y el rodeo rota entre ellos, se carga como una sola unidad. La rotación es manejo del productor y no cambia los cálculos.
-- **Precipitación de la campaña:** es opcional y queda como historial. Los cálculos usan la lluvia confiable de la subzona.
+- **Precipitación de la campaña:** es la lluvia de la campaña anterior, en mm. Es opcional al guardar, pero la Receptividad la necesita para calcular.
 - **Histórico:** un escenario acumula campañas. Las campañas anteriores no se modifican.
 - **Meses de la campaña:** Pendiente.
 
@@ -73,14 +73,14 @@ Son cuatro, independientes entre sí, y se pueden usar en cualquier orden. Ningu
 ### Receptividad ganadera y tamaño del rodeo
 
 - **Unidad de trabajo:** todo se expresa en equivalentes vaca (EV).
-- **Receptividad:** se calcula con el método de Guevara y otros (IADIZA, 1995), a partir de la lluvia confiable de la subzona. Después se corrige por estado del campo y por tecnologías de manejo.
+- **Receptividad:** se calcula con el método de Guevara y otros (IADIZA, 1995), a partir de la lluvia de la campaña anterior. Después se corrige por estado del campo, destete precoz y suplementación.
 - **Otra lluvia:** si el año viene distinto, el productor puede simular con otra precipitación sin modificar sus datos.
 - **Límite por pasto:** superficie aprovechable dividida por la receptividad.
 - **Límite por agua:** se calcula cuánta agua necesita el rodeo del límite por pasto, categoría por categoría. Si las aguadas cubren un porcentaje de esa necesidad, el límite por agua es ese mismo porcentaje del límite por pasto.
 - **Rodeo máximo:** el menor entre el límite por pasto y el límite por agua. Se informa desglosado por categoría.
 - **Sin dato de agua:** si no se cargó cuánto reponen las aguadas, se usa solo el límite por pasto y se aclara que el agua no se evaluó.
 - **Termómetro de carga:** compara el rodeo actual, en EV, con el rodeo máximo. Va en esta calculadora.
-- **Índices por estado del campo y por tecnología de manejo:** Pendiente.
+- **Índices por estado del campo, destete precoz y suplementación:** Pendiente.
 
 ### Proyección del estado del rodeo
 
@@ -121,14 +121,24 @@ Todos son parámetros: el administrador los puede cambiar sin tocar el código.
 | Eficiencia de uso de la lluvia | 2,15 kg MS por ha por mm en herbáceas y 1,4 en leñosas | Guevara y otros (1995) |
 | Forraje accesible | 80% de las herbáceas y 50% de las leñosas | Guevara y otros (1995) |
 | Factor de uso del forraje | 30% | Guevara y otros (1995) y clúster |
-| Lluvia media y confiable | Por subzona de la llanura (A a F) | Guevara y otros (1995) |
 | Consumo de agua de un animal adulto | 70 litros por día en verano y 35 a 40 en invierno | Clúster |
-| Consumo de agua por categoría | Tabla por categoría, en verano y en invierno | Clúster |
-| Toros por vaca | 4 a 5 cada 100 vacas, hasta 6 o 7 en el noreste | Clúster |
+| Consumo de agua por categoría | Punto medio de cada rango de la tabla del clúster. Provisorio, a confirmar con una fuente local. | Clúster |
+| Toros por vaca | 4,5 cada 100 vacas por defecto. El clúster indica de 4 a 5, y hasta 6 o 7 en el noreste; 4,5 es el punto medio elegido por el equipo. Es el único parámetro que el productor puede cambiar desde la calculadora. | Clúster |
 | Consumo diario en corral | 3,5% del peso vivo | Clúster |
 
 El equivalente vaca incluye el consumo del ternero hasta los 6 meses.
-El consumo de cada categoría se obtiene multiplicando su equivalencia en EV por el consumo de un EV. No se guarda aparte, para que cambiar el consumo de un EV actualice todas las categorías.
+
+**Consumo por categoría:** no se guarda. Se calcula como equivalencia en EV de la categoría × consumo anual de un EV, así que si cambia el consumo del EV cambian todas las categorías.
+
+**Categorías cargadas.** Las equivalencias en EV y el agua son provisorias: las equivalencias son valores habituales que el clúster todavía no confirmó.
+
+| Categoría | EV | Agua en verano (l/día) | Agua en invierno (l/día) |
+|---|---|---|---|
+| Vaca | 1,0 | 70 | 37,5 |
+| Toro | 1,3 | 65 | 30 |
+| Vaquillona | 0,7 | 42,5 | 20 |
+| Ternero (destetado) | 0,5 | 25 | 12,5 |
+| Novillo de recría | 0,8 | 42,5 | 20 |
 
 ## 8. Costos y margen
 
@@ -197,25 +207,34 @@ En el celular la navegación va en una barra inferior. En la computadora, en un 
 
 - **Sin conexión:** por ahora no se calcula sin conexión.
 - **Panel de administración:** pantallas propias dentro de la aplicación.
-- **Nombres en el código:** por ahora en español. Se pasan al inglés más adelante.
+- **Idioma del código:** todo el código va en inglés: tablas, columnas, tipos enumerados y sus valores, variables, funciones, clases, archivos, rutas de la API y claves del JSON. En español van los comentarios, los docstrings y todo texto que lee una persona (mensajes de error, textos en pantalla, logs, descripciones de parámetros). Los términos del dominio se traducen siempre igual, según el glosario de `CLAUDE.md`.
 - **Despliegue:** el desarrollo es local y el despliegue se hace al final.
 
-## 14. Forma de trabajo
+## 14. Reglas del modelo de datos
+
+- **Campañas:** dos campañas del mismo escenario no se pueden superponer en fechas.
+- **Rodeo de la campaña:** la campaña y la unidad productiva tienen que ser del mismo escenario. Hay un solo rodeo por unidad y por campaña.
+- **Superficie de la unidad:** la calcula la base a partir del polígono. Nunca se carga a mano.
+- **Porcentajes de reposición y de destete:** se guardan como fracción entre 0 y 1. En pantalla se muestran como porcentaje.
+- **Período de entore:** se carga completo, con inicio y fin, o no se carga.
+- **Condición corporal al parto:** entre 1 y 5.
+- **Terneros:** no se cargan.
+
+## 15. Forma de trabajo
 
 - **Equipo:** tres desarrolladores y un scrum master.
 - **Repositorio:** uno solo, con `backend/`, `frontend/` y `docs/`.
 - **Ramas y pull requests:** según el `README.md` del repositorio.
 - **Código:** se escribe con Claude Code, a partir de un documento de contexto con estas definiciones.
 
-## 15. Para más adelante
+## 16. Para más adelante
 
 - **Malargüe y el oeste:** se suman cuando haya datos de receptividad.
-- **Selección de la subzona en un mapa:** con un clic sobre la división, en lugar de la lista.
 - **Lluvia mensual:** que el productor cargue cada mes y la aplicación sume el total de la campaña.
 - **Vista del establecimiento completo:** el rodeo máximo total de todas las unidades frente al rodeo total.
 - **Bajo riego y dieta por etapas:** se suman al modelo de datos cuando estén definidos.
 
-## 16. Fuera de esta etapa
+## 17. Fuera de esta etapa
 
 - Otras especies además de bovinos.
 - Servicio continuo, con toro todo el año.

@@ -38,6 +38,24 @@ Si algo no está definido en esos documentos, no inventarlo: preguntar.
 - Cada cálculo guardado registra los parámetros con los que se hizo.
 - Superficies y distancias se calculan con PostGIS sobre `geography`, no en Python.
 
+## Principios de programación
+
+Todo el código y sus revisiones siguen estos principios:
+
+- **KISS:** la solución más simple que funcione.
+- **DRY:** cada dato o regla vive en un solo lugar.
+- **YAGNI:** no construir algo hasta que haga falta.
+- **SOLID:** responsabilidad única, abierto/cerrado, sustitución de Liskov, segregación de interfaces e inversión de dependencias.
+- **Separación de responsabilidades:** cada parte se ocupa de una sola cosa.
+- **Bajo acoplamiento y alta cohesión:** las partes dependen poco entre sí, y lo que está junto tiene relación.
+- **Composición antes que herencia:** combinar piezas en vez de armar jerarquías de clases.
+- **Fallar rápido:** un error se detecta lo antes posible, sin seguir con datos inválidos.
+- **Menor sorpresa:** el código hace lo que su nombre sugiere.
+- **12-factor:** la app se configura desde el entorno y se despliega igual en todos lados ([12factor.net](https://12factor.net)).
+- **Mínimo privilegio:** cada usuario y cada servicio accede solo a lo que necesita.
+
+Si dos principios chocan, KISS y YAGNI le ganan a DRY: algo se unifica recién cuando se repite por tercera vez.
+
 ## Estructura del repositorio
 
 ```
@@ -77,8 +95,6 @@ Traducción fija de los términos del dominio. El código usa la columna de la d
 |---|---|
 | usuario | `app_user` (clase `User`; `user` es palabra reservada en Postgres) |
 | rol: productor / técnico / administrador | `role`: `producer` / `technician` / `admin` |
-| zona, subzona | `zone` |
-| lluvia media / confiable | `mean_rainfall_mm` / `reliable_rainfall_mm` |
 | categoría animal | `animal_category` |
 | EV (equivalente vaca) | `cow_equivalent` |
 | consumo de materia seca (MS) | `dm_intake_kg_year` |

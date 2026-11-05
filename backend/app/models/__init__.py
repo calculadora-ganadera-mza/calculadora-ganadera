@@ -8,7 +8,6 @@ from app.models.scenario import Scenario
 from app.models.season import Season
 from app.models.user import User
 from app.models.water_point import WaterPoint
-from app.models.zone import Zone
 
 __all__ = [
     "AnimalCategory",
@@ -21,5 +20,4 @@ __all__ = [
     "Season",
     "User",
     "WaterPoint",
-    "Zone",
 ]

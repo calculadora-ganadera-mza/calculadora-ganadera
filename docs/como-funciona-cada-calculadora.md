@@ -1,6 +1,6 @@
 # Cómo funciona cada calculadora
 
-Calculadora ganadera · actualizado al 20 de octubre de 2026
+Calculadora ganadera · actualizado al 4 de noviembre de 2026
 
 Las decisiones generales (guardado, simulación, costos, ambientes) están en `definiciones-del-proyecto`. Los valores de referencia y su origen están en la sección 7 de ese documento.
 
@@ -22,20 +22,19 @@ Común a las cuatro:
 
 | Origen | Datos |
 |---|---|
-| Del escenario | Subzona, con su lluvia confiable. |
 | Del mapa | Polígono de la unidad. Aguadas, con los litros que repone cada una por día (opcional). |
-| De la campaña | Estado del campo. Cantidad por categoría de animal. Porcentaje de reposición. Porcentaje de destete. |
-| Se carga en la calculadora | Tecnologías de manejo que aplica: suplementación, destete precoz. Toros por vaca. Precipitación, solo si se quiere simular otra lluvia. |
-| Del sistema | Eficiencia de uso de la lluvia: 2,15 kg MS/ha/mm en herbáceas y 1,4 en leñosas. Forraje accesible: 80% de las herbáceas y 50% de las leñosas. Factor de uso: 30%. Consumo de un EV: 3.285 kg MS por año. Índice por estado del campo. Índice por tecnología de manejo. Alcance de las aguadas: 2,5 km. Equivalencias en EV y consumo de agua de cada categoría. |
+| De la campaña | Lluvia de la campaña anterior. Estado del campo. Cantidad por categoría de animal. Porcentaje de reposición. Porcentaje de destete. Destete precoz y suplementación, marcados o no. |
+| Se carga en la calculadora | Toros por vaca. Precipitación, solo si se quiere simular otra lluvia. |
+| Del sistema | Eficiencia de uso de la lluvia: 2,15 kg MS/ha/mm en herbáceas y 1,4 en leñosas. Forraje accesible: 80% de las herbáceas y 50% de las leñosas. Factor de uso: 30%. Consumo de un EV: 3.285 kg MS por año. Índice por estado del campo. Índice por destete precoz. Índice por suplementación. Alcance de las aguadas: 2,5 km. Equivalencias en EV y consumo de agua de cada categoría. |
 
 ### Cómo calcula
 
 1. **Superficie aprovechable:** intersección entre el polígono y los círculos de 2,5 km alrededor de cada aguada. Las superposiciones se cuentan una sola vez.
-2. **Forraje producido (kg MS por ha por año):** lluvia × 2,15 para herbáceas, y lluvia × 1,4 para leñosas. La lluvia es la confiable de la subzona, o la que cargue el productor si está simulando.
+2. **Forraje producido (kg MS por ha por año):** lluvia × 2,15 para herbáceas, y lluvia × 1,4 para leñosas. La lluvia es la de la campaña anterior, o la que cargue el productor si está simulando.
 3. **Forraje disponible:** 80% de las herbáceas + 50% de las leñosas.
 4. **Forraje consumible:** 30% del disponible.
 5. **Receptividad base (ha por EV):** consumo anual de un EV ÷ forraje consumible.
-6. **Receptividad corregida:** la base, corregida por el índice del estado del campo y el índice de cada tecnología de manejo elegida.
+6. **Receptividad corregida:** la base, corregida por los índices de estado del campo, destete precoz y suplementación, multiplicados entre sí. Los de destete precoz y suplementación se aplican solo si están marcados.
 7. **Límite por pasto (EV):** superficie aprovechable ÷ receptividad corregida.
 8. **Composición del límite por pasto:** el total en EV se reparte por categoría según toros por vaca, porcentaje de reposición, porcentaje de destete y las equivalencias de cada categoría.
 9. **Necesidad de agua:** con esa composición, litros por día que necesita el rodeo, en verano y en invierno, sumando el consumo de cada categoría.
@@ -59,7 +58,7 @@ Si no se cargaron los litros que reponen las aguadas, se omiten los pasos 9 y 10
 
 ### Pendientes
 
-- Índices de corrección por estado del campo y por tecnología de manejo.
+- Índices de corrección por estado del campo, destete precoz y suplementación.
 - Cómo se calcula en bajo riego.
 
 ---
@@ -74,15 +73,14 @@ Si no se cargaron los litros que reponen las aguadas, se omiten los pasos 9 y 10
 
 | Origen | Datos |
 |---|---|
-| Del escenario | Subzona, con su lluvia confiable. |
 | Del mapa | Superficie aprovechable. |
-| De la campaña | Cantidad por categoría de animal. Período de entore. Estado del campo. Condición corporal al parto. Porcentaje de destete del año anterior. |
+| De la campaña | Lluvia de la campaña anterior. Cantidad por categoría de animal. Período de entore. Estado del campo. Condición corporal al parto. Porcentaje de destete del año anterior. |
 | Se carga en la calculadora | Condición corporal buscada al entore. Precipitación, solo si se quiere simular otra lluvia. |
 | Del sistema | Coeficientes del método de Guevara (los mismos de la Receptividad). Períodos forrajeros y porcentaje de producción de cada uno. Consumo de cada categoría. Consumo de una vaca vacía: 2.268 kg de MS por año. Consumo de una vaca con cría: 3.285 kg de MS por año. Gestación: 283 días. Equivalencia de condición corporal: medio punto = 15 kg. Umbrales del semáforo. |
 
 ### Cómo calcula
 
-1. **Producción anual de pasto consumible:** con el mismo método de la Receptividad (lluvia confiable de la subzona, eficiencia de uso, forraje accesible y factor de uso del 30%), sobre la superficie aprovechable y corregida por el estado del campo.
+1. **Producción anual de pasto consumible:** con el mismo método de la Receptividad (lluvia de la campaña anterior, eficiencia de uso, forraje accesible y factor de uso del 30%), sobre la superficie aprovechable y corregida por el estado del campo.
 2. **Oferta por período:** la producción anual se reparte según el porcentaje de cada período forrajero. Los períodos tienen resolución variable: cercana a mensual desde octubre o noviembre y cercana a trimestral desde mayo o junio.
 3. **Calendario del rodeo:** desde el período de entore se ubican la preñez, el parto (inicio del entore + 283 días), la lactancia y el período vacío.
 4. **Vacas con cría:** cantidad de vacas × porcentaje de destete del año anterior. El resto se considera vacío durante la lactancia.
