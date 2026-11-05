@@ -15,7 +15,6 @@ from app.models import (
     Season,
     User,
     WaterPoint,
-    Zone,
 )
 from app.models.enums import ProductionSystem, RangeCondition
 
@@ -32,8 +31,7 @@ def herd(session: Session) -> HerdSeason:
     session.add(user)
     session.flush()
 
-    zone = session.scalars(select(Zone).where(Zone.name == "Subzona A")).one()
-    scenario = Scenario(user_id=user.id, zone_id=zone.id, name="Campo")
+    scenario = Scenario(user_id=user.id, name="Campo")
     session.add(scenario)
     session.flush()
 
@@ -82,7 +80,6 @@ def cows(session: Session, herd: HerdSeason) -> HerdCategory:
 def test_seed_data_is_loaded(session: Session):
     keys = set(session.scalars(select(Parameter.key)))
 
-    assert session.scalar(select(func.count()).select_from(Zone)) == 6
     assert session.scalar(select(func.count()).select_from(AnimalCategory)) == 5
     assert "cow_equivalent_dm_intake_kg_year" in keys
 

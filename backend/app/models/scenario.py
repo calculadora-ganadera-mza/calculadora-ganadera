@@ -12,7 +12,6 @@ class Scenario(Base):
     user_id: Mapped[int] = mapped_column(
         ForeignKey("app_user.id", ondelete="CASCADE"), index=True
     )
-    zone_id: Mapped[int] = mapped_column(ForeignKey("zone.id"), index=True)
     name: Mapped[str]
     location: Mapped[WKBElement | None] = mapped_column(Geometry("POINT", srid=4326))
     created_at: Mapped[CreatedAt]
