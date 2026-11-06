@@ -1,7 +1,7 @@
-from fastapi import Depends
-from typing import Annotated
 from collections.abc import Iterator
+from typing import Annotated
 
+from fastapi import Depends
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -15,7 +15,9 @@ engine = create_engine(
     pool_timeout=settings.DB_POOL_TIMEOUT,
     pool_recycle=settings.DB_POOL_RECYCLE,
     pool_pre_ping=True,
-    connect_args={"options": f"-c idle_in_transaction_session_timeout={settings.DB_IDLE_IN_TX_TIMEOUT_MS}"},
+    connect_args={"options": f"-c idle_in_transaction_session_timeout={
+        settings.DB_IDLE_IN_TX_TIMEOUT_MS}"
+    },
 )
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 

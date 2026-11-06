@@ -1,7 +1,8 @@
-from app.repositories.user import UserRepository
-from app.models.user import User
-from app.schemas.user import UserCreate, UserPublic
 from app.core.db import SessionDep
+from app.models.user import User
+from app.repositories.user import UserRepository
+from app.schemas.user import UserPublic
+
 
 class UserService:
     def __init__(self, session: SessionDep):

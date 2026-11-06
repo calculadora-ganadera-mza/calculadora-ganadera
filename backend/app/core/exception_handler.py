@@ -1,7 +1,14 @@
-from fastapi.exceptions import HTTPException
-from app.exceptions import LoginError, RegisterError, NotFoundError, UnauthorizedError, ForbiddenError, CredentialsError, AppError
-from fastapi import Request, FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+
+from app.exceptions import (
+    AppError,
+    CredentialsError,
+    ForbiddenError,
+    LoginError,
+    NotFoundError,
+    RegisterError,
+)
 
 ERROR_STATUS = {
     LoginError: 401,

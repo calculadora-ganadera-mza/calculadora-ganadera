@@ -1,9 +1,11 @@
-from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from app.core.exception_handler import register_exception_handlers
+
+from fastapi import FastAPI
+
+from app.api import auth, health
 from app.core.db import create_db_and_tables
-from app.api import health
-from app.api import auth
+from app.core.exception_handler import register_exception_handlers
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

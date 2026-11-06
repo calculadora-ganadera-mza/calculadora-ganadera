@@ -60,12 +60,7 @@ const items = [
 
 <template>
   <nav class="app-nav" aria-label="Secciones">
-    <details
-      ref="accountMenu"
-      class="brand"
-      @focusout="onFocusOut"
-      @keydown.esc="closeMenu"
-    >
+    <details ref="accountMenu" class="brand" @focusout="onFocusOut" @keydown.esc="closeMenu">
       <summary aria-label="Menú de cuenta">
         <img :src="appIcon" alt="" width="32" height="32" />
         <span>Calculadora ganadera</span>
