@@ -16,7 +16,8 @@ ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 def pytest_configure(config: pytest.Config) -> None:
     # Las pruebas usan una base aparte (<base>_test) para no tocar la de
     # desarrollo. Se cambia acá porque la app lee el nombre cuando se importa.
-    os.environ["DB_DATABASE"] += "_test"
+    settings.db_database += "_test"
+    os.environ["DB_DATABASE"] = settings.db_database
 
 
 @pytest.fixture(scope="session")

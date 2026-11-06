@@ -20,5 +20,11 @@ class Settings(BaseSettings):
             database=self.db_database,
         )
 
+    jwt_secret_key: str
+    access_token_minutes: int = 15
+    refresh_token_days: int = 7
+    auth_cookie_secure: bool = False
+    auth_allowed_origins: list[str]
+
 
 settings = Settings()
