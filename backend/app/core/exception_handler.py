@@ -18,6 +18,7 @@ ERROR_STATUS = {
     ForbiddenError: 403,
 }
 
+
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def exception_handler(request: Request, exc: AppError):
@@ -30,4 +31,3 @@ def register_exception_handlers(app: FastAPI) -> None:
                 }
             },
         )
-        

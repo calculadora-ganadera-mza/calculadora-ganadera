@@ -6,9 +6,11 @@ class AppError(Exception):
         self.message = message or self.message
         super().__init__(self.message)
 
+
 class LoginError(AppError):
     code = "LOGIN_ERROR"
     message = "User not found or password is incorrect"
+
 
 class RegisterError(AppError):
     code = "REGISTER_ERROR"
@@ -18,6 +20,7 @@ class RegisterError(AppError):
 class NotFoundError(AppError):
     code = "NOT_FOUND"
     message = "Not found"
+
 
 class CredentialsError(AppError):
     code = "CREDENTIALS_ERROR"
@@ -32,5 +35,3 @@ class UnauthorizedError(AppError):
 class ForbiddenError(AppError):
     code = "FORBIDDEN_ERROR"
     message = "Forbidden"
-
-

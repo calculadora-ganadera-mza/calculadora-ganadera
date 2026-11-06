@@ -11,7 +11,8 @@ from app.core.exception_handler import register_exception_handlers
 async def lifespan(app: FastAPI):
     create_db_and_tables()
     yield
-    
+
+
 app = FastAPI(title="Calculadora Ganadera", lifespan=lifespan)
 register_exception_handlers(app)
 

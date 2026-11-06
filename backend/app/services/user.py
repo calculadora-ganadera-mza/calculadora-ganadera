@@ -7,7 +7,7 @@ from app.schemas.user import UserPublic
 class UserService:
     def __init__(self, session: SessionDep):
         self.user_repository = UserRepository(session)
-    
+
     def create_user(self, user: User) -> UserPublic:
         return self.user_repository.create_user(user)
 

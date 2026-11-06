@@ -6,7 +6,7 @@ from app.models.user import User
 
 class UserRepository:
     def __init__(self, session: SessionDep):
-        self.session = session   
+        self.session = session
 
     def create_user(self, user: User) -> User:
         self.session.add(user)
@@ -15,12 +15,15 @@ class UserRepository:
         return user
 
     def get_user_by_email(self, email: str) -> User | None:
-        return self.session.execute(
-            select(User).where(User.email == email)
-        ).scalars().first()
+        return (
+            self.session.execute(select(User).where(User.email == email))
+            .scalars()
+            .first()
+        )
 
     def get_user_by_id(self, user_id: int) -> User | None:
-        return self.session.execute(
-            select(User).where(User.id == user_id)
-        ).scalars().first()
-        
+        return (
+            self.session.execute(select(User).where(User.id == user_id))
+            .scalars()
+            .first()
+        )

@@ -25,11 +25,12 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_DAYS: int = 7
     AUTH_COOKIE_SECURE: bool = False
     AUTH_ALLOWED_ORIGINS: list[str]
-    
+
     DB_POOL_SIZE: int = 20
     DB_MAX_OVERFLOW: int = 20
     DB_POOL_TIMEOUT: float = 5
     DB_POOL_RECYCLE: int = 1800
     DB_IDLE_IN_TX_TIMEOUT_MS: int = 60000
+
 
 settings = Settings()
