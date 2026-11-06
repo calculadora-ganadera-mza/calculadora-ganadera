@@ -35,6 +35,8 @@ jobs:
       DB_HOST: localhost
       DB_PORT: 5432
       DB_DATABASE: calculadora_ganadera
+      JWT_SECRET_KEY: "ci-test-secret-key-calculadora-ganadera-2026"
+      AUTH_ALLOWED_ORIGINS: '["http://localhost:5173"]'
 
     steps:
       - uses: actions/checkout@v7
