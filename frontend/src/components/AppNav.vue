@@ -1,5 +1,34 @@
 <script setup lang="ts">
-import { RouterLink } from 'vue-router'
+import { ref } from 'vue'
+import { RouterLink, useRouter } from 'vue-router'
+import { logout } from '../api/auth'
+
+const router = useRouter()
+const accountMenu = ref<HTMLDetailsElement>()
+const loggingOut = ref(false)
+const logoutError = ref('')
+
+function closeMenu() {
+  if (accountMenu.value) accountMenu.value.open = false
+}
+
+function onFocusOut(event: FocusEvent) {
+  if (!accountMenu.value?.contains(event.relatedTarget as Node | null)) closeMenu()
+}
+
+async function signOut() {
+  loggingOut.value = true
+  logoutError.value = ''
+  try {
+    await logout()
+    closeMenu()
+    await router.replace('/login')
+  } catch {
+    logoutError.value = 'No se pudo cerrar sesión. Intentá de nuevo.'
+  } finally {
+    loggingOut.value = false
+  }
+}
 
 // Ícono de la app, servido desde public/
 const appIcon = '/icon.svg'
@@ -31,10 +60,23 @@ const items = [
 
 <template>
   <nav class="app-nav" aria-label="Secciones">
-    <div class="brand">
-      <img :src="appIcon" alt="" width="32" height="32" />
-      <span>Calculadora ganadera</span>
-    </div>
+    <details
+      ref="accountMenu"
+      class="brand"
+      @focusout="onFocusOut"
+      @keydown.esc="closeMenu"
+    >
+      <summary aria-label="Menú de cuenta">
+        <img :src="appIcon" alt="" width="32" height="32" />
+        <span>Calculadora ganadera</span>
+      </summary>
+      <div class="account-menu">
+        <button type="button" :disabled="loggingOut" @click="signOut">
+          {{ loggingOut ? 'Cerrando sesión…' : 'Cerrar sesión' }}
+        </button>
+        <p v-if="logoutError" role="alert">{{ logoutError }}</p>
+      </div>
+    </details>
     <RouterLink v-for="item in items" :key="item.to" :to="item.to" class="nav-link">
       <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
         <path
@@ -66,7 +108,65 @@ const items = [
 }
 
 .brand {
+  position: relative;
+  align-self: center;
+  padding: 8px;
+}
+
+.brand summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.brand summary::-webkit-details-marker {
   display: none;
+}
+
+.brand summary span {
+  display: none;
+}
+
+.account-menu {
+  position: absolute;
+  bottom: 100%;
+  left: 8px;
+  width: 210px;
+  padding: 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+}
+
+.account-menu button {
+  width: 100%;
+  padding: 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.account-menu button:hover {
+  background: var(--color-hover);
+}
+
+.account-menu button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.account-menu p {
+  margin: 8px;
+  font-size: 0.85rem;
 }
 
 .nav-link {
@@ -100,12 +200,17 @@ const items = [
   }
 
   .brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    align-self: stretch;
     padding: 0 8px 20px;
-    font-weight: 700;
-    color: var(--color-text);
+  }
+
+  .brand summary span {
+    display: inline;
+  }
+
+  .account-menu {
+    top: calc(100% - 12px);
+    bottom: auto;
   }
 
   .nav-link {

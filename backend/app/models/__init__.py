@@ -1,3 +1,4 @@
+from app.models.refresh_session import RefreshSession
 from app.models.animal_category import AnimalCategory
 from app.models.base import Base
 from app.models.herd_category import HerdCategory
@@ -12,6 +13,7 @@ from app.models.water_point import WaterPoint
 __all__ = [
     "AnimalCategory",
     "Base",
+    "RefreshSession",
     "HerdCategory",
     "HerdSeason",
     "Parameter",
