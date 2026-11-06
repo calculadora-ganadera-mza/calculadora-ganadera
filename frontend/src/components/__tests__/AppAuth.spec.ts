@@ -1,3 +1,4 @@
+import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import App from '../../App.vue'
@@ -8,6 +9,8 @@ afterEach(() => vi.unstubAllGlobals())
 
 describe('authenticated application', () => {
   it('only shows login to signed-out users and protects direct navigation', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
     vi.stubGlobal(
       'fetch',
       vi
@@ -21,7 +24,7 @@ describe('authenticated application', () => {
 
     await router.push('/farm')
     await router.isReady()
-    const wrapper = mount(App, { global: { plugins: [router] } })
+    const wrapper = mount(App, { global: { plugins: [pinia, router] } })
     expect(router.currentRoute.value.path).toBe('/login')
     expect(wrapper.find('.auth-form').exists()).toBe(true)
     expect(wrapper.find('.app-nav').exists()).toBe(false)

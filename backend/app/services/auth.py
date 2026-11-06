@@ -10,10 +10,10 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.jwt import create_access_token
+from app.core.password import hash_password, verify_password
 from app.models.refresh_session import RefreshSession
 from app.models.user import User
 from app.schemas.user import UserCreate
-from app.utils.password import hash_password, verify_password
 
 
 def token_hash(token: str) -> str:
@@ -38,20 +38,16 @@ class AuthService:
                 token_hash=token_hash(refresh),
                 family_id=family_id or str(uuid4()),
                 expires_at=expires_at
-                or datetime.now(UTC) + timedelta(days=settings.REFRESH_TOKEN_DAYS),
+                or datetime.now(UTC) + timedelta(days=settings.refresh_token_days),
                 revoked=False,
             )
         )
         return access, refresh
 
     def login(self, email: str, password: str) -> tuple[str, str]:
-        user = self.session.scalar(select(User).where(User.email == email))
-        if (
-            not user
-            or not verify_password(password, user.password_hash)
-            or not user.is_active
-        ):
-            raise HTTPException(401, "Invalid credentials")
+        user = self.session.scalar(select(User).where(User.email == email.lower()))
+        if not user or not verify_password(password, user.password_hash):
+            raise HTTPException(401, "Credenciales inválidas")
         tokens = self.issue(user)
         self.session.commit()
         return tokens
@@ -59,7 +55,7 @@ class AuthService:
     def register(self, data: UserCreate) -> tuple[str, str]:
         user = User(
             name=data.name,
-            email=str(data.email),
+            email=str(data.email).lower(),
             password_hash=hash_password(data.password),
         )
         self.session.add(user)
@@ -70,14 +66,15 @@ class AuthService:
             return tokens
         except IntegrityError:
             self.session.rollback()
-            raise HTTPException(409, "Email already registered") from None
+            raise HTTPException(409, "El correo ya está registrado") from None
 
     def find_locked(self, token: str) -> RefreshSession | None:
         record = self.session.scalar(
             select(RefreshSession).where(RefreshSession.token_hash == token_hash(token))
         )
         if record:
-            # Lock the user first to serialize rotation and family revocation.
+            # Bloquea primero el usuario para serializar la rotación
+            # y la revocación de la familia.
             self.session.scalar(
                 select(User).where(User.id == record.user_id).with_for_update()
             )
@@ -94,20 +91,15 @@ class AuthService:
     def refresh(self, token: str) -> tuple[str, str]:
         record = self.find_locked(token)
         if record is None:
-            raise HTTPException(401, "Invalid refresh token")
+            raise HTTPException(401, "Token de renovación inválido")
         user = self.session.get(User, record.user_id)
         expiry = record.expires_at
         if expiry.tzinfo is None:
             expiry = expiry.replace(tzinfo=UTC)
-        if (
-            record.revoked
-            or expiry <= datetime.now(UTC)
-            or not user
-            or not user.is_active
-        ):
+        if record.revoked or expiry <= datetime.now(UTC) or not user:
             self.revoke_family(record.family_id)
             self.session.commit()
-            raise HTTPException(401, "Refresh session expired or revoked")
+            raise HTTPException(401, "La sesión de renovación venció o fue revocada")
         record.revoked = True
         tokens = self.issue(user, record.family_id, record.expires_at)
         self.session.commit()

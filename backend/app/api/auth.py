@@ -16,9 +16,9 @@ COOKIE = "refresh_token"
 
 
 def check_origin(request: Request) -> None:
-    # Browser clients must send an explicitly trusted Origin, including via proxy.
-    if request.headers.get("origin") not in settings.AUTH_ALLOWED_ORIGINS:
-        raise HTTPException(403, "Untrusted request origin")
+    # El navegador debe enviar un origen de confianza, incluso con un proxy.
+    if request.headers.get("origin") not in settings.auth_allowed_origins:
+        raise HTTPException(403, "Origen de la solicitud no permitido")
 
 
 def token_response(response: Response, tokens: tuple[str, str]) -> Token:
@@ -27,9 +27,9 @@ def token_response(response: Response, tokens: tuple[str, str]) -> Token:
         COOKIE,
         refresh,
         httponly=True,
-        secure=settings.AUTH_COOKIE_SECURE,
+        secure=settings.auth_cookie_secure,
         samesite="lax",
-        max_age=settings.REFRESH_TOKEN_DAYS * 86400,
+        max_age=settings.refresh_token_days * 86400,
         path="/",
     )
     response.headers["Cache-Control"] = "no-store"
@@ -61,7 +61,7 @@ def register(user: UserCreate, session: SessionDep, response: Response) -> Token
 def refresh(request: Request, response: Response, session: SessionDep) -> Token:
     token = request.cookies.get(COOKIE)
     if not token:
-        raise HTTPException(401, "Missing refresh token")
+        raise HTTPException(401, "Falta el token de renovación")
     return token_response(response, AuthService(session).refresh(token))
 
 
@@ -73,7 +73,7 @@ def logout(request: Request, response: Response, session: SessionDep) -> None:
     response.delete_cookie(
         COOKIE,
         path="/",
-        secure=settings.AUTH_COOKIE_SECURE,
+        secure=settings.auth_cookie_secure,
         httponly=True,
         samesite="lax",
     )

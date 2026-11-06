@@ -1,9 +1,6 @@
-import { computed, shallowRef } from 'vue'
+import { useAuthStore } from '../stores/auth'
 
 const API_BASE = '/api'
-const accessToken = shallowRef<string | null>(null)
-export const isAuthenticated = computed(() => accessToken.value !== null)
-export const authenticationRequired = shallowRef(false)
 let pendingRefresh: Promise<boolean> | null = null
 
 interface TokenResponse {
@@ -12,10 +9,10 @@ interface TokenResponse {
 }
 
 async function acceptToken(response: Response): Promise<void> {
-  if (!response.ok) throw new Error(`Authentication failed (${response.status})`)
+  if (!response.ok) throw new Error(`Falló la autenticación (${response.status})`)
   const token: TokenResponse = await response.json()
-  accessToken.value = token.access_token
-  authenticationRequired.value = false
+  useAuthStore().accessToken = token.access_token
+  useAuthStore().authenticationRequired = false
 }
 
 export async function login(email: string, password: string): Promise<void> {
@@ -56,7 +53,7 @@ export function restoreSession(): Promise<boolean> {
         )
         return true
       } catch {
-        accessToken.value = null
+        useAuthStore().accessToken = null
         return false
       } finally {
         pendingRefresh = null
@@ -67,35 +64,40 @@ export function restoreSession(): Promise<boolean> {
 }
 
 export async function logout(): Promise<void> {
-  // Finish any in-flight rotation before revoking its replacement.
+  // Espera la rotación en curso antes de revocar su reemplazo.
   if (pendingRefresh) await pendingRefresh
   const response = await fetch(`${API_BASE}/auth/logout`, {
     method: 'POST',
     credentials: 'include',
   })
-  if (!response.ok) throw new Error('Logout failed; please try again')
-  accessToken.value = null
-  authenticationRequired.value = false
+  if (!response.ok) throw new Error('No se pudo cerrar la sesión; intentá de nuevo')
+  useAuthStore().accessToken = null
+  useAuthStore().authenticationRequired = false
 }
 
-/** Relative API path; retries once and shares renewal between concurrent requests. */
+/** Ruta relativa de la API; reintenta una vez y comparte la renovación entre pedidos simultáneos. */
 export async function authenticatedFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  if (!path.startsWith('/') || path.startsWith('//')) throw new Error('Use a relative API path')
+  if (!path.startsWith('/') || path.startsWith('//'))
+    throw new Error('Usá una ruta relativa de la API')
   const send = () => {
     const headers = new Headers(init.headers)
-    if (accessToken.value) headers.set('Authorization', `Bearer ${accessToken.value}`)
+    if (useAuthStore().accessToken)
+      headers.set('Authorization', `Bearer ${useAuthStore().accessToken}`)
     return fetch(`${API_BASE}${path}`, { ...init, headers, credentials: 'include' })
   }
-  const originalToken = accessToken.value
+  const originalToken = useAuthStore().accessToken
   let response = await send()
   if (response.status === 401) {
-    // Another request may already have renewed while this response was in flight.
-    if ((accessToken.value && accessToken.value !== originalToken) || (await restoreSession())) {
+    // Otro pedido puede haber renovado el token mientras llegaba esta respuesta.
+    if (
+      (useAuthStore().accessToken && useAuthStore().accessToken !== originalToken) ||
+      (await restoreSession())
+    ) {
       response = await send()
     }
     if (response.status === 401) {
-      accessToken.value = null
-      authenticationRequired.value = true
+      useAuthStore().accessToken = null
+      useAuthStore().authenticationRequired = true
       window.dispatchEvent(new Event('auth:required'))
     }
   }

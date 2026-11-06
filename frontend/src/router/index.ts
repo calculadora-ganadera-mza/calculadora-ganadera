@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
-import { isAuthenticated } from '../api/auth'
+import { useAuthStore } from '../stores/auth'
 
 // Secciones de la app. El título se muestra en la pestaña del navegador.
 export const routes: RouteRecordRaw[] = [
@@ -48,8 +48,9 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  if (!isAuthenticated.value && to.name !== 'login') return { name: 'login', replace: true }
-  if (isAuthenticated.value && to.name === 'login') return { name: 'home', replace: true }
+  if (!useAuthStore().isAuthenticated && to.name !== 'login')
+    return { name: 'login', replace: true }
+  if (useAuthStore().isAuthenticated && to.name === 'login') return { name: 'home', replace: true }
 })
 
 router.afterEach((to) => {

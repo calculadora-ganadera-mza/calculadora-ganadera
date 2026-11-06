@@ -2,7 +2,10 @@
 import { RouterView } from 'vue-router'
 import AppNav from './components/AppNav.vue'
 import LoginView from './views/LoginView.vue'
-import { isAuthenticated } from './api/auth'
+import { storeToRefs } from 'pinia'
+import { useAuthStore } from './stores/auth'
+
+const { isAuthenticated } = storeToRefs(useAuthStore())
 </script>
 
 <template>

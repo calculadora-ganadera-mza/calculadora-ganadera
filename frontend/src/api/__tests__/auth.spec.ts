@@ -1,3 +1,5 @@
+import { createPinia, setActivePinia } from 'pinia'
+import { useAuthStore } from '../../stores/auth'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const tokenResponse = (token: string) =>
@@ -9,7 +11,9 @@ const tokenResponse = (token: string) =>
     { status: 200 },
   )
 
-beforeEach(() => vi.resetModules())
+beforeEach(() => {
+  setActivePinia(createPinia())
+})
 afterEach(() => vi.unstubAllGlobals())
 
 describe('authentication client', () => {
@@ -21,6 +25,8 @@ describe('authentication client', () => {
     vi.stubGlobal('fetch', fetch)
     const auth = await import('../auth')
     expect(await auth.restoreSession()).toBe(true)
+    expect(useAuthStore().accessToken).toBe('restored')
+    expect(useAuthStore().isAuthenticated).toBe(true)
     await auth.authenticatedFetch('/auth/me')
     expect(fetch.mock.calls[1]![1].headers.get('Authorization')).toBe('Bearer restored')
   })
@@ -54,7 +60,7 @@ describe('authentication client', () => {
     vi.stubGlobal('fetch', fetch)
     const auth = await import('../auth')
     expect((await auth.authenticatedFetch('/private')).status).toBe(401)
-    expect(auth.authenticationRequired.value).toBe(true)
+    expect(useAuthStore().authenticationRequired).toBe(true)
     expect(fetch).toHaveBeenCalledTimes(2)
   })
 })

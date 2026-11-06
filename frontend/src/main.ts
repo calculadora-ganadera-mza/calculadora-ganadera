@@ -15,7 +15,7 @@ window.addEventListener('auth:required', () => {
   void router.replace('/login')
 })
 
-// Restore the in-memory access token before protected views mount.
+// Restaura el token de acceso en memoria antes de montar las vistas protegidas.
 async function start() {
   await restoreSession()
   app.use(router)
