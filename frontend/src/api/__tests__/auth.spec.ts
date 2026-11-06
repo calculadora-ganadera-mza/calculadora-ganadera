@@ -16,8 +16,8 @@ beforeEach(() => {
 })
 afterEach(() => vi.unstubAllGlobals())
 
-describe('authentication client', () => {
-  it('restores a session and sends its bearer token', async () => {
+describe('cliente de autenticación', () => {
+  it('restaura la sesión y envía el token de acceso', async () => {
     const fetch = vi
       .fn()
       .mockResolvedValueOnce(tokenResponse('restored'))
@@ -31,7 +31,7 @@ describe('authentication client', () => {
     expect(fetch.mock.calls[1]![1].headers.get('Authorization')).toBe('Bearer restored')
   })
 
-  it('shares refresh between concurrent failed requests and retries each once', async () => {
+  it('comparte la renovación entre pedidos fallidos simultáneos y reintenta cada uno una vez', async () => {
     let resolveRefresh!: (response: Response) => void
     const refresh = new Promise<Response>((resolve) => {
       resolveRefresh = resolve
@@ -53,7 +53,7 @@ describe('authentication client', () => {
     expect(calls).toBe(4)
   })
 
-  it('requests login when renewal fails without retry loops', async () => {
+  it('pide iniciar sesión cuando falla la renovación, sin reintentar en bucle', async () => {
     const fetch = vi
       .fn()
       .mockImplementation(() => Promise.resolve(new Response('{}', { status: 401 })))

@@ -7,8 +7,8 @@ import { login, logout } from '../../api/auth'
 
 afterEach(() => vi.unstubAllGlobals())
 
-describe('authenticated application', () => {
-  it('only shows login to signed-out users and protects direct navigation', async () => {
+describe('aplicación con sesión iniciada', () => {
+  it('sin sesión muestra solo el inicio de sesión y protege la navegación directa', async () => {
     const pinia = createPinia()
     setActivePinia(pinia)
     vi.stubGlobal(
