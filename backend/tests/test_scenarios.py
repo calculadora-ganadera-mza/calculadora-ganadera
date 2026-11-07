@@ -6,6 +6,9 @@ from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
+from app.core.db import get_session
+from app.core.jwt import create_access_token
 from app.main import app
 from app.models import Season, User
 from app.schemas.scenario import ScenarioCreate
@@ -90,6 +93,79 @@ def test_scenario_name_is_trimmed():
 def test_scenario_name_cannot_be_blank():
     with pytest.raises(ValidationError):
         ScenarioCreate(name="   ", first_season_year=2026)
+
+
+@pytest.fixture
+def api(monkeypatch, session: Session, user: User):
+    """Cliente de la API con la sesión de prueba y un usuario que inició sesión."""
+    monkeypatch.setattr(settings, "jwt_secret_key", "test-secret-" * 5)
+    app.dependency_overrides[get_session] = lambda: session
+    token = create_access_token({"sub": str(user.id)})
+    try:
+        yield TestClient(app, headers={"Authorization": f"Bearer {token}"})
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_register_scenario_returns_it_with_its_first_season(api: TestClient):
+    year = current_season_start_year(date.today(), 7)
+
+    response = api.post(
+        "/scenarios", json={"name": " La Aguada ", "first_season_year": year}
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["name"] == "La Aguada"
+    assert [(s["start_date"], s["end_date"]) for s in body["seasons"]] == [
+        (f"{year}-07-01", f"{year + 1}-06-30")
+    ]
+
+
+def test_register_scenario_rejects_year_out_of_range(api: TestClient):
+    year = current_season_start_year(date.today(), 7) + 3
+
+    response = api.post(
+        "/scenarios", json={"name": "La Aguada", "first_season_year": year}
+    )
+
+    assert response.status_code == 422
+
+
+def test_register_scenario_rejects_blank_name(api: TestClient):
+    year = current_season_start_year(date.today(), 7)
+
+    response = api.post("/scenarios", json={"name": "  ", "first_season_year": year})
+
+    assert response.status_code == 422
+
+
+def test_register_scenario_requires_login():
+    response = client.post(
+        "/scenarios", json={"name": "La Aguada", "first_season_year": 2026}
+    )
+
+    assert response.status_code == 401
+
+
+def test_list_scenarios_shows_only_the_users_own(
+    api: TestClient, session: Session, user: User
+):
+    other = User(name="Otro", email="otro@example.com", password_hash="x")
+    session.add(other)
+    session.flush()
+    create_scenario(session, other.id, "Ajeno", 2026, TODAY)
+    create_scenario(session, user.id, "La Aguada", 2026, TODAY)
+
+    response = api.get("/scenarios")
+
+    assert response.status_code == 200
+    assert [scenario["name"] for scenario in response.json()] == ["La Aguada"]
+    assert len(response.json()[0]["seasons"]) == 1
+
+
+def test_list_scenarios_requires_login():
+    assert client.get("/scenarios").status_code == 401
 
 
 def test_first_season_years_endpoint():

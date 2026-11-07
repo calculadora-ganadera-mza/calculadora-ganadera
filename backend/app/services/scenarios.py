@@ -61,3 +61,21 @@ def create_scenario(
     session.add(season)
     session.flush()
     return scenario, season
+
+
+def list_scenarios(
+    session: Session, user_id: int
+) -> list[tuple[Scenario, list[Season]]]:
+    """Establecimientos del usuario, del más viejo al más nuevo, con sus campañas."""
+    scenarios = session.scalars(
+        select(Scenario).where(Scenario.user_id == user_id).order_by(Scenario.id)
+    ).all()
+    result = []
+    for scenario in scenarios:
+        seasons = session.scalars(
+            select(Season)
+            .where(Season.scenario_id == scenario.id)
+            .order_by(Season.start_date)
+        ).all()
+        result.append((scenario, list(seasons)))
+    return result
