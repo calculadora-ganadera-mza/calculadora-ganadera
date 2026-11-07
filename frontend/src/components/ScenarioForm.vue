@@ -6,6 +6,7 @@ import {
   type ScenarioRead,
   type SeasonYearOption,
 } from '@/api/scenarios'
+import { seasonLabel } from '@/utils/season'
 
 const emit = defineEmits<{ created: [scenario: ScenarioRead] }>()
 
@@ -15,17 +16,6 @@ const options = ref<SeasonYearOption[]>([])
 const nameError = ref('')
 const formError = ref('')
 const saving = ref(false)
-
-// "2026-07-01" → "1/7/2026", sin pasar por Date para no correr el día por la zona horaria
-function formatDate(isoDate: string): string {
-  const [y, m, d] = isoDate.split('-')
-  return `${Number(d)}/${Number(m)}/${y}`
-}
-
-function optionLabel(option: SeasonYearOption): string {
-  const nextYear = String(option.start_year + 1).slice(-2)
-  return `${option.start_year}/${nextYear} (del ${formatDate(option.start_date)} al ${formatDate(option.end_date)})`
-}
 
 onMounted(async () => {
   try {
@@ -70,7 +60,7 @@ async function submit() {
       <label for="first-season-year">Primera campaña</label>
       <select id="first-season-year" v-model="year" :disabled="options.length === 0">
         <option v-for="option in options" :key="option.start_year" :value="option.start_year">
-          {{ optionLabel(option) }}
+          {{ seasonLabel(option.start_date, option.end_date) }}
         </option>
       </select>
     </div>

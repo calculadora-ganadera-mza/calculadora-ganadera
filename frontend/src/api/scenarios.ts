@@ -1,3 +1,5 @@
+import { authenticatedFetch } from './auth'
+
 // En desarrollo, Vite reenvía /api al backend (ver vite.config.ts)
 const API_BASE = '/api'
 
@@ -25,14 +27,20 @@ export async function fetchFirstSeasonYears(): Promise<SeasonYearOption[]> {
   return response.json()
 }
 
-// Crea el establecimiento con su primera campaña.
-// Pendiente de la #7: enviar la sesión del usuario.
+// Crea el establecimiento del usuario con su primera campaña
 export async function createScenario(data: ScenarioCreate): Promise<ScenarioRead> {
-  const response = await fetch(`${API_BASE}/scenarios`, {
+  const response = await authenticatedFetch('/scenarios', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   })
+  if (!response.ok) throw new Error(`Error ${response.status}`)
+  return response.json()
+}
+
+// Establecimientos del usuario, cada uno con sus campañas
+export async function listScenarios(): Promise<ScenarioRead[]> {
+  const response = await authenticatedFetch('/scenarios')
   if (!response.ok) throw new Error(`Error ${response.status}`)
   return response.json()
 }
