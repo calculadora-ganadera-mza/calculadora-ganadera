@@ -4,6 +4,7 @@ from app.models.herd_category import HerdCategory
 from app.models.herd_season import HerdSeason
 from app.models.parameter import Parameter
 from app.models.production_unit import ProductionUnit
+from app.models.refresh_session import RefreshSession
 from app.models.scenario import Scenario
 from app.models.season import Season
 from app.models.user import User
@@ -12,6 +13,7 @@ from app.models.water_point import WaterPoint
 __all__ = [
     "AnimalCategory",
     "Base",
+    "RefreshSession",
     "HerdCategory",
     "HerdSeason",
     "Parameter",

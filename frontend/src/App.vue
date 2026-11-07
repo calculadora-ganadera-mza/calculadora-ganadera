@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
 import AppNav from './components/AppNav.vue'
+import LoginView from './views/LoginView.vue'
+import { storeToRefs } from 'pinia'
+import { useAuthStore } from './stores/auth'
+
+const { isAuthenticated } = storeToRefs(useAuthStore())
 </script>
 
 <template>
-  <AppNav />
-  <main class="content">
-    <RouterView />
+  <AppNav v-if="isAuthenticated" />
+  <main class="content" :class="{ 'login-content': !isAuthenticated }">
+    <RouterView v-if="isAuthenticated" />
+    <LoginView v-else />
   </main>
 </template>
 
@@ -22,5 +28,10 @@ import AppNav from './components/AppNav.vue'
     margin-left: var(--sidebar-width);
     padding: 32px;
   }
+}
+
+.content.login-content {
+  margin: 0 auto;
+  padding: 32px 16px;
 }
 </style>

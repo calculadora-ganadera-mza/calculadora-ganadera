@@ -1,7 +1,7 @@
 """add season start month
 
 Revision ID: 5422e82f7f38
-Revises: 8662234cefcf
+Revises: b19b0d482faf
 Create Date: 2026-11-05 21:16:38.405368
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "5422e82f7f38"
-down_revision: str | Sequence[str] | None = "8662234cefcf"
+down_revision: str | Sequence[str] | None = "b19b0d482faf"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
