@@ -9,6 +9,7 @@ Antes de diseñar o programar algo del dominio, leer:
 - `docs/definiciones-del-proyecto.md`: decisiones vigentes. Si otro documento lo contradice, vale este.
 - `docs/como-funciona-cada-calculadora.md`: datos, pasos de cálculo y resultados de cada calculadora.
 - `docs/diagrama-base-de-datos.pdf`: modelo de datos completo.
+- `docs/openapi.yaml`: contrato de la API. Toda ruta nueva sigue este contrato; si una ruta necesita cambiar, primero se modifica el contrato.
 
 Si algo no está definido en esos documentos, no inventarlo: preguntar.
 
