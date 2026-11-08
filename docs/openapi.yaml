@@ -1,0 +1,1682 @@
+openapi: 3.1.0
+info:
+  title: Calculadora ganadera
+  version: 0.1.0
+  description: |
+    Contrato de la API del MVP (calculadora 1: receptividad y tamaño del rodeo).
+    Toda ruta nueva sigue este contrato. Si una ruta necesita cambiar, primero se
+    modifica el contrato.
+
+    Convenciones:
+    - Todas las rutas requieren el encabezado `Authorization: Bearer <token>`,
+      excepto las de sesión y `/health`.
+    - Las colecciones se ubican bajo el recurso al que pertenecen y cada elemento
+      se accede por su identificador.
+    - Las geometrías usan GeoJSON, con coordenadas [longitud, latitud] (SRID 4326).
+    - Las fechas usan el formato `YYYY-MM-DD`.
+    - Los porcentajes se expresan como fracción entre 0 y 1.
+    - Un recurso de otro usuario responde 404, igual que uno inexistente.
+    - Todos los errores responden `{"detail": ...}`. Es un texto en español cuando
+      lo genera el backend, y una lista cuando FastAPI rechaza el formato de los
+      datos.
+servers:
+  - url: http://localhost:8000
+security:
+  - bearerAuth: []
+tags:
+  - name: health
+  - name: auth
+  - name: scenarios
+  - name: production-units
+  - name: water-points
+  - name: seasons
+  - name: herds
+  - name: reference-data
+  - name: carrying-capacity
+  - name: history
+
+paths:
+  /health:
+    get:
+      tags: [health]
+      operationId: getHealth
+      summary: Estado del servicio y de la base de datos.
+      security: []
+      responses:
+        '200':
+          description: El servicio y la base de datos están disponibles.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        '503':
+          description: La base de datos no está disponible.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+
+  /auth/register:
+    post:
+      tags: [auth]
+      operationId: register
+      summary: Crear una cuenta e iniciar sesión.
+      description: Todos los usuarios nuevos se crean con el rol `producer`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserCreate"
+      responses:
+        '201':
+          $ref: "#/components/responses/TokenIssued"
+        '403':
+          $ref: "#/components/responses/OriginNotAllowed"
+        '409':
+          description: El correo ya está registrado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+
+  /auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: Iniciar sesión.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/LoginForm"
+      responses:
+        '200':
+          $ref: "#/components/responses/TokenIssued"
+        '401':
+          description: Credenciales inválidas.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '403':
+          $ref: "#/components/responses/OriginNotAllowed"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      operationId: refreshToken
+      summary: Renovar el token de acceso.
+      description: Valida la cookie `refresh_token` y la reemplaza por una nueva.
+      security:
+        - refreshCookie: []
+      responses:
+        '200':
+          $ref: "#/components/responses/TokenIssued"
+        '401':
+          description: La cookie no existe, es inválida, venció o fue revocada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '403':
+          $ref: "#/components/responses/OriginNotAllowed"
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: Cerrar sesión.
+      description: Revoca la cookie `refresh_token`, si existe, y la elimina.
+      security: []
+      responses:
+        '204':
+          description: Sesión cerrada.
+        '403':
+          $ref: "#/components/responses/OriginNotAllowed"
+
+  /auth/me:
+    get:
+      tags: [auth]
+      operationId: getCurrentUser
+      summary: Datos del usuario de la sesión.
+      responses:
+        '200':
+          description: Datos del usuario.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUser"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+
+  /scenarios:
+    get:
+      tags: [scenarios]
+      operationId: listScenarios
+      summary: Establecimientos del usuario.
+      description: |
+        Ordenados por fecha de creación. La aplicación muestra por defecto el que
+        tiene `is_main`.
+      responses:
+        '200':
+          description: Lista de establecimientos.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Scenario"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [scenarios]
+      operationId: createScenario
+      summary: Registrar un establecimiento con su primera campaña.
+      description: |
+        Crea el establecimiento y su primera campaña, de julio a junio.
+        El primer establecimiento del usuario queda como principal.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScenarioCreate"
+      responses:
+        '201':
+          description: Establecimiento creado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scenario"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+
+  /scenarios/{scenario_id}:
+    parameters:
+      - $ref: "#/components/parameters/ScenarioId"
+    patch:
+      tags: [scenarios]
+      operationId: updateScenario
+      summary: Renombrar un establecimiento o marcarlo como principal.
+      description: Al marcar uno como principal, el anterior deja de serlo.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScenarioUpdate"
+      responses:
+        '200':
+          description: Establecimiento actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scenario"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [scenarios]
+      operationId: deleteScenario
+      summary: Eliminar un establecimiento.
+      description: |
+        Elimina también sus sectores, aguadas, campañas, rodeos y cálculos
+        guardados. Si era el principal, pasa a serlo el más antiguo de los
+        restantes.
+      responses:
+        '204':
+          description: Establecimiento eliminado.
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
+
+  /scenarios/{scenario_id}/production-units:
+    parameters:
+      - $ref: "#/components/parameters/ScenarioId"
+    get:
+      tags: [production-units]
+      operationId: listProductionUnits
+      summary: Sectores del establecimiento.
+      responses:
+        '200':
+          description: Lista de sectores, ordenados por fecha de creación.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProductionUnit"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [production-units]
+      operationId: createProductionUnit
+      summary: Dibujar un sector.
+      description: En el MVP todos los sectores son de secano.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductionUnitInput"
+      responses:
+        '201':
+          description: Sector creado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductionUnit"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+
+  /production-units/{production_unit_id}:
+    parameters:
+      - $ref: "#/components/parameters/ProductionUnitId"
+    put:
+      tags: [production-units]
+      operationId: updateProductionUnit
+      summary: Editar el nombre y el contorno de un sector.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductionUnitInput"
+      responses:
+        '200':
+          description: Sector actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductionUnit"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [production-units]
+      operationId: deleteProductionUnit
+      summary: Eliminar un sector.
+      description: Elimina también sus aguadas, rodeos y cálculos guardados.
+      responses:
+        '204':
+          description: Sector eliminado.
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
+
+  /production-units/{production_unit_id}/water-points:
+    parameters:
+      - $ref: "#/components/parameters/ProductionUnitId"
+    get:
+      tags: [water-points]
+      operationId: listWaterPoints
+      summary: Aguadas del sector.
+      responses:
+        '200':
+          description: Lista de aguadas, ordenadas por fecha de creación.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WaterPoint"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [water-points]
+      operationId: createWaterPoint
+      summary: Dibujar una aguada.
+      description: |
+        Se acepta una aguada fuera del sector; en ese caso se indica con
+        `outside_unit`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WaterPointInput"
+      responses:
+        '201':
+          description: Aguada creada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WaterPoint"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+
+  /water-points/{water_point_id}:
+    parameters:
+      - $ref: "#/components/parameters/WaterPointId"
+    put:
+      tags: [water-points]
+      operationId: updateWaterPoint
+      summary: Editar o mover una aguada.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WaterPointInput"
+      responses:
+        '200':
+          description: Aguada actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WaterPoint"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [water-points]
+      operationId: deleteWaterPoint
+      summary: Eliminar una aguada.
+      responses:
+        '204':
+          description: Aguada eliminada.
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
+
+  /scenarios/{scenario_id}/seasons:
+    parameters:
+      - $ref: "#/components/parameters/ScenarioId"
+    get:
+      tags: [seasons]
+      operationId: listSeasons
+      summary: Campañas del establecimiento.
+      description: |
+        Ordenadas por año. Exactamente una tiene `is_current`: la que contiene la
+        fecha actual o, si ninguna la contiene, la más cercana a esa fecha.
+      responses:
+        '200':
+          description: Lista de campañas.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Season"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [seasons]
+      operationId: createSeason
+      summary: Crear una campaña.
+      description: |
+        Acepta cualquier año que el establecimiento no tenga registrado. La campaña
+        se crea sin datos. Cada pantalla limita los años que ofrece: Mi campo solo
+        los posteriores y el historial solo los anteriores.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SeasonCreate"
+      responses:
+        '201':
+          description: Campaña creada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Season"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
+        '409':
+          description: El establecimiento ya tiene una campaña para ese año.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+
+  /seasons/{season_id}:
+    parameters:
+      - $ref: "#/components/parameters/SeasonId"
+    patch:
+      tags: [seasons]
+      operationId: updateSeason
+      summary: Cambiar la lluvia de la campaña.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SeasonUpdate"
+      responses:
+        '200':
+          description: Campaña actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Season"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+
+  /seasons/{season_id}/herds:
+    parameters:
+      - $ref: "#/components/parameters/SeasonId"
+    get:
+      tags: [herds]
+      operationId: listHerds
+      summary: Rodeos de la campaña, uno por sector registrado.
+      description: Si un sector no aparece, todavía no tiene datos en esa campaña.
+      responses:
+        '200':
+          description: Lista de rodeos.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Herd"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [herds]
+      operationId: createHerd
+      summary: Registrar el rodeo de un sector en la campaña.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HerdCreate"
+      responses:
+        '201':
+          description: Rodeo creado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Herd"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
+        '409':
+          description: El sector ya tiene un rodeo en esa campaña.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+
+  /herds/{herd_id}:
+    parameters:
+      - $ref: "#/components/parameters/HerdId"
+    put:
+      tags: [herds]
+      operationId: updateHerd
+      summary: Reemplazar los datos del rodeo.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HerdData"
+      responses:
+        '200':
+          description: Rodeo actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Herd"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+
+  /animal-categories:
+    get:
+      tags: [reference-data]
+      operationId: listAnimalCategories
+      summary: Categorías de animales.
+      description: |
+        Disponible para cualquier usuario con sesión. El formulario del rodeo no
+        ofrece la categoría `calf`, porque los terneros no se registran.
+      responses:
+        '200':
+          description: Lista de categorías.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AnimalCategory"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+
+  /animal-categories/{animal_category_id}:
+    parameters:
+      - $ref: "#/components/parameters/AnimalCategoryId"
+    patch:
+      tags: [reference-data]
+      operationId: updateAnimalCategory
+      summary: Editar una categoría (administrador).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnimalCategoryUpdate"
+      responses:
+        '200':
+          description: Categoría actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnimalCategory"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '403':
+          $ref: "#/components/responses/AdminOnly"
+        '404':
+          $ref: "#/components/responses/NotFound"
+        '409':
+          description: Ya existe una categoría con ese nombre.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+
+  /parameters:
+    get:
+      tags: [reference-data]
+      operationId: listParameters
+      summary: Parámetros de cálculo.
+      description: Disponible para cualquier usuario con sesión.
+      responses:
+        '200':
+          description: Lista de parámetros, ordenados por clave.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Parameter"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+
+  /parameters/{key}:
+    parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+        example: water_point_radius_km
+    patch:
+      tags: [reference-data]
+      operationId: updateParameter
+      summary: Editar el valor de un parámetro (administrador).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParameterUpdate"
+      responses:
+        '200':
+          description: Parámetro actualizado. El próximo cálculo usará el nuevo valor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Parameter"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '403':
+          $ref: "#/components/responses/AdminOnly"
+        '404':
+          $ref: "#/components/responses/NotFound"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+
+  /production-units/{production_unit_id}/carrying-capacity:
+    parameters:
+      - $ref: "#/components/parameters/ProductionUnitId"
+    post:
+      tags: [carrying-capacity]
+      operationId: calculateCarryingCapacity
+      summary: Calcular la receptividad y el rodeo, sin guardar.
+      description: |
+        Calcula con los datos recibidos y con la superficie y las aguadas del
+        sector. No guarda datos: se usa tanto para el cálculo con los datos de la
+        campaña como para la simulación con otros valores.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CarryingCapacityInput"
+      responses:
+        '200':
+          description: Resultado del cálculo.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarryingCapacityResult"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
+        '422':
+          description: Datos inválidos, o el sector no tiene superficie aprovechable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorOrValidation"
+
+  /production-units/{production_unit_id}/carrying-capacity-calculations:
+    parameters:
+      - $ref: "#/components/parameters/ProductionUnitId"
+    get:
+      tags: [carrying-capacity]
+      operationId: listCarryingCapacityCalculations
+      summary: Cálculos guardados del sector.
+      parameters:
+        - name: season_id
+          in: query
+          required: false
+          description: Si se indica, devuelve solo los cálculos de esa campaña.
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Lista de cálculos, del más reciente al más antiguo.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CarryingCapacityCalculation"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [carrying-capacity]
+      operationId: saveCarryingCapacityCalculation
+      summary: Guardar un resultado o una simulación.
+      description: |
+        El backend vuelve a calcular con `input` y guarda los datos, los valores de
+        referencia utilizados y el resultado.
+        - Cada sector tiene un único resultado por campaña: al guardar uno nuevo,
+          el anterior pasa a ser una simulación.
+        - Con `update_season`, la campaña se actualiza con los datos utilizados: el
+          rodeo del sector y la lluvia. Esta actualización se puede deshacer.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CarryingCapacityCalculationCreate"
+      responses:
+        '201':
+          description: Cálculo guardado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarryingCapacityCalculation"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
+        '422':
+          description: Datos inválidos, o el sector no tiene superficie aprovechable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorOrValidation"
+
+  /carrying-capacity-calculations/{calculation_id}:
+    parameters:
+      - $ref: "#/components/parameters/CalculationId"
+    delete:
+      tags: [carrying-capacity]
+      operationId: deleteCarryingCapacityCalculation
+      summary: Eliminar un cálculo guardado.
+      description: No deshace la actualización de la campaña, si la hubo.
+      responses:
+        '204':
+          description: Cálculo eliminado.
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
+
+  /carrying-capacity-calculations/{calculation_id}/season-update:
+    parameters:
+      - $ref: "#/components/parameters/CalculationId"
+    delete:
+      tags: [carrying-capacity]
+      operationId: undoSeasonUpdate
+      summary: Deshacer la actualización de la campaña.
+      description: Restaura el rodeo y la lluvia a los valores previos al guardado.
+      responses:
+        '204':
+          description: Actualización deshecha.
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          description: El cálculo no existe o no actualizó la campaña.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '409':
+          description: Los datos de la campaña cambiaron después del guardado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /production-units/{production_unit_id}/history:
+    parameters:
+      - $ref: "#/components/parameters/ProductionUnitId"
+    get:
+      tags: [history]
+      operationId: getProductionUnitHistory
+      summary: Evolución del sector campaña a campaña.
+      description: |
+        Una entrada por campaña del establecimiento, ordenadas por año. Si el
+        sector no tiene rodeo en una campaña, `categories` es una lista vacía y los
+        porcentajes son `null`.
+      responses:
+        '200':
+          description: Datos para el gráfico de evolución.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HistoryEntry"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    refreshCookie:
+      type: apiKey
+      in: cookie
+      name: refresh_token
+
+  parameters:
+    ScenarioId:
+      name: scenario_id
+      in: path
+      required: true
+      schema:
+        type: integer
+    ProductionUnitId:
+      name: production_unit_id
+      in: path
+      required: true
+      schema:
+        type: integer
+    WaterPointId:
+      name: water_point_id
+      in: path
+      required: true
+      schema:
+        type: integer
+    SeasonId:
+      name: season_id
+      in: path
+      required: true
+      schema:
+        type: integer
+    HerdId:
+      name: herd_id
+      in: path
+      required: true
+      schema:
+        type: integer
+    AnimalCategoryId:
+      name: animal_category_id
+      in: path
+      required: true
+      schema:
+        type: integer
+    CalculationId:
+      name: calculation_id
+      in: path
+      required: true
+      schema:
+        type: integer
+
+  responses:
+    TokenIssued:
+      description: |
+        Sesión iniciada. El token de renovación se envía en la cookie HttpOnly
+        `refresh_token`.
+      headers:
+        Set-Cookie:
+          schema:
+            type: string
+          description: "`refresh_token=...; HttpOnly; SameSite=Lax; Path=/`"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Token"
+    Unauthorized:
+      description: El token de acceso falta, es inválido o el usuario no existe.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    OriginNotAllowed:
+      description: El origen de la solicitud no está permitido.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    AdminOnly:
+      description: Acción reservada a administradores.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: No existe el recurso o no pertenece al usuario.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ValidationError:
+      description: |
+        Datos inválidos. Si FastAPI los rechaza por su formato, `detail` es una
+        lista; si los rechaza una regla del backend, es un texto.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorOrValidation"
+
+  schemas:
+    Error:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: string
+          description: Mensaje en español para mostrar al usuario.
+      example:
+        detail: Sector no encontrado.
+
+    FastApiValidationError:
+      type: object
+      description: Respuesta automática de FastAPI. El frontend no la muestra.
+      required: [detail]
+      properties:
+        detail:
+          type: array
+          items:
+            type: object
+            required: [loc, msg, type]
+            properties:
+              loc:
+                type: array
+                items:
+                  anyOf:
+                    - type: string
+                    - type: integer
+              msg:
+                type: string
+              type:
+                type: string
+
+    ErrorOrValidation:
+      oneOf:
+        - $ref: "#/components/schemas/Error"
+        - $ref: "#/components/schemas/FastApiValidationError"
+
+    Health:
+      type: object
+      required: [status, database]
+      properties:
+        status:
+          type: string
+          enum: [ok, error]
+        database:
+          type: string
+          enum: [ok, unavailable]
+
+    UserCreate:
+      type: object
+      required: [name, email, password]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 50
+        email:
+          type: string
+          format: email
+          minLength: 5
+          maxLength: 100
+        password:
+          type: string
+          minLength: 8
+          maxLength: 100
+
+    LoginForm:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          description: Correo del usuario.
+        password:
+          type: string
+
+    Token:
+      type: object
+      required: [access_token, token_type]
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          const: bearer
+
+    Role:
+      type: string
+      enum: [producer, technician, admin]
+
+    CurrentUser:
+      type: object
+      required: [id, name, email, role]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/Role"
+
+    Scenario:
+      type: object
+      required: [id, name, is_main]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        is_main:
+          type: boolean
+          description: Cada usuario tiene un único establecimiento principal.
+
+    ScenarioCreate:
+      type: object
+      required: [name, first_season_start_year]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        first_season_start_year:
+          type: integer
+          description: |
+            Año de inicio de la primera campaña. Puede ser el de la campaña actual
+            o uno de los dos siguientes.
+          example: 2026
+
+    ScenarioUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        is_main:
+          type: boolean
+          const: true
+          description: Solo admite marcar como principal; no se puede desmarcar.
+
+    Position:
+      type: array
+      description: "[longitud, latitud]"
+      prefixItems:
+        - type: number
+          minimum: -180
+          maximum: 180
+        - type: number
+          minimum: -90
+          maximum: 90
+      minItems: 2
+      maxItems: 2
+
+    PolygonGeoJSON:
+      type: object
+      required: [type, coordinates]
+      properties:
+        type:
+          type: string
+          const: Polygon
+        coordinates:
+          type: array
+          minItems: 1
+          description: |
+            El primer anillo es el contorno y los siguientes, huecos. Cada anillo
+            tiene al menos cuatro posiciones y la última repite la primera. El
+            contorno no puede cruzarse consigo mismo.
+          items:
+            type: array
+            minItems: 4
+            items:
+              $ref: "#/components/schemas/Position"
+
+    PointGeoJSON:
+      type: object
+      required: [type, coordinates]
+      properties:
+        type:
+          type: string
+          const: Point
+        coordinates:
+          $ref: "#/components/schemas/Position"
+
+    ProductionUnitInput:
+      type: object
+      required: [name, polygon]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        polygon:
+          $ref: "#/components/schemas/PolygonGeoJSON"
+
+    ProductionUnit:
+      type: object
+      required: [id, name, polygon, area_ha, usable_area_ha]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        polygon:
+          $ref: "#/components/schemas/PolygonGeoJSON"
+        area_ha:
+          type: number
+          description: Superficie del polígono en hectáreas, calculada por la base de datos.
+        usable_area_ha:
+          type: number
+          description: |
+            Superficie del polígono, en hectáreas, dentro del alcance de alguna
+            aguada. Las superposiciones se cuentan una sola vez. Es 0 si ninguna
+            aguada alcanza el sector.
+
+    WaterPointInput:
+      type: object
+      required: [name, location]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        location:
+          $ref: "#/components/schemas/PointGeoJSON"
+        refill_l_day:
+          type: [number, "null"]
+          exclusiveMinimum: 0
+          description: Litros por día que repone la aguada. Opcional.
+
+    WaterPoint:
+      type: object
+      required: [id, name, location, refill_l_day, outside_unit]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        location:
+          $ref: "#/components/schemas/PointGeoJSON"
+        refill_l_day:
+          type: [number, "null"]
+        outside_unit:
+          type: boolean
+          description: |
+            Indica que la aguada está fuera del polígono. Es una advertencia, no un
+            error.
+
+    Season:
+      type: object
+      required: [id, start_year, start_date, end_date, rainfall_mm, is_current]
+      properties:
+        id:
+          type: integer
+        start_year:
+          type: integer
+          example: 2026
+        start_date:
+          type: string
+          format: date
+          example: "2026-07-01"
+        end_date:
+          type: string
+          format: date
+          example: "2027-06-30"
+        rainfall_mm:
+          type: [number, "null"]
+          description: Lluvia de la campaña anterior, de julio a junio, en milímetros.
+        is_current:
+          type: boolean
+
+    SeasonCreate:
+      type: object
+      required: [start_year]
+      properties:
+        start_year:
+          type: integer
+          example: 2027
+
+    SeasonUpdate:
+      type: object
+      required: [rainfall_mm]
+      properties:
+        rainfall_mm:
+          type: [number, "null"]
+          minimum: 0
+          description: Lluvia de la campaña anterior, en milímetros. `null` la elimina.
+
+    RangeCondition:
+      type: string
+      enum: [fair, good, very_good]
+
+    HerdCategoryInput:
+      type: object
+      required: [animal_category_id, quantity]
+      properties:
+        animal_category_id:
+          type: integer
+        quantity:
+          type: integer
+          minimum: 0
+
+    HerdData:
+      type: object
+      description: |
+        Reglas:
+        - Si hay vacas, son obligatorios `replacement_rate`, `weaning_rate`,
+          `breeding_start` y `breeding_end`.
+        - Las fechas de entore se informan juntas (inicio y fin) o se omiten las
+          dos, y el fin es posterior al inicio.
+        - No se aceptan la categoría `calf` ni categorías repetidas.
+      required: [categories, range_condition]
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/HerdCategoryInput"
+        range_condition:
+          $ref: "#/components/schemas/RangeCondition"
+        replacement_rate:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 1
+        weaning_rate:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 1
+        early_weaning:
+          type: boolean
+          default: false
+        supplemented:
+          type: boolean
+          default: false
+        breeding_start:
+          type: [string, "null"]
+          format: date
+        breeding_end:
+          type: [string, "null"]
+          format: date
+
+    HerdCreate:
+      allOf:
+        - $ref: "#/components/schemas/HerdData"
+        - type: object
+          required: [production_unit_id]
+          properties:
+            production_unit_id:
+              type: integer
+              description: Sector del mismo establecimiento que la campaña.
+
+    Herd:
+      allOf:
+        - $ref: "#/components/schemas/HerdData"
+        - type: object
+          required:
+            - id
+            - season_id
+            - production_unit_id
+            - replacement_rate
+            - weaning_rate
+            - early_weaning
+            - supplemented
+            - breeding_start
+            - breeding_end
+          properties:
+            id:
+              type: integer
+            season_id:
+              type: integer
+            production_unit_id:
+              type: integer
+
+    AnimalCategory:
+      type: object
+      required:
+        - id
+        - code
+        - name
+        - cow_equivalent
+        - summer_water_l_day
+        - winter_water_l_day
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+          description: Identificador fijo que utiliza el cálculo.
+          example: cow
+        name:
+          type: string
+          example: Vaca
+        cow_equivalent:
+          type: number
+        summer_water_l_day:
+          type: number
+        winter_water_l_day:
+          type: number
+
+    AnimalCategoryUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        cow_equivalent:
+          type: number
+          exclusiveMinimum: 0
+        summer_water_l_day:
+          type: number
+          exclusiveMinimum: 0
+        winter_water_l_day:
+          type: number
+          exclusiveMinimum: 0
+
+    Parameter:
+      type: object
+      required: [key, description, value, unit, confirmed, producer_editable]
+      properties:
+        key:
+          type: string
+          example: water_point_radius_km
+        description:
+          type: string
+        value:
+          type: [number, "null"]
+          description: |
+            Solo los índices pueden ser `null`, que significa que todavía no están
+            cargados.
+        unit:
+          type: string
+        confirmed:
+          type: boolean
+        producer_editable:
+          type: boolean
+
+    ParameterUpdate:
+      type: object
+      required: [value]
+      properties:
+        value:
+          type: [number, "null"]
+          description: Solo los índices aceptan `null`.
+
+    CarryingCapacityInput:
+      description: |
+        Datos del rodeo, con las mismas reglas que `HerdData`, más la lluvia y los
+        toros cada 100 vacas. El frontend los completa con los datos de la campaña
+        seleccionada.
+      allOf:
+        - $ref: "#/components/schemas/HerdData"
+        - type: object
+          required: [rainfall_mm]
+          properties:
+            rainfall_mm:
+              type: number
+              exclusiveMinimum: 0
+              description: Lluvia de la campaña anterior, en milímetros.
+            bulls_per_100_cows:
+              type: number
+              exclusiveMinimum: 0
+              description: Si se omite, se usa el parámetro `bulls_per_100_cows`.
+
+    HerdQuantity:
+      type: object
+      required: [animal_category_id, name, quantity]
+      properties:
+        animal_category_id:
+          type: integer
+        name:
+          type: string
+        quantity:
+          type: number
+
+    LimitedBy:
+      type: string
+      description: Factor que define el rodeo máximo.
+      enum: [pasture, water]
+
+    WarningCode:
+      type: string
+      description: |
+        - `missing_index`: falta un índice y el cálculo se hizo sin él.
+        - `partial_water_data`: solo algunas aguadas tienen litros cargados.
+        - `water_not_evaluated`: ninguna aguada tiene litros cargados o no hay
+          vacas.
+        - `replacement_exceeds_females`: la reposición requiere más terneras que
+          las hembras destetadas.
+        - `herd_does_not_fit`: el campo no alcanza para una vaca con su toro.
+      enum:
+        - missing_index
+        - partial_water_data
+        - water_not_evaluated
+        - replacement_exceeds_females
+        - herd_does_not_fit
+
+    Warning:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          $ref: "#/components/schemas/WarningCode"
+        message:
+          type: string
+          description: Texto genérico en español, sin cantidades.
+
+    CarryingCapacityResult:
+      type: object
+      required:
+        - area_ha
+        - usable_area_ha
+        - carrying_capacity_ha_per_cow_equivalent
+        - pasture_limit_cow_equivalents
+        - water
+        - max_herd
+        - recommended_herd
+        - scaled_herd
+        - load_thermometer
+        - warnings
+      properties:
+        area_ha:
+          type: number
+          description: Superficie del sector, en hectáreas.
+        usable_area_ha:
+          type: number
+          description: Superficie aprovechable, en hectáreas.
+        carrying_capacity_ha_per_cow_equivalent:
+          type: number
+          description: Hectáreas que necesita cada EV, ya corregidas por los índices.
+        pasture_limit_cow_equivalents:
+          type: number
+          description: Límite por pasto, en EV.
+        water:
+          type: object
+          required:
+            - evaluated
+            - limit_cow_equivalents
+            - refill_l_day
+            - summer_need_l_day
+            - winter_need_l_day
+          properties:
+            evaluated:
+              type: boolean
+              description: Es `false` si ninguna aguada tiene litros cargados o no hay vacas.
+            limit_cow_equivalents:
+              type: [number, "null"]
+              description: Límite por agua, en EV. Es `null` si no se evaluó.
+            refill_l_day:
+              type: [number, "null"]
+              description: |
+                Litros por día que reponen las aguadas que cuentan para el sector.
+                Es `null` si ninguna tiene litros cargados.
+            summer_need_l_day:
+              type: [number, "null"]
+              description: Litros por día que requiere el límite por pasto en verano.
+            winter_need_l_day:
+              type: [number, "null"]
+              description: Litros por día que requiere el límite por pasto en invierno.
+        max_herd:
+          type: object
+          required: [cow_equivalents, limited_by, categories]
+          properties:
+            cow_equivalents:
+              type: number
+              description: Rodeo máximo, en EV, sin redondear.
+            limited_by:
+              $ref: "#/components/schemas/LimitedBy"
+            categories:
+              type: array
+              description: Rodeo máximo por categoría, sin redondear.
+              items:
+                $ref: "#/components/schemas/HerdQuantity"
+        recommended_herd:
+          description: |
+            Rodeo recomendado, en cantidades enteras. Es `null` si no hay vacas o si
+            el campo no alcanza para una vaca con su toro.
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [cow_equivalents, categories, weaned_calves]
+              properties:
+                cow_equivalents:
+                  type: number
+                categories:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/HerdQuantity"
+                weaned_calves:
+                  type: object
+                  required: [males, females]
+                  properties:
+                    males:
+                      type: integer
+                    females:
+                      type: integer
+        scaled_herd:
+          description: |
+            Rodeo cargado, aumentado o reducido hasta alcanzar el rodeo máximo, en
+            cantidades enteras. Es `null` si no se cargaron animales.
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [cow_equivalents, categories]
+              properties:
+                cow_equivalents:
+                  type: number
+                categories:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/HerdQuantity"
+        load_thermometer:
+          type: object
+          required: [status, current_cow_equivalents, max_cow_equivalents]
+          properties:
+            status:
+              type: string
+              enum: [below, within, above]
+              description: Posición del rodeo actual respecto del rodeo máximo.
+            current_cow_equivalents:
+              type: number
+              description: Rodeo cargado más las terneras de reposición, en EV.
+            max_cow_equivalents:
+              type: number
+              description: Rodeo máximo, en EV.
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Warning"
+
+    CalculationKind:
+      type: string
+      enum: [result, simulation]
+
+    CarryingCapacityCalculationCreate:
+      type: object
+      required: [season_id, kind, input]
+      properties:
+        season_id:
+          type: integer
+          description: Campaña del mismo establecimiento que el sector.
+        kind:
+          $ref: "#/components/schemas/CalculationKind"
+        update_season:
+          type: boolean
+          default: false
+          description: |
+            Actualiza el rodeo y la lluvia de la campaña con los valores de
+            `input`.
+        input:
+          $ref: "#/components/schemas/CarryingCapacityInput"
+
+    ReferenceValues:
+      type: object
+      description: Valores de referencia con los que se hizo el cálculo.
+      required: [parameters, animal_categories]
+      properties:
+        parameters:
+          type: object
+          description: Clave de cada parámetro y su valor.
+          additionalProperties:
+            type: [number, "null"]
+        animal_categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnimalCategory"
+
+    CarryingCapacityCalculation:
+      type: object
+      required:
+        - id
+        - production_unit_id
+        - season_id
+        - kind
+        - created_at
+        - season_updated
+        - input
+        - reference_values
+        - result
+      properties:
+        id:
+          type: integer
+        production_unit_id:
+          type: integer
+        season_id:
+          type: integer
+        kind:
+          $ref: "#/components/schemas/CalculationKind"
+        created_at:
+          type: string
+          format: date-time
+        season_updated:
+          type: boolean
+          description: |
+            Indica que el guardado actualizó la campaña y que esa actualización no
+            se deshizo.
+        input:
+          $ref: "#/components/schemas/CarryingCapacityInput"
+        reference_values:
+          $ref: "#/components/schemas/ReferenceValues"
+        result:
+          $ref: "#/components/schemas/CarryingCapacityResult"
+
+    HistoryEntry:
+      type: object
+      required:
+        - season_id
+        - start_year
+        - categories
+        - replacement_rate
+        - weaning_rate
+        - rainfall_mm
+      properties:
+        season_id:
+          type: integer
+        start_year:
+          type: integer
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/HerdQuantity"
+        replacement_rate:
+          type: [number, "null"]
+        weaning_rate:
+          type: [number, "null"]
+        rainfall_mm:
+          type: [number, "null"]
+          description: Lluvia de la campaña anterior, de julio a junio, en milímetros.
