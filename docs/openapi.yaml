@@ -956,8 +956,8 @@ components:
         detail:
           type: string
           description: Mensaje en español para mostrar al usuario.
-      example:
-        detail: Sector no encontrado.
+      examples:
+        - detail: Sector no encontrado.
 
     FastApiValidationError:
       type: object
@@ -1078,7 +1078,7 @@ components:
           description: |
             Año de inicio de la primera campaña. Puede ser el de la campaña actual
             o uno de los dos siguientes.
-          example: 2026
+          examples: [2026]
 
     ScenarioUpdate:
       type: object
@@ -1208,15 +1208,15 @@ components:
           type: integer
         start_year:
           type: integer
-          example: 2026
+          examples: [2026]
         start_date:
           type: string
           format: date
-          example: "2026-07-01"
+          examples: ["2026-07-01"]
         end_date:
           type: string
           format: date
-          example: "2027-06-30"
+          examples: ["2027-06-30"]
         rainfall_mm:
           type: [number, "null"]
           description: Lluvia de la campaña anterior, de julio a junio, en milímetros.
@@ -1229,7 +1229,7 @@ components:
       properties:
         start_year:
           type: integer
-          example: 2027
+          examples: [2027]
 
     SeasonUpdate:
       type: object
@@ -1339,10 +1339,10 @@ components:
         code:
           type: string
           description: Identificador fijo que utiliza el cálculo.
-          example: cow
+          examples: [cow]
         name:
           type: string
-          example: Vaca
+          examples: [Vaca]
         cow_equivalent:
           type: number
         summer_water_l_day:
@@ -1374,7 +1374,7 @@ components:
       properties:
         key:
           type: string
-          example: water_point_radius_km
+          examples: [water_point_radius_km]
         description:
           type: string
         value:
