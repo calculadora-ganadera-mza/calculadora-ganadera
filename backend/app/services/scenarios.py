@@ -24,7 +24,12 @@ def season_dates(start_year: int, start_month: int) -> tuple[date, date]:
 
 
 def current_season_start_year(today: date, start_month: int) -> int:
-    """Año en que arrancó la campaña que contiene a today."""
+    """Año en que arrancó la campaña que contiene a today.
+
+    El "año actual" de la issue #8 se toma como el año en que empezó la campaña
+    en curso: en marzo de 2027 sigue siendo 2026, porque esa campaña empezó en
+    julio de 2026.
+    """
     return today.year if today.month >= start_month else today.year - 1
 
 
