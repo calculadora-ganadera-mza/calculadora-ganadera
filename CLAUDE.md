@@ -66,6 +66,7 @@ backend/
     api/            rutas
     models/         tablas (SQLAlchemy)
     schemas/        entrada y salida (Pydantic)
+    services/       lógica que usa la base, separada de las rutas
     calculators/    motor de cálculo, funciones puras
     core/           configuración, seguridad, conexión
   alembic/
