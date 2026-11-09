@@ -3,10 +3,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
 
+from app.api.deps import CurrentUser, SessionDep
 from app.core.config import settings
-from app.core.db import SessionDep
-from app.core.jwt import get_current_user
-from app.models.user import User
 from app.schemas.auth import Token
 from app.schemas.user import UserCreate
 from app.services.auth import AuthService
@@ -81,5 +79,5 @@ def logout(request: Request, response: Response, session: SessionDep) -> None:
 
 
 @router.get("/me")
-def me(user: Annotated[User, Depends(get_current_user)]) -> dict:
+def me(user: CurrentUser) -> dict:
     return {"id": user.id, "name": user.name, "email": user.email}

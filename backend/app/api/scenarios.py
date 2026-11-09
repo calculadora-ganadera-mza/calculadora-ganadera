@@ -1,11 +1,8 @@
 from datetime import date
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 
-from app.api.deps import SessionDep
-from app.core.jwt import get_current_user
-from app.models.user import User
+from app.api.deps import CurrentUser, OwnedScenario, SessionDep
 from app.schemas.scenario import (
     ScenarioCreate,
     ScenarioRead,
@@ -18,15 +15,12 @@ from app.services.scenarios import (
     current_season_id,
     first_season_years,
     get_season_start_month,
-    get_user_scenario,
     list_scenarios,
     list_seasons,
     season_dates,
 )
 
 router = APIRouter(prefix="/scenarios", tags=["scenarios"])
-
-CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 # Ruta agregada para que el formulario no tenga que calcular los años.
@@ -72,12 +66,10 @@ def register_scenario(
 
 @router.get("/{scenario_id}/seasons")
 def list_scenario_seasons(
-    scenario_id: int, session: SessionDep, user: CurrentUser
+    scenario: OwnedScenario, session: SessionDep
 ) -> list[SeasonRead]:
     """Campañas del establecimiento, ordenadas por año."""
-    if get_user_scenario(session, user.id, scenario_id) is None:
-        raise HTTPException(404, "Establecimiento no encontrado.")
-    seasons = list_seasons(session, scenario_id)
+    seasons = list_seasons(session, scenario.id)
     current_id = current_season_id(seasons, date.today())
     return [
         SeasonRead(

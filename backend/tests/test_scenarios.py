@@ -7,9 +7,6 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
-from app.core.db import get_session
-from app.core.jwt import create_access_token
 from app.main import app
 from app.models import Scenario, Season, User
 from app.schemas.scenario import ScenarioCreate
@@ -28,34 +25,6 @@ client = TestClient(app)
 
 # 5 de noviembre de 2026: la campaña actual arrancó en julio de 2026
 TODAY = date(2026, 11, 5)
-
-
-@pytest.fixture
-def user(session: Session) -> User:
-    user = User(name="Prueba", email="prueba@example.com", password_hash="x")
-    session.add(user)
-    session.flush()
-    return user
-
-
-@pytest.fixture
-def other_user(session: Session) -> User:
-    other = User(name="Otro", email="otro@example.com", password_hash="x")
-    session.add(other)
-    session.flush()
-    return other
-
-
-@pytest.fixture
-def api(monkeypatch, session: Session, user: User):
-    """Cliente de la API con la sesión de prueba y un usuario que inició sesión."""
-    monkeypatch.setattr(settings, "jwt_secret_key", "test-secret-" * 5)
-    app.dependency_overrides[get_session] = lambda: session
-    token = create_access_token({"sub": str(user.id)})
-    try:
-        yield TestClient(app, headers={"Authorization": f"Bearer {token}"})
-    finally:
-        app.dependency_overrides.clear()
 
 
 # Fechas de las campañas
