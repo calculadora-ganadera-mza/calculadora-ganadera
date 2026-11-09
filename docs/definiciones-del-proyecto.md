@@ -213,6 +213,7 @@ En el celular la navegación va en una barra inferior. En la computadora, en un 
 ## 14. Reglas del modelo de datos
 
 - **Campañas:** dos campañas del mismo escenario no se pueden superponer en fechas.
+- **Establecimiento principal:** cada usuario tiene uno solo. El primero que registra queda como principal.
 - **Rodeo de la campaña:** la campaña y la unidad productiva tienen que ser del mismo escenario. Hay un solo rodeo por unidad y por campaña.
 - **Superficie de la unidad:** la calcula la base a partir del polígono. Nunca se carga a mano.
 - **Porcentajes de reposición y de destete:** se guardan como fracción entre 0 y 1. En pantalla se muestran como porcentaje.
