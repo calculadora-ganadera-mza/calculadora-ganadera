@@ -15,9 +15,12 @@ from app.schemas.scenario import (
 from app.services.scenarios import (
     InvalidFirstSeasonYearError,
     create_scenario,
+    current_season_id,
     first_season_years,
     get_season_start_month,
+    get_user_scenario,
     list_scenarios,
+    list_seasons,
     season_dates,
 )
 
@@ -27,7 +30,9 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 @router.get("/first-season-years")
-def list_first_season_years(session: SessionDep) -> list[SeasonYearOption]:
+def list_first_season_years(
+    session: SessionDep, user: CurrentUser
+) -> list[SeasonYearOption]:
     """Años que se pueden elegir para la primera campaña de un establecimiento."""
     start_month = get_season_start_month(session)
     options = []
@@ -39,31 +44,47 @@ def list_first_season_years(session: SessionDep) -> list[SeasonYearOption]:
     return options
 
 
+@router.get("")
+def list_user_scenarios(session: SessionDep, user: CurrentUser) -> list[ScenarioRead]:
+    """Establecimientos del usuario, ordenados por fecha de creación."""
+    return [
+        ScenarioRead.model_validate(scenario)
+        for scenario in list_scenarios(session, user.id)
+    ]
+
+
 @router.post("", status_code=201)
 def register_scenario(
     data: ScenarioCreate, session: SessionDep, user: CurrentUser
 ) -> ScenarioRead:
     """Registra un establecimiento del usuario, con su primera campaña."""
     try:
-        scenario, season = create_scenario(
-            session, user.id, data.name, data.first_season_year, date.today()
+        scenario, _ = create_scenario(
+            session, user.id, data.name, data.first_season_start_year, date.today()
         )
     except InvalidFirstSeasonYearError as err:
         raise HTTPException(422, str(err)) from err
     session.commit()
-    return ScenarioRead(
-        id=scenario.id, name=scenario.name, seasons=[SeasonRead.model_validate(season)]
-    )
+    return ScenarioRead.model_validate(scenario)
 
 
-@router.get("")
-def list_user_scenarios(session: SessionDep, user: CurrentUser) -> list[ScenarioRead]:
-    """Establecimientos del usuario, cada uno con sus campañas."""
+@router.get("/{scenario_id}/seasons")
+def list_scenario_seasons(
+    scenario_id: int, session: SessionDep, user: CurrentUser
+) -> list[SeasonRead]:
+    """Campañas del establecimiento, ordenadas por año."""
+    if get_user_scenario(session, user.id, scenario_id) is None:
+        raise HTTPException(404, "Establecimiento no encontrado.")
+    seasons = list_seasons(session, scenario_id)
+    current_id = current_season_id(seasons, date.today())
     return [
-        ScenarioRead(
-            id=scenario.id,
-            name=scenario.name,
-            seasons=[SeasonRead.model_validate(season) for season in seasons],
+        SeasonRead(
+            id=season.id,
+            start_year=season.start_date.year,
+            start_date=season.start_date,
+            end_date=season.end_date,
+            rainfall_mm=season.rainfall_mm,
+            is_current=season.id == current_id,
         )
-        for scenario, seasons in list_scenarios(session, user.id)
+        for season in seasons
     ]
