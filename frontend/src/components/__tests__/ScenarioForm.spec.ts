@@ -50,7 +50,7 @@ describe('ScenarioForm', () => {
   })
 
   it('envía el nombre sin espacios y el año elegido', async () => {
-    const scenario = { id: 1, name: 'La Aguada', seasons: [] }
+    const scenario = { id: 1, name: 'La Aguada', is_main: true }
     vi.mocked(createScenario).mockResolvedValue(scenario)
     const wrapper = await mountForm()
 
@@ -59,7 +59,10 @@ describe('ScenarioForm', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(createScenario).toHaveBeenCalledWith({ name: 'La Aguada', first_season_year: 2027 })
+    expect(createScenario).toHaveBeenCalledWith({
+      name: 'La Aguada',
+      first_season_start_year: 2027,
+    })
     expect(wrapper.emitted('created')).toEqual([[scenario]])
   })
 

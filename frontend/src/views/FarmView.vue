@@ -1,18 +1,26 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import ScenarioForm from '@/components/ScenarioForm.vue'
-import { listScenarios, type ScenarioRead } from '@/api/scenarios'
+import { listScenarios, listSeasons, type Scenario, type Season } from '@/api/scenarios'
 import { seasonLabel } from '@/utils/season'
 
-const scenarios = ref<ScenarioRead[]>([])
+interface ScenarioWithSeasons extends Scenario {
+  seasons: Season[]
+}
+
+const scenarios = ref<ScenarioWithSeasons[]>([])
 const loading = ref(true)
 const loadError = ref('')
+
+async function withSeasons(scenario: Scenario): Promise<ScenarioWithSeasons> {
+  return { ...scenario, seasons: await listSeasons(scenario.id) }
+}
 
 async function load() {
   loading.value = true
   loadError.value = ''
   try {
-    scenarios.value = await listScenarios()
+    scenarios.value = await Promise.all((await listScenarios()).map(withSeasons))
   } catch {
     loadError.value = 'No se pudieron cargar tus establecimientos.'
   } finally {
@@ -20,8 +28,13 @@ async function load() {
   }
 }
 
-function onCreated(scenario: ScenarioRead) {
-  scenarios.value = [...scenarios.value, scenario]
+async function onCreated(scenario: Scenario) {
+  try {
+    scenarios.value = [...scenarios.value, await withSeasons(scenario)]
+  } catch {
+    // El establecimiento ya se guardó: se recarga la lista completa
+    await load()
+  }
 }
 
 onMounted(load)
@@ -44,6 +57,7 @@ onMounted(load)
         <ul>
           <li v-for="season in scenario.seasons" :key="season.id">
             Campaña {{ seasonLabel(season.start_date, season.end_date) }}
+            <span v-if="season.is_current" class="current">actual</span>
           </li>
         </ul>
       </article>
@@ -73,6 +87,15 @@ onMounted(load)
 .scenario ul {
   margin: 0;
   padding-left: 20px;
+}
+
+.current {
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: 0.8rem;
 }
 
 .load-error button {

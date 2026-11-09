@@ -3,12 +3,12 @@ import { onMounted, ref } from 'vue'
 import {
   createScenario,
   fetchFirstSeasonYears,
-  type ScenarioRead,
+  type Scenario,
   type SeasonYearOption,
 } from '@/api/scenarios'
 import { seasonLabel } from '@/utils/season'
 
-const emit = defineEmits<{ created: [scenario: ScenarioRead] }>()
+const emit = defineEmits<{ created: [scenario: Scenario] }>()
 
 const name = ref('')
 const year = ref<number | null>(null)
@@ -38,7 +38,7 @@ async function submit() {
 
   saving.value = true
   try {
-    const scenario = await createScenario({ name: trimmed, first_season_year: year.value })
+    const scenario = await createScenario({ name: trimmed, first_season_start_year: year.value })
     emit('created', scenario)
   } catch {
     formError.value = 'No se pudo registrar el establecimiento. Probá de nuevo.'
@@ -52,7 +52,7 @@ async function submit() {
   <form class="scenario-form" novalidate @submit.prevent="submit">
     <div class="field">
       <label for="scenario-name">Nombre del establecimiento</label>
-      <input id="scenario-name" v-model="name" type="text" autocomplete="off" />
+      <input id="scenario-name" v-model="name" type="text" maxlength="100" autocomplete="off" />
       <p v-if="nameError" class="error">{{ nameError }}</p>
     </div>
 
