@@ -19,7 +19,7 @@ const emit = defineEmits<{
   reshape: [polygon: PolygonGeoJSON]
 }>()
 
-// Vita inicial cuando todavía no hay sectores: la provincia de Mendoza
+// Vista inicial cuando todavía no hay sectores: la provincia de Mendoza
 const MENDOZA_CENTER: L.LatLngTuple = [-34.6, -68.5]
 const MENDOZA_ZOOM = 7
 
@@ -36,16 +36,30 @@ function toPolygon(layer: L.Polygon): PolygonGeoJSON {
   return layer.toGeoJSON().geometry as PolygonGeoJSON
 }
 
+// Leaflet trata el texto como HTML; así el nombre se muestra tal cual
+function textTooltip(text: string): HTMLElement {
+  const element = document.createElement('span')
+  element.textContent = text
+  return element
+}
+
+// Contorno movido que todavía no se guardó
+let reshapedPolygon: PolygonGeoJSON | null = null
+
 function showUnits() {
   unitsLayer.clearLayers()
   for (const unit of props.units) {
-    const layer = toLayer(unit.polygon)
-    layer.bindTooltip(unit.name)
+    const editing = unit.id === props.editingId
+    const layer = toLayer((editing && reshapedPolygon) || unit.polygon)
+    layer.bindTooltip(textTooltip(unit.name))
     unitsLayer.addLayer(layer)
-    if (unit.id === props.editingId) {
+    if (editing) {
       // Geoman solo edita capas que ya están en el mapa
       layer.pm.enable()
-      layer.on('pm:edit', () => emit('reshape', toPolygon(layer)))
+      layer.on('pm:edit', () => {
+        reshapedPolygon = toPolygon(layer)
+        emit('reshape', reshapedPolygon)
+      })
     }
   }
 }
@@ -68,7 +82,7 @@ onMounted(() => {
   map.pm.setLang('es')
   map.pm.addControls({
     position: 'topleft',
-    drawMaker: false,
+    drawMarker: false,
     drawCircleMarker: false,
     drawPolyline: false,
     drawRectangle: false,
@@ -78,8 +92,8 @@ onMounted(() => {
   })
   map.on('pm:create', (event) => {
     // El contorno pasa a mostrarse como borrador hasta que se guarde
-    emit('draw', toPolygon(event.layer as L.Polygon))
     event.layer.remove()
+    if (event.shape === 'Polygon') emit('draw', toPolygon(event.layer as L.Polygon))
   })
 
   showUnits()
@@ -90,7 +104,14 @@ onMounted(() => {
 
 onBeforeUnmount(() => map?.remove())
 
-watch(() => [props.units, props.editingId], showUnits)
+watch(
+  () => [props.units, props.editingId] as const,
+  ([, editingId], [, previousId]) => {
+    // Otro sector o fin de la edición: se descarta el contorno movido
+    if (editingId !== previousId) reshapedPolygon = null
+    showUnits()
+  },
+)
 watch(() => props.draft, showDraft)
 </script>
 

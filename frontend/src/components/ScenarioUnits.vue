@@ -63,13 +63,15 @@ async function saveDraft() {
     actionError.value = 'Falta el nombre del sector.'
     return
   }
-  if (!draft.value) return
+  const polygon = draft.value
+  if (!polygon) return
   saving.value = true
   actionError.value = ''
   try {
-    const unit = await createProductionUnit(props.scenarioId, { name, polygon: draft.value })
+    const unit = await createProductionUnit(props.scenarioId, { name, polygon })
     units.value = [...units.value, unit]
-    draft.value = null
+    // Solo se limpia si no se dibujó otro contorno mientras se guardaba
+    if (draft.value === polygon) draft.value = null
   } catch (err) {
     actionError.value = messageOf(err, 'No se pudo guardar el sector.')
   } finally {
@@ -91,7 +93,8 @@ function cancelEditing() {
 }
 
 async function saveShape(unit: ProductionUnit) {
-  if (!reshaped.value) {
+  const polygon = reshaped.value
+  if (!polygon) {
     cancelEditing()
     return
   }
@@ -100,10 +103,11 @@ async function saveShape(unit: ProductionUnit) {
   try {
     const updated = await updateProductionUnit(unit.id, {
       name: unit.name,
-      polygon: reshaped.value,
+      polygon,
     })
     units.value = units.value.map((item) => (item.id === updated.id ? updated : item))
-    editingId.value = null
+    // Solo se cierra si no se empezó otra edición mientras se guardaba
+    if (editingId.value === unit.id && reshaped.value === polygon) editingId.value = null
   } catch (err) {
     actionError.value = messageOf(err, 'No se pudo guardar el contorno.')
   } finally {

@@ -10,6 +10,7 @@ import {
   listProductionUnits,
   updateProductionUnit,
   type PolygonGeoJSON,
+  type ProductionUnit,
 } from '@/api/productionUnits'
 
 // Simula la API, pero conserva ApiError para distinguir los mensajes del backend
@@ -33,6 +34,19 @@ const SQUARE: PolygonGeoJSON = {
     ],
   ],
 }
+
+const OTHER: PolygonGeoJSON = {
+  type: 'Polygon',
+  coordinates: [
+    [
+      [-68.2, -34.6],
+      [-68.1, -34.6],
+      [-68.1, -34.5],
+      [-68.2, -34.6],
+    ],
+  ],
+}
+
 const UNIT = { id: 1, name: 'Potrero 1', polygon: SQUARE, area_ha: 101.84, usable_area_ha: 0 }
 
 // El mapa se reemplaza por un componente vacío: las pruebas emiten sus eventos
@@ -136,6 +150,43 @@ describe('ScenarioUnits', () => {
 
     expect(deleteProductionUnit).toHaveBeenCalledWith(1)
     expect(wrapper.text()).toContain('Todavía no hay sectores.')
+  })
+
+  it('no descarta un contorno dibujado mientras se guardaba otro', async () => {
+    let finishSave!: (unit: ProductionUnit) => void
+    vi.mocked(createProductionUnit).mockReturnValue(
+      new Promise((resolve) => (finishSave = resolve)),
+    )
+    const { wrapper, map } = await mountUnits()
+
+    map.vm.$emit('draw', SQUARE)
+    await flushPromises()
+    await wrapper.find('#unit-name').setValue('Bajo')
+    await wrapper.find('form').trigger('submit')
+    map.vm.$emit('draw', OTHER)
+    finishSave({ ...UNIT, id: 2, name: 'Bajo' })
+    await flushPromises()
+
+    expect(map.props('draft')).toEqual(OTHER)
+    expect(wrapper.find('form').exists()).toBe(true)
+  })
+
+  it('no cierra una edición empezada mientras se guardaba la anterior', async () => {
+    let finishSave!: (unit: ProductionUnit) => void
+    vi.mocked(updateProductionUnit).mockReturnValue(
+      new Promise((resolve) => (finishSave = resolve)),
+    )
+    const { wrapper, map } = await mountUnits()
+
+    await button(wrapper, 'Editar contorno').trigger('click')
+    map.vm.$emit('reshape', OTHER)
+    await button(wrapper, 'Guardar contorno').trigger('click')
+    await button(wrapper, 'Cancelar').trigger('click')
+    await button(wrapper, 'Editar contorno').trigger('click')
+    finishSave({ ...UNIT, polygon: OTHER })
+    await flushPromises()
+
+    expect(map.props('editingId')).toBe(1)
   })
 
   it('no elimina el sector si no se confirma', async () => {
