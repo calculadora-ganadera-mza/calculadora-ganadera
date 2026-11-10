@@ -22,6 +22,9 @@ const SEASON = {
   is_current: true,
 }
 
+// Los sectores tienen sus propias pruebas; en estas no se monta el mapa
+const mountView = () => mount(FarmView, { global: { stubs: { ScenarioUnits: true } } })
+
 beforeEach(() => {
   vi.mocked(listScenarios).mockReset()
   vi.mocked(createScenario).mockReset()
@@ -34,7 +37,7 @@ beforeEach(() => {
 describe('FarmView', () => {
   it('muestra el formulario si el usuario no tiene establecimientos', async () => {
     vi.mocked(listScenarios).mockResolvedValue([])
-    const wrapper = mount(FarmView)
+    const wrapper = mountView()
     await flushPromises()
 
     expect(wrapper.find('form').exists()).toBe(true)
@@ -42,7 +45,7 @@ describe('FarmView', () => {
 
   it('muestra el establecimiento con su campaña actual', async () => {
     vi.mocked(listScenarios).mockResolvedValue([SCENARIO])
-    const wrapper = mount(FarmView)
+    const wrapper = mountView()
     await flushPromises()
 
     expect(listSeasons).toHaveBeenCalledWith(1)
@@ -55,7 +58,7 @@ describe('FarmView', () => {
   it('después de registrar muestra el establecimiento con su campaña', async () => {
     vi.mocked(listScenarios).mockResolvedValue([])
     vi.mocked(createScenario).mockResolvedValue(SCENARIO)
-    const wrapper = mount(FarmView)
+    const wrapper = mountView()
     await flushPromises()
 
     await wrapper.find('input').setValue('La Aguada')
@@ -69,7 +72,7 @@ describe('FarmView', () => {
 
   it('avisa si no pudo cargar y deja reintentar', async () => {
     vi.mocked(listScenarios).mockRejectedValueOnce(new Error('Error 500'))
-    const wrapper = mount(FarmView)
+    const wrapper = mountView()
     await flushPromises()
 
     expect(wrapper.text()).toContain('No se pudieron cargar tus establecimientos.')

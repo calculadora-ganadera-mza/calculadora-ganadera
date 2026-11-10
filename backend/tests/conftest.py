@@ -5,10 +5,12 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.models import User
 
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 
@@ -58,3 +60,35 @@ def session(engine: Engine) -> Iterator[Session]:
         ) as session:
             yield session
         transaction.rollback()
+
+
+@pytest.fixture
+def user(session: Session) -> User:
+    user = User(name="Prueba", email="prueba@example.com", password_hash="x")
+    session.add(user)
+    session.flush()
+    return user
+
+
+@pytest.fixture
+def other_user(session: Session) -> User:
+    other = User(name="Otro", email="otro@example.com", password_hash="x")
+    session.add(other)
+    session.flush()
+    return other
+
+
+@pytest.fixture
+def api(monkeypatch, session: Session, user: User):
+    """Cliente de la API con la sesion de prueba y un usuario que inició sesión."""
+    from app.core.db import get_session
+    from app.core.jwt import create_access_token
+    from app.main import app
+
+    monkeypatch.setattr(settings, "jwt_secret_key", "test-secret-" * 5)
+    app.dependency_overrides[get_session] = lambda: session
+    token = create_access_token({"sub": str(user.id)})
+    try:
+        yield TestClient(app, headers={"Authorization": f"Bearer {token}"})
+    finally:
+        app.dependency_overrides.clear()

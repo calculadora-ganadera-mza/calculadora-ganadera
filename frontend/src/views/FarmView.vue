@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import ScenarioForm from '@/components/ScenarioForm.vue'
+import ScenarioUnits from '@/components/ScenarioUnits.vue'
 import { listScenarios, listSeasons, type Scenario, type Season } from '@/api/scenarios'
 import { seasonLabel } from '@/utils/season'
 
@@ -60,6 +61,7 @@ onMounted(load)
             <span v-if="season.is_current" class="current">actual</span>
           </li>
         </ul>
+        <ScenarioUnits :scenario-id="scenario.id" />
       </article>
     </template>
 
@@ -72,7 +74,7 @@ onMounted(load)
 
 <style scoped>
 .scenario {
-  max-width: 480px;
+  max-width: 960px;
   padding: 16px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
