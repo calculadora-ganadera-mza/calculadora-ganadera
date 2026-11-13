@@ -6,6 +6,7 @@ import {
   type Scenario,
   type SeasonYearOption,
 } from '@/api/scenarios'
+import { ApiError } from '@/api/productionUnits'
 import { seasonLabel } from '@/utils/season'
 
 const emit = defineEmits<{ created: [scenario: Scenario] }>()
@@ -40,8 +41,12 @@ async function submit() {
   try {
     const scenario = await createScenario({ name: trimmed, first_season_start_year: year.value })
     emit('created', scenario)
-  } catch {
-    formError.value = 'No se pudo registrar el establecimiento. Probá de nuevo.'
+  } catch (err) {
+    // Si el backend explica por qué no se pudo, se muestra su mensaje
+    formError.value =
+      err instanceof ApiError
+        ? err.message
+        : 'No se pudo registrar el establecimiento. Probá de nuevo.'
   } finally {
     saving.value = false
   }

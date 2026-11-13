@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 
 import ScenarioForm from '../ScenarioForm.vue'
 import { createScenario, fetchFirstSeasonYears } from '@/api/scenarios'
+import { ApiError } from '@/api/productionUnits'
 
 // Simula la API: el formulario no le pide nada al backend real
 vi.mock('@/api/scenarios', () => ({
@@ -76,6 +77,20 @@ describe('ScenarioForm', () => {
 
     expect(wrapper.text()).toContain('No se pudo registrar el establecimiento.')
     expect(wrapper.emitted('created')).toBeUndefined()
+  })
+
+  it('muestra el mensaje del backend cuando explica el error', async () => {
+    vi.mocked(createScenario).mockRejectedValue(
+      new ApiError('El año de la primera campaña tiene que ser 2026, 2027 o 2028.'),
+    )
+    const wrapper = await mountForm()
+
+    await wrapper.find('input').setValue('La Aguada')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('tiene que ser 2026, 2027 o 2028.')
+    expect(wrapper.text()).not.toContain('No se pudo registrar')
   })
 
   it('avisa si no se pudieron cargar los años', async () => {

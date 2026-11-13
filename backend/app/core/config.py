@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     refresh_token_days: int = 7
     auth_cookie_secure: bool = False
     auth_allowed_origins: list[str]
+    # Zona horaria para saber qué día es hoy (por ejemplo, para la campaña actual)
+    app_timezone: str = "America/Argentina/Mendoza"
 
 
 settings = Settings()
