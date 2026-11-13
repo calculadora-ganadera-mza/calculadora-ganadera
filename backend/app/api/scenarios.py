@@ -1,8 +1,7 @@
-from datetime import date
-
 from fastapi import APIRouter, HTTPException
 
 from app.api.deps import CurrentUser, OwnedScenario, SessionDep
+from app.core.dates import today
 from app.schemas.scenario import (
     ScenarioCreate,
     ScenarioRead,
@@ -31,7 +30,7 @@ def list_first_season_years(
     """Años que se pueden elegir para la primera campaña de un establecimiento."""
     start_month = get_season_start_month(session)
     options = []
-    for year in first_season_years(date.today(), start_month):
+    for year in first_season_years(today(), start_month):
         start, end = season_dates(year, start_month)
         options.append(
             SeasonYearOption(start_year=year, start_date=start, end_date=end)
@@ -55,7 +54,7 @@ def register_scenario(
     """Registra un establecimiento del usuario, con su primera campaña."""
     try:
         scenario, _ = create_scenario(
-            session, user.id, data.name, data.first_season_start_year, date.today()
+            session, user.id, data.name, data.first_season_start_year, today()
         )
     except InvalidFirstSeasonYearError as err:
         raise HTTPException(422, str(err)) from err
@@ -69,7 +68,7 @@ def list_scenario_seasons(
 ) -> list[SeasonRead]:
     """Campañas del establecimiento, ordenadas por año."""
     seasons = list_seasons(session, scenario.id)
-    current_id = current_season_id(seasons, date.today())
+    current_id = current_season_id(seasons, today())
     return [
         SeasonRead(
             id=season.id,
