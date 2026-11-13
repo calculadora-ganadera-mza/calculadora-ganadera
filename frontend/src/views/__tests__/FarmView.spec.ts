@@ -40,7 +40,7 @@ describe('FarmView', () => {
     const wrapper = mountView()
     await flushPromises()
 
-    expect(wrapper.find('form').exists()).toBe(true)
+    expect(wrapper.find('#scenario-name').exists()).toBe(true)
   })
 
   it('muestra el establecimiento con su campaña actual', async () => {
@@ -49,7 +49,7 @@ describe('FarmView', () => {
     await flushPromises()
 
     expect(listSeasons).toHaveBeenCalledWith(1)
-    expect(wrapper.find('form').exists()).toBe(false)
+    expect(wrapper.find('#scenario-name').exists()).toBe(false)
     expect(wrapper.text()).toContain('La Aguada')
     expect(wrapper.text()).toContain('Campaña 2026/27 (del 1/7/2026 al 30/6/2027)')
     expect(wrapper.find('.current').text()).toBe('actual')
@@ -65,7 +65,7 @@ describe('FarmView', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.find('form').exists()).toBe(false)
+    expect(wrapper.find('#scenario-name').exists()).toBe(false)
     expect(wrapper.text()).toContain('La Aguada')
     expect(wrapper.text()).toContain('Campaña 2026/27')
   })

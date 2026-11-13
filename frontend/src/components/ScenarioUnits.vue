@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import UnitsMap from './UnitsMap.vue'
+import HerdForm from './HerdForm.vue'
 import {
   ApiError,
   createProductionUnit,
@@ -11,7 +12,8 @@ import {
   type ProductionUnit,
 } from '@/api/productionUnits'
 
-const props = defineProps<{ scenarioId: number }>()
+// seasonId: campaña en la que se cargan los animales de cada sector
+const props = defineProps<{ scenarioId: number; seasonId?: number }>()
 
 const units = ref<ProductionUnit[]>([])
 const loading = ref(true)
@@ -179,6 +181,7 @@ onMounted(load)
           <template v-else>
             <button type="button" @click="startEditing(unit)">Editar contorno</button>
             <button type="button" @click="remove(unit)">Eliminar</button>
+            <HerdForm v-if="seasonId" :season-id="seasonId" :unit-id="unit.id" />
           </template>
         </li>
       </ul>
