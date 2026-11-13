@@ -1,8 +1,7 @@
-from datetime import date
-
 from fastapi import APIRouter, HTTPException
 
 from app.api.deps import CurrentUser, SessionDep
+from app.core.dates import today
 from app.models import Season
 from app.schemas.animal_category import AnimalCategoryRead
 from app.schemas.herd import HerdCreate, HerdData, HerdRead
@@ -49,7 +48,7 @@ def update_season_rainfall(
     season.rainfall_mm = data.rainfall_mm
     session.commit()
     # is_current depende de las demás campañas del establecimiento
-    reads = season_reads(list_seasons(session, season.scenario_id), date.today())
+    reads = season_reads(list_seasons(session, season.scenario_id), today())
     return next(read for read in reads if read.id == season.id)
 
 
