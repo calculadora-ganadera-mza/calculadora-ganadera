@@ -24,7 +24,6 @@ router = APIRouter(prefix="/scenarios", tags=["scenarios"])
 
 
 # Ruta agregada para que el formulario no tenga que calcular los años.
-# Todavía no está en docs/openapi.yaml.
 @router.get("/first-season-years")
 def list_first_season_years(
     session: SessionDep, user: CurrentUser
