@@ -11,12 +11,12 @@ from app.schemas.scenario import (
 from app.services.scenarios import (
     InvalidFirstSeasonYearError,
     create_scenario,
-    current_season_id,
     first_season_years,
     get_season_start_month,
     list_scenarios,
     list_seasons,
     season_dates,
+    season_reads,
 )
 
 router = APIRouter(prefix="/scenarios", tags=["scenarios"])
@@ -67,16 +67,4 @@ def list_scenario_seasons(
     scenario: OwnedScenario, session: SessionDep
 ) -> list[SeasonRead]:
     """Campañas del establecimiento, ordenadas por año."""
-    seasons = list_seasons(session, scenario.id)
-    current_id = current_season_id(seasons, today())
-    return [
-        SeasonRead(
-            id=season.id,
-            start_year=season.start_date.year,
-            start_date=season.start_date,
-            end_date=season.end_date,
-            rainfall_mm=season.rainfall_mm,
-            is_current=season.id == current_id,
-        )
-        for season in seasons
-    ]
+    return season_reads(list_seasons(session, scenario.id), today())
