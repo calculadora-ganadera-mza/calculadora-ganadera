@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.dates import today
 from app.main import app
 from app.models import Scenario, Season, User
 from app.schemas.scenario import ScenarioCreate
@@ -146,7 +147,7 @@ def test_scenario_name_must_have_1_to_100_characters(name: str):
 
 
 def test_register_scenario(api: TestClient):
-    year = current_season_start_year(date.today(), 7)
+    year = current_season_start_year(today(), 7)
 
     response = api.post(
         "/scenarios", json={"name": " La Aguada ", "first_season_start_year": year}
@@ -158,7 +159,7 @@ def test_register_scenario(api: TestClient):
 
 
 def test_register_scenario_rejects_year_out_of_range(api: TestClient):
-    year = current_season_start_year(date.today(), 7) + 3
+    year = current_season_start_year(today(), 7) + 3
 
     response = api.post(
         "/scenarios", json={"name": "La Aguada", "first_season_start_year": year}
@@ -169,7 +170,7 @@ def test_register_scenario_rejects_year_out_of_range(api: TestClient):
 
 
 def test_register_scenario_rejects_blank_name(api: TestClient):
-    year = current_season_start_year(date.today(), 7)
+    year = current_season_start_year(today(), 7)
 
     response = api.post(
         "/scenarios", json={"name": "  ", "first_season_start_year": year}
@@ -195,8 +196,8 @@ def test_list_scenarios_shows_only_the_users_own_in_creation_order(
 
 
 def test_list_seasons_of_a_scenario(api: TestClient, session: Session, user: User):
-    year = current_season_start_year(date.today(), 7)
-    scenario, _ = create_scenario(session, user.id, "La Aguada", year, date.today())
+    year = current_season_start_year(today(), 7)
+    scenario, _ = create_scenario(session, user.id, "La Aguada", year, today())
 
     response = api.get(f"/scenarios/{scenario.id}/seasons")
 
@@ -225,7 +226,7 @@ def test_first_season_years_endpoint(api: TestClient):
 
     assert response.status_code == 200
     options = response.json()
-    current = current_season_start_year(date.today(), 7)
+    current = current_season_start_year(today(), 7)
     assert [option["start_year"] for option in options] == [
         current,
         current + 1,

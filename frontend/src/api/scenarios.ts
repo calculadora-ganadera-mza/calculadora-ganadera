@@ -1,4 +1,5 @@
 import { authenticatedFetch } from './auth'
+import { ApiError } from './productionUnits'
 
 // Tipos según docs/openapi.yaml
 
@@ -56,6 +57,11 @@ export async function createScenario(data: ScenarioCreate): Promise<Scenario> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   })
-  if (!response.ok) throw new Error(`Error ${response.status}`)
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+    // Un detail de texto es un mensaje para el usuario; una lista es un error de formato
+    if (typeof body?.detail === 'string') throw new ApiError(body.detail)
+    throw new Error(`Error ${response.status}`)
+  }
   return response.json()
 }
