@@ -199,6 +199,7 @@ def test_shared_neighbors_and_dynamic_contours(api, unit):
     }
     point = api.post(f"/production-units/{sector['id']}/water-points", json=data).json()
     assert point["neighbor_unit_ids"] == [neighbor["id"]]
+    assert point["shared_coverage_geometry"] is None
 
     def areas():
         return {
@@ -208,7 +209,16 @@ def test_shared_neighbors_and_dynamic_contours(api, unit):
 
     assert areas()[neighbor["id"]] == 0
     data["shared"] = True
-    assert api.put(f"/water-points/{point['id']}", json=data).status_code == 200
+    shared = api.put(f"/water-points/{point['id']}", json=data)
+    assert shared.status_code == 200
+    geometry = shared.json()["shared_coverage_geometry"]
+    assert geometry["type"] == "MultiPolygon"
+    # El alcance mostrado se recorta al vecino, no invade el dueño ni el lejano.
+    for polygon in geometry["coordinates"]:
+        for ring in polygon:
+            for lng, lat in ring:
+                assert -68.08001 <= lng <= -68.06999
+                assert -34.58001 <= lat <= -34.56999
     assert areas()[sector["id"]] > 0
     assert areas()[neighbor["id"]] > 0
     assert areas()[distant["id"]] == 0
@@ -230,6 +240,12 @@ def test_shared_neighbors_and_dynamic_contours(api, unit):
         == []
     )
     assert areas()[neighbor["id"]] == 0
+    assert (
+        api.get(f"/production-units/{sector['id']}/water-points").json()[0][
+            "shared_coverage_geometry"
+        ]
+        is None
+    )
     rejected = api.put(
         f"/production-units/{sector['id']}", json={"name": "Dueño", "polygon": moved}
     )

@@ -22,6 +22,7 @@ const emit = defineEmits<{
   points: [points: WaterPoint[]]
   changed: []
   reload: []
+  resetPosition: []
   edit: [id: number | null]
 }>()
 const points = ref<WaterPoint[]>([])
@@ -41,7 +42,6 @@ const name = ref('')
 const refill = ref<number | ''>('')
 const error = ref('')
 const saving = ref(false)
-const pendingSharing = ref<WaterPoint | null>(null)
 async function load() {
   if (props.savedPoints !== undefined) {
     error.value = ''
@@ -80,7 +80,6 @@ function create() {
   emit('mode', true)
 }
 async function edit(point: WaterPoint) {
-  if (pendingSharing.value?.id === point.id) pendingSharing.value = null
   emit('select', point.id)
   await nextTick()
   emit('mode', false)
@@ -122,9 +121,7 @@ async function save() {
     if (props.position || creating.value) {
       try {
         await confirmSharing(saved)
-        pendingSharing.value = null
       } catch {
-        pendingSharing.value = saved
         sharingError = 'La aguada se guardó, pero no se pudo confirmar el uso compartido.'
       }
     }
@@ -133,27 +130,8 @@ async function save() {
     emit('changed')
     if (sharingError) error.value = sharingError
   } catch (err) {
+    emit('resetPosition')
     error.value = err instanceof Error ? err.message : 'No se pudo guardar la aguada.'
-  } finally {
-    saving.value = false
-  }
-}
-async function retrySharing() {
-  const point = pendingSharing.value
-  if (!point) return
-  saving.value = true
-  try {
-    await waterRequest(`/water-points/${point.id}`, 'PUT', {
-      name: point.name,
-      location: point.location,
-      refill_l_day: point.refill_l_day,
-      shared: true,
-    })
-    pendingSharing.value = null
-    await load()
-    emit('changed')
-  } catch {
-    error.value = 'No se pudo confirmar el uso compartido. La aguada sigue guardada.'
   } finally {
     saving.value = false
   }
@@ -163,7 +141,6 @@ async function remove(point: WaterPoint) {
   saving.value = true
   try {
     await waterRequest(`/water-points/${point.id}`, 'DELETE')
-    if (pendingSharing.value?.id === point.id) pendingSharing.value = null
     cancel()
     await load()
     emit('changed')
@@ -240,8 +217,10 @@ watch(
       </li>
     </ul>
     <div v-else class="empty">
-      <p>Este lote no tiene ninguna aguada asignada</p>
-      <button class="quick" @click="create">Agregar aguada en {{ unitName ?? 'este lote' }}</button>
+      <p>Este sector no tiene ninguna aguada asignada</p>
+      <button class="quick" @click="create">
+        Agregar aguada en {{ unitName ?? 'este sector' }}
+      </button>
     </div>
     <form v-if="creating" @submit.prevent="save">
       <label>Nombre<input v-model="name" required maxlength="100" :disabled="saving" /></label
@@ -258,9 +237,6 @@ watch(
         ><button type="button" :disabled="saving" @click="cancel">Cancelar</button>
       </div>
     </form>
-    <button v-if="pendingSharing" :disabled="saving" @click="retrySharing">
-      Reintentar uso compartido
-    </button>
     <p v-if="error" role="alert">
       {{ error }}
       <button :disabled="saving" @click="savedPoints === undefined ? load() : emit('reload')">
@@ -292,19 +268,19 @@ p {
   margin: 0;
 }
 h4 {
-  font-size: 11px;
+  font-size: 0.85rem;
   letter-spacing: 0.06em;
-  color: #d1d5db;
+  color: var(--color-text);
 }
 button,
 input {
   font: inherit;
-  border: 1px solid #344034;
+  border: 1px solid var(--color-border);
   border-radius: 7px;
-  padding: 5px 7px;
-  color: #e5e7eb;
-  background: #222822;
-  font-size: 11px;
+  padding: 6px 12px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  font-size: 0.85rem;
 }
 button {
   cursor: pointer;
@@ -321,14 +297,14 @@ button:disabled {
   gap: 8px;
 }
 li {
-  background: #1c201c;
-  border: 1px solid #2e382e;
-  border-radius: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
   padding: 10px;
   min-width: 0;
 }
 li.selected {
-  border-color: #38bdf8;
+  border-color: var(--color-primary);
 }
 .point-choice {
   border: 0;
@@ -341,7 +317,7 @@ li.selected {
   overflow-wrap: anywhere;
 }
 small {
-  color: #9ca3af;
+  color: var(--color-text-muted);
   font-weight: 400;
 }
 .water-dot {
@@ -349,25 +325,25 @@ small {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: #38bdf8;
+  background: var(--color-primary);
   margin-right: 6px;
 }
 .quick {
-  color: #4ade80;
-  background: #1f3824;
-  border-color: #2f5738;
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  border-color: var(--color-border);
 }
 header .quick {
   border: 0;
   background: none;
 }
 .empty {
-  border: 1px dashed #344034;
-  border-radius: 12px;
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
   text-align: center;
   padding: 12px;
-  color: #9ca3af;
-  font-size: 11px;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
   display: grid;
   gap: 8px;
 }
@@ -377,8 +353,8 @@ header .quick {
 label {
   display: grid;
   gap: 4px;
-  color: #9ca3af;
-  font-size: 11px;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
 }
 input[type='checkbox'] {
   width: auto;
@@ -386,18 +362,18 @@ input[type='checkbox'] {
 input {
   width: 100%;
   min-width: 0;
-  background: #141714;
+  background: var(--color-background);
 }
 form {
   padding-top: 8px;
-  border-top: 1px solid #2e382e;
+  border-top: 1px solid var(--color-border);
 }
 .move {
-  color: #7dd3fc;
-  border-color: #38bdf866;
+  color: var(--color-primary);
+  border-color: var(--color-primary);
 }
 [role='alert'] {
-  color: #fca5a5;
-  font-size: 12px;
+  color: var(--color-danger);
+  font-size: 0.9rem;
 }
 </style>

@@ -96,7 +96,7 @@ it('actualiza el contador y la lista cuando se crea una aguada desde el mapa', a
   expect(wrapper.find('.empty').exists()).toBe(false)
 })
 
-it('conserva la posición y reintenta el mismo movimiento tras un error', async () => {
+it('solicita volver a la posición guardada si el backend rechaza el movimiento', async () => {
   const wrapper = mount(WaterPoints, { props: { unitId: 1, position: null, selectedPointId: 3 } })
   await flushPromises()
   await wrapper
@@ -109,6 +109,7 @@ it('conserva la posición y reintenta el mismo movimiento tras un error', async 
   await wrapper.find('form').trigger('submit')
   await flushPromises()
   expect(wrapper.emitted('edit')).toHaveLength(editEvents)
+  expect(wrapper.emitted('resetPosition')).toHaveLength(1)
   expect(wrapper.find('form').exists()).toBe(true)
   vi.mocked(waterRequest).mockResolvedValueOnce(point).mockResolvedValue([point])
   await wrapper.find('form').trigger('submit')
@@ -123,7 +124,7 @@ it('conserva la posición y reintenta el mismo movimiento tras un error', async 
   expect(wrapper.emitted('changed')).toHaveLength(1)
 })
 
-it('refresca el movimiento guardado aunque falle compartir y permite reintentar ese paso', async () => {
+it('muestra el error al compartir y permite corregirlo desde la casilla de edición', async () => {
   const wrapper = mount(WaterPoints, { props: { unitId: 1, position: null, selectedPointId: 3 } })
   await flushPromises()
   await wrapper
@@ -144,10 +145,13 @@ it('refresca el movimiento guardado aunque falle compartir y permite reintentar 
   expect(wrapper.find('form').exists()).toBe(false)
   expect(wrapper.find('[role="alert"]').text()).toContain('La aguada se guardó')
   expect(wrapper.emitted('points')!.slice(-1)[0]).toEqual([[moved]])
+  await wrapper.setProps({ position: null })
   await wrapper
     .findAll('button')
-    .find((b) => b.text() === 'Reintentar uso compartido')!
+    .find((b) => b.text() === 'Editar')!
     .trigger('click')
+  await wrapper.find('input[type="checkbox"]').setValue(true)
+  await wrapper.find('form').trigger('submit')
   await flushPromises()
   expect(waterRequest).toHaveBeenCalledWith('/water-points/3', 'PUT', {
     name: moved.name,

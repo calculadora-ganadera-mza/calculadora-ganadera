@@ -290,4 +290,20 @@ select {
 button {
   align-self: flex-start;
 }
+button {
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+button:hover {
+  background: var(--color-hover);
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
 </style>

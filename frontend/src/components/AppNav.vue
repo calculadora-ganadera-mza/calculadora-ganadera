@@ -72,7 +72,15 @@ const items = [
         <p v-if="logoutError" role="alert">{{ logoutError }}</p>
       </div>
     </details>
-    <RouterLink v-for="item in items" :key="item.to" :to="item.to" class="nav-link">
+    <RouterLink
+      v-for="item in items"
+      :key="item.to"
+      :to="item.to"
+      class="nav-link"
+      :class="{
+        'section-active': item.to === '/farm' && router.currentRoute.value.name === 'sector',
+      }"
+    >
       <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
         <path
           :d="item.icon"
@@ -176,7 +184,8 @@ const items = [
   text-decoration: none;
 }
 
-.nav-link.router-link-exact-active {
+.nav-link.router-link-exact-active,
+.nav-link.section-active {
   color: var(--color-primary);
   font-weight: 600;
 }
@@ -189,14 +198,15 @@ const items = [
     width: var(--sidebar-width);
     flex-direction: column;
     gap: 4px;
-    padding: 16px 12px;
+    padding: 12px 5px;
     border-top: none;
     border-right: 1px solid var(--color-border);
   }
 
   .brand {
     align-self: stretch;
-    padding: 0 8px 20px;
+    padding: 0 9px 22px;
+    font-size: 0.85rem;
   }
 
   .brand summary span {
@@ -211,17 +221,18 @@ const items = [
   .nav-link {
     flex: none;
     flex-direction: row;
-    gap: 12px;
-    padding: 10px 12px;
+    gap: 9px;
+    padding: 9px 10px;
     border-radius: 8px;
-    font-size: 0.95rem;
+    font-size: 0.85rem;
   }
 
   .nav-link:hover {
     background: var(--color-hover);
   }
 
-  .nav-link.router-link-exact-active {
+  .nav-link.router-link-exact-active,
+  .nav-link.section-active {
     background: var(--color-primary-soft);
   }
 }

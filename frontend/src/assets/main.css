@@ -1,16 +1,16 @@
 /* Colores y medidas comunes de la app */
 :root {
-  --color-primary: #3d6b35;
-  --color-primary-soft: #e3ecdf;
-  --color-background: #f7f5f0;
+  --color-primary: #376a32;
+  --color-primary-soft: #e5eddf;
+  --color-background: #f7f6f2;
   --color-surface: #ffffff;
-  --color-text: #24221f;
-  --color-text-muted: #6b665d;
-  --color-border: #ddd8cd;
+  --color-text: #202322;
+  --color-text-muted: #737873;
+  --color-border: #deded7;
   --color-hover: #efece5;
   --color-success: #2e7d32;
   --color-danger: #c62828;
-  --sidebar-width: 240px;
+  --sidebar-width: 177px;
   color-scheme: light dark;
 }
 
@@ -57,22 +57,4 @@ h1 {
 
 p {
   margin: 0 0 12px;
-}
-
-/* Paleta Agro compartida con el espacio de lotes y aguadas. */
-:root {
-  --color-primary: #4ade80;
-  --color-primary-soft: #1f3824;
-  --color-background: #141714;
-  --color-surface: #1c201c;
-  --color-text: #e5e7eb;
-  --color-text-muted: #9ca3af;
-  --color-border: #2e382e;
-  --color-hover: #222822;
-  --color-success: #4ade80;
-  --color-danger: #fca5a5;
-  color-scheme: dark;
-}
-body {
-  font-family: Inter, system-ui, sans-serif;
 }

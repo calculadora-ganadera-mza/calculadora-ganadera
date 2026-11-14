@@ -20,13 +20,13 @@ const { isAuthenticated } = storeToRefs(useAuthStore())
 /* Deja lugar para la barra de abajo en el celular y para el menú en la computadora */
 .content {
   padding: 16px 16px calc(80px + env(safe-area-inset-bottom));
-  max-width: 1100px;
+  max-width: 1450px;
 }
 
 @media (min-width: 768px) {
   .content {
     margin-left: var(--sidebar-width);
-    padding: 32px;
+    padding: 16px 32px 42px;
   }
 }
 

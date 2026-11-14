@@ -1,9 +1,9 @@
-from geoalchemy2 import Geography, WKBElement
+from geoalchemy2 import Geography, Geometry, WKBElement
 from sqlalchemy import JSON, and_, cast, func, select
 from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.orm import aliased
 
-from app.models import ProductionUnit, WaterPoint
+from app.models import Parameter, ProductionUnit, WaterPoint
 
 WATER_POINT_EDGE_TOLERANCE_M = 5.0
 
@@ -61,6 +61,50 @@ def validate_location(session, data, polygon):
 def read_points(session, unit_id=None, *, scenario_id=None):
     """Una consulta para los puntos y todos sus vecinos"""
     neighbor = aliased(ProductionUnit)
+    # Calcula únicamente el aporte de esta aguada en los vecinos habilitados.
+    coverage_neighbor = aliased(ProductionUnit)
+    radius = (
+        select(Parameter.value)
+        .where(Parameter.key == "water_point_radius_km")
+        .scalar_subquery()
+    )
+    reach = func.ST_Buffer(
+        cast(WaterPoint.location, Geography(srid=4326)), radius * 1000, 32
+    )
+    shared_coverage = (
+        select(
+            cast(
+                func.ST_AsGeoJSON(
+                    func.ST_Multi(
+                        func.ST_CollectionExtract(
+                            func.ST_Union(
+                                cast(
+                                    func.ST_Intersection(
+                                        cast(
+                                            coverage_neighbor.polygon,
+                                            Geography(srid=4326),
+                                        ),
+                                        reach,
+                                    ),
+                                    Geometry(srid=4326),
+                                )
+                            ),
+                            3,
+                        )
+                    )
+                ),
+                JSON,
+            )
+        )
+        .where(
+            WaterPoint.shared.is_(True),
+            coverage_neighbor.scenario_id == ProductionUnit.scenario_id,
+            coverage_neighbor.id != ProductionUnit.id,
+            within_sector(WaterPoint.location, coverage_neighbor.polygon),
+        )
+        .correlate(WaterPoint, ProductionUnit)
+        .scalar_subquery()
+    )
     query = (
         select(
             WaterPoint.id,
@@ -69,6 +113,7 @@ def read_points(session, unit_id=None, *, scenario_id=None):
             WaterPoint.refill_l_day,
             cast(func.ST_AsGeoJSON(WaterPoint.location), JSON).label("location"),
             WaterPoint.shared,
+            shared_coverage.label("shared_coverage_geometry"),
             func.array_remove(
                 func.array_agg(aggregate_order_by(neighbor.id, neighbor.id)), None
             ).label("neighbor_unit_ids"),
@@ -82,7 +127,7 @@ def read_points(session, unit_id=None, *, scenario_id=None):
                 within_sector(WaterPoint.location, neighbor.polygon),
             ),
         )
-        .group_by(WaterPoint.id)
+        .group_by(WaterPoint.id, ProductionUnit.id)
         .order_by(WaterPoint.created_at, WaterPoint.id)
     )
     if unit_id is not None:

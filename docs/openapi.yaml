@@ -1227,24 +1227,7 @@ components:
         usable_geometry:
           description: Cobertura aprovechable recortada al sector; null sin cobertura.
           oneOf:
-            - type: object
-              required: [type, coordinates]
-              properties:
-                type:
-                  type: string
-                  const: MultiPolygon
-                coordinates:
-                  type: array
-                  items:
-                    type: array
-                    items:
-                      type: array
-                      items:
-                        type: array
-                        minItems: 2
-                        maxItems: 2
-                        items:
-                          type: number
+            - $ref: "#/components/schemas/MultiPolygonGeoJSON"
             - type: 'null'
         usable_area_ha:
           type: number
@@ -1252,6 +1235,26 @@ components:
             Superficie del polígono, en hectáreas, dentro del alcance de alguna
             aguada propia o compartida de sectores vecinos. Las superposiciones se cuentan una sola vez. Es 0 si ninguna
             aguada alcanza el sector.
+
+    MultiPolygonGeoJSON:
+      type: object
+      required: [type, coordinates]
+      properties:
+        type:
+          type: string
+          const: MultiPolygon
+        coordinates:
+          type: array
+          items:
+            type: array
+            items:
+              type: array
+              items:
+                type: array
+                minItems: 2
+                maxItems: 2
+                items:
+                  type: number
 
     WaterPointInput:
       type: object
@@ -1290,6 +1293,12 @@ components:
           description: Sectores del mismo escenario, distintos del dueño, a menos de 5 m.
           items:
             type: integer
+
+        shared_coverage_geometry:
+          description: Superficie que esta aguada compartida abastece en sus sectores vecinos, calculada con PostGIS y el radio configurado. Nula si no aporta a vecinos.
+          oneOf:
+            - $ref: "#/components/schemas/MultiPolygonGeoJSON"
+            - type: "null"
 
     Season:
       type: object

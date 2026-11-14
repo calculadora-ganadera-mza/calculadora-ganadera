@@ -62,6 +62,7 @@ async function save() {
 
 label {
   font-weight: 600;
+  font-size: 0.85rem;
 }
 
 .row {
@@ -70,7 +71,8 @@ label {
 }
 
 input {
-  width: 120px;
+  width: 183px;
+  min-width: 0;
   padding: 8px 10px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
@@ -82,7 +84,7 @@ input {
 .hint {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 0.9rem;
+  font-size: 0.75rem;
 }
 
 .error {
@@ -93,5 +95,22 @@ input {
 .saved {
   margin: 0;
   color: var(--color-success);
+}
+button {
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font: inherit;
+  cursor: pointer;
+}
+button:hover {
+  background: var(--color-hover);
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 </style>

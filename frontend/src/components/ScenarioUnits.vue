@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import WaterPoints from './WaterPoints.vue'
 import { confirmSharing, waterRequest, type WaterPoint } from '@/api/waterPoints'
-import { containsPosition, distanceToPolygon } from '@/utils/geometry'
 import type { Position } from '@/api/productionUnits'
 import UnitsMap from './UnitsMap.vue'
 import HerdForm from './HerdForm.vue'
@@ -17,49 +17,52 @@ import {
 } from '@/api/productionUnits'
 
 // seasonId: campaña en la que se cargan los animales de cada sector
-const props = defineProps<{ scenarioId: number; seasonId?: number }>()
+const props = defineProps<{
+  scenarioId: number
+  seasonId?: number
+  overview?: boolean
+  unitId?: number
+}>()
+const emit = defineEmits<{ removed: [] }>()
+const visibleUnits = computed(() =>
+  props.unitId === undefined ? units.value : units.value.filter((unit) => unit.id === props.unitId),
+)
 
 const selectedWaterId = ref<number | null>(null)
 const waterMode = ref(false)
 const selectedUnit = computed(() => units.value.find((u) => u.id === waterUnitId.value))
 const waterUnitId = ref<number | null>(null)
 const pointsByUnit = ref<Record<number, WaterPoint[]>>({})
-const waterPoints = computed(() => Object.values(pointsByUnit.value).flat())
+const waterPoints = computed(() =>
+  props.unitId === undefined
+    ? Object.values(pointsByUnit.value).flat()
+    : (pointsByUnit.value[props.unitId] ?? []),
+)
+// El servidor determina qué vecinos reciben el aporte de cada aguada.
+const sharedWaterPoints = computed(() => {
+  const unitId = props.unitId
+  if (unitId === undefined) return []
+  return Object.entries(pointsByUnit.value)
+    .filter(([ownerId]) => Number(ownerId) !== unitId)
+    .flatMap(([, points]) => points)
+    .filter((point) => point.shared && point.neighbor_unit_ids.includes(unitId))
+})
 const mapRef = ref<InstanceType<typeof UnitsMap>>()
 const waterRefs = ref<Record<number, InstanceType<typeof WaterPoints>>>({})
-const layout = ref('grid')
-const cards = ref<HTMLElement>()
-const drawing = ref(false)
-function coverage(unit: ProductionUnit) {
-  return unit.area_ha ? Math.round((unit.usable_area_ha / unit.area_ha) * 100) : 0
-}
 function focusUnit(id: number) {
+  if (props.overview) return
   selectWater(id)
   mapRef.value?.focusUnit?.(id)
-  if (layout.value === 'carousel')
-    document
-      .getElementById(`card-${id}`)
-      ?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
 }
 const creatingWater = ref(false)
 const newWaterName = ref('')
 const newWaterRefill = ref<number | ''>('')
-const placingUnit = computed(() => {
-  if (!waterPosition.value) return undefined
-  const position = waterPosition.value
-  return (
-    units.value.find((unit) => containsPosition(unit.polygon, position)) ??
-    units.value
-      .map((unit) => ({ unit, distance: distanceToPolygon(unit.polygon, position) }))
-      .filter(({ distance }) => distance <= 5)
-      .sort((a, b) => a.distance - b.distance || a.unit.id - b.unit.id)[0]?.unit
-  )
-})
-function addWater(id?: number) {
+function addWater(id: number) {
   waterRefs.value[waterUnitId.value ?? -1]?.cancel?.()
   cancelDraft()
   cancelEditing()
-  if (id !== undefined) mapRef.value?.focusUnit?.(id)
+  waterUnitId.value = id
+  mapRef.value?.focusUnit?.(id)
   waterPosition.value = null
   editingWaterId.value = null
   selectedWaterId.value = null
@@ -84,10 +87,10 @@ async function confirmWaterPlacement() {
     waterRefs.value[waterUnitId.value ?? -1]?.confirmPosition()
     return
   }
-  const unit = placingUnit.value
+  const unit = selectedUnit.value
   const position = waterPosition.value
   if (!unit || !position) {
-    actionError.value = 'Ubicá el punto dentro de un sector o hasta 5 m de su borde.'
+    actionError.value = 'Marcá la ubicación de la aguada en el sector elegido.'
     return
   }
   if (!newWaterName.value.trim()) {
@@ -133,37 +136,6 @@ async function confirmWaterPlacement() {
       err instanceof Error ? err.message : 'No se pudo guardar la aguada. Intentá nuevamente.'
   } finally {
     saving.value = false
-  }
-}
-function beginDraw() {
-  cancelWaterPlacement()
-  waterRefs.value[waterUnitId.value ?? -1]?.cancel?.()
-  selectWater(null)
-  drawing.value = true
-  mapRef.value?.startDraw?.()
-}
-function step(direction: number) {
-  const index = units.value.findIndex((u) => u.id === waterUnitId.value)
-  const unit = units.value[(index + direction + units.value.length) % units.value.length]
-  if (unit) focusUnit(unit.id)
-}
-function syncScroll() {
-  if (creatingWater.value || layout.value !== 'carousel' || !cards.value) return
-  const rect = cards.value.getBoundingClientRect()
-  let nearest: ProductionUnit | undefined
-  let distance = Infinity
-  for (const unit of units.value) {
-    const card = document.getElementById(`card-${unit.id}`)
-    if (!card) continue
-    const d = Math.abs(card.getBoundingClientRect().left - rect.left)
-    if (d < distance) {
-      distance = d
-      nearest = unit
-    }
-  }
-  if (nearest && nearest.id !== waterUnitId.value) {
-    selectWater(nearest.id)
-    mapRef.value?.focusUnit?.(nearest.id)
   }
 }
 const waterPosition = ref<Position | null>(null)
@@ -254,7 +226,6 @@ async function load() {
 }
 
 function onDraw(polygon: PolygonGeoJSON) {
-  drawing.value = true
   draft.value = polygon
   editingId.value = null
   actionError.value = ''
@@ -262,7 +233,6 @@ function onDraw(polygon: PolygonGeoJSON) {
 
 function cancelDraft() {
   draft.value = null
-  drawing.value = false
   mapRef.value?.cancelDraw?.()
   actionError.value = ''
 }
@@ -283,7 +253,6 @@ async function saveDraft() {
     // Solo se limpia si no se dibujó otro contorno mientras se guardaba
     if (draft.value === polygon) {
       draft.value = null
-      drawing.value = false
       focusUnit(unit.id)
     }
     await refreshUnits()
@@ -349,6 +318,7 @@ async function remove(unit: ProductionUnit) {
     units.value = units.value.filter((item) => item.id !== unit.id)
     if (editingId.value === unit.id) editingId.value = null
     await refreshUnits()
+    if (props.unitId === unit.id) emit('removed')
   } catch (err) {
     actionError.value = messageOf(err, 'No se pudo eliminar el sector.')
   }
@@ -358,61 +328,62 @@ onMounted(load)
 </script>
 
 <template>
-  <section class="units agro">
-    <h3>Sectores y Aguadas</h3>
+  <section class="units" :class="{ overview }">
+    <header class="sector-heading">
+      <h2 v-if="overview">Sectores del escenario</h2>
+      <h1 v-else-if="unitId">{{ visibleUnits[0]?.name ?? 'Administrar sector' }}</h1>
+      <h3 v-else>Sectores y aguadas</h3>
+    </header>
     <p v-if="loading">Cargando sectores…</p>
     <div v-else-if="loadError" role="alert">
       {{ loadError }} <button @click="load">Reintentar</button>
     </div>
+    <p v-else-if="unitId && !visibleUnits.length" role="status">
+      No se encontró este sector en el establecimiento.
+    </p>
     <template v-else>
+      <p v-if="!overview" class="hint">
+        <template v-if="unitId === undefined">
+          Para agregar un sector, dibujá su contorno con la herramienta de polígono del mapa.
+        </template>
+        Para agregar una aguada, elegí «Ubicar aguada» en el sector correspondiente.
+      </p>
       <p v-if="refreshing" role="status">Actualizando aguadas y superficie…</p>
       <p v-if="refreshError" role="alert" class="error">
         {{ refreshError }}
         <button :disabled="refreshing" @click="refreshUnits">Reintentar actualización</button>
       </p>
-      <div class="map-wrapper">
-        <UnitsMap
-          ref="mapRef"
-          :units="units"
-          :draft="draft"
-          :editing-id="editingId"
-          :water-points="waterPoints"
-          :water-mode="waterMode"
-          :selected-unit-id="waterUnitId"
-          :selected-water-id="selectedWaterId"
-          :editing-water-id="editingWaterId"
-          :water-position="waterPosition"
-          @select-unit="focusUnit"
-          @select-water="
-            (id) => {
-              const owner = units.find((u) => pointsByUnit[u.id]?.some((p) => p.id === id))
-              if (owner) focusUnit(owner.id)
-              selectedWaterId = id
-            }
-          "
-          @locate="waterPosition = $event"
-          @draw="onDraw"
-          @reshape="reshaped = $event"
-        />
-        <div class="map-actions">
-          <button @click="beginDraw">⬡ + Lote</button
-          ><button class="accent" :disabled="!units.length" @click="addWater()">💧 + Aguada</button>
-        </div>
-        <div v-if="waterMode" id="crosshair-overlay">
-          <span
-            >Tocá el mapa para ubicar la aguada. Arrastrá el punto para ajustarlo al borde.</span
-          >
-        </div>
-      </div>
+      <UnitsMap
+        ref="mapRef"
+        :units="visibleUnits"
+        :reference-units="unitId === undefined ? [] : units.filter((unit) => unit.id !== unitId)"
+        :draft="draft"
+        :editing-id="editingId"
+        :read-only="!overview && unitId !== undefined"
+        :show-labels="overview"
+        :water-points="waterPoints"
+        :shared-water-points="sharedWaterPoints"
+        :water-mode="waterMode"
+        :selected-unit-id="waterUnitId"
+        :selected-water-id="selectedWaterId"
+        :editing-water-id="editingWaterId"
+        :water-position="waterPosition"
+        @select-unit="focusUnit"
+        @select-water="
+          (id) => {
+            const owner = units.find((u) => pointsByUnit[u.id]?.some((p) => p.id === id))
+            if (owner) focusUnit(owner.id)
+            selectedWaterId = id
+          }
+        "
+        @locate="waterPosition = $event"
+        @draw="onDraw"
+        @reshape="reshaped = $event"
+      />
       <div v-if="waterMode" id="crosshair-action-bar" class="map-bar water-bar">
         <div>
-          <strong>{{
-            creatingWater
-              ? placingUnit
-                ? `Nueva aguada en ${placingUnit.name}`
-                : 'Ubicá la aguada dentro de un sector o hasta 5 m del borde'
-              : `Ubicando aguada para ${selectedUnit?.name}`
-          }}</strong>
+          <strong>Ubicando aguada en {{ selectedUnit?.name }}</strong>
+          <p class="hint">Marcá el punto en el mapa o arrastralo para ajustar su ubicación.</p>
         </div>
         <template v-if="creatingWater">
           <label class="placement-field"
@@ -429,79 +400,50 @@ onMounted(load)
           /></label>
         </template>
         <button :disabled="saving" @click="cancelWaterPlacement">Cancelar</button>
-        <button
-          class="sky"
-          :disabled="saving || (creatingWater && !placingUnit)"
-          @click="confirmWaterPlacement"
-        >
+        <button class="sky" :disabled="saving || !waterPosition" @click="confirmWaterPlacement">
           Confirmar
         </button>
       </div>
-      <form
-        v-else-if="drawing || draft"
-        id="draw-lote-bar"
-        class="map-bar"
-        @submit.prevent="draft && saveDraft()"
-      >
-        <label class="lote-name-field" for="unit-name">
-          <input id="unit-name" v-model="draftName" placeholder="Nombre del lote" maxlength="100" />
-        </label>
-        <button type="button" aria-label="Deshacer último punto" @click="mapRef?.undoDraw()">
-          ↶</button
-        ><button type="button" @click="cancelDraft">Cancelar</button
-        ><button class="primary" :disabled="saving || !draft">Guardar lote</button>
+
+      <form v-if="draft" class="draft" @submit.prevent="saveDraft">
+        <label for="unit-name">Nombre del sector</label>
+        <input id="unit-name" v-model="draftName" maxlength="100" />
+        <button :disabled="saving">Guardar sector</button>
+        <button type="button" @click="cancelDraft">Cancelar</button>
       </form>
       <p v-if="actionError" role="alert" class="error">{{ actionError }}</p>
-      <header class="diagnosis-header">
-        <h3>
-          Diagnóstico por Lote <span class="badge">{{ units.length }} lotes</span>
-        </h3>
-        <div class="view-toggle">
-          <button :aria-pressed="layout === 'grid'" @click="layout = 'grid'">▦ Tarjetas</button
-          ><button :aria-pressed="layout === 'carousel'" @click="layout = 'carousel'">
-            ↔ Carrusel
-          </button>
-        </div>
-      </header>
-      <div ref="cards" class="lote-cards" :class="layout" @scroll.passive="syncScroll">
-        <article
-          v-for="unit in units"
-          :id="`card-${unit.id}`"
+      <div v-if="overview" class="map-legend">
+        <span><i class="coverage-key"></i>Superficie aprovechable</span>
+        <span><i class="water-key"></i>Aguada</span>
+      </div>
+      <ul v-if="overview" class="sector-links">
+        <li v-for="unit in visibleUnits" :key="unit.id">
+          <RouterLink
+            :to="{ name: 'sector', params: { scenarioId: props.scenarioId, unitId: unit.id } }"
+          >
+            <span>{{ unit.name }}</span
+            ><span aria-hidden="true">›</span>
+          </RouterLink>
+        </li>
+      </ul>
+      <ul v-else class="unit-list">
+        <li
+          v-for="unit in visibleUnits"
           :key="unit.id"
-          class="lote-card"
           :class="{ active: waterUnitId === unit.id }"
         >
-          <div class="card-heading">
-            <div>
-              <button class="lote-name" @click="focusUnit(unit.id)">{{ unit.name }} ⌖</button>
-              <p>
-                {{ hectares(unit.area_ha) }} ha — {{ hectares(unit.usable_area_ha) }} ha
-                aprovechables
-              </p>
-            </div>
-            <span class="badge"
-              >{{ coverage(unit) }}% {{ coverage(unit) ? 'cubierto' : 'sin agua' }}</span
+          <div class="unit-heading">
+            <button class="unit-name" @click="focusUnit(unit.id)">{{ unit.name }}</button>
+            <span
+              >{{ hectares(unit.area_ha) }} ha — {{ hectares(unit.usable_area_ha) }} ha
+              aprovechables</span
             >
-          </div>
-          <div>
-            <div
-              class="progress"
-              role="progressbar"
-              :aria-valuenow="coverage(unit)"
-              aria-valuemin="0"
-              aria-valuemax="100"
-              :aria-label="`Cobertura de ${unit.name}`"
-            >
-              <div :style="{ width: Math.min(100, coverage(unit)) + '%' }"></div>
-            </div>
-            <div class="coverage-legend">
-              <span
-                >Aprovechable: <b>{{ hectares(unit.usable_area_ha) }} ha</b></span
-              ><span
-                >Sin agua:
-                <em>{{ hectares(Math.max(0, unit.area_ha - unit.usable_area_ha)) }} ha</em></span
-              >
-            </div>
+            <template v-if="editingId === unit.id">
+              <button :disabled="saving" @click="saveShape(unit)">Guardar contorno</button>
+              <button @click="cancelEditing">Cancelar</button>
+            </template>
+            <button v-else @click="startEditing(unit)">Editar contorno</button>
+            <button @click="remove(unit)">Eliminar</button>
           </div>
           <WaterPoints
             :ref="
@@ -524,15 +466,15 @@ onMounted(load)
             "
             @points="pointsByUnit[unit.id] = $event"
             @changed="refreshUnits"
+            @reset-position="waterPosition = null"
             @reload="refreshUnits"
             @mode="
               (active) => {
-                // El alta global pertenece al padre; cancelar la tarjeta no la cierra.
+                // El alta pertenece al padre; cancelar la lista no la cierra.
                 if (creatingWater) return
                 if (active) {
                   if (waterUnitId !== unit.id) selectWater(unit.id)
                   mapRef?.cancelDraw?.()
-                  drawing = false
                 }
                 if (waterUnitId === unit.id) waterMode = active
               }
@@ -543,34 +485,177 @@ onMounted(load)
               }
             "
           />
-          <footer>
-            <template v-if="editingId === unit.id"
-              ><button :disabled="saving" @click="saveShape(unit)">Guardar contorno</button
-              ><button @click="cancelEditing">Cancelar</button></template
-            ><button v-else class="shape" @click="startEditing(unit)">Editar contorno</button
-            ><button class="delete" @click="remove(unit)">Eliminar</button>
-          </footer>
           <HerdForm
             v-if="seasonId && editingId !== unit.id"
             :season-id="seasonId"
             :unit-id="unit.id"
           />
-        </article>
-      </div>
-      <p v-if="!units.length">Todavía no hay lotes. Usá + Lote para dibujar el primero.</p>
-      <nav v-if="layout === 'carousel' && units.length" class="carousel-nav" aria-label="Lotes">
-        <button aria-label="Lote anterior" @click="step(-1)">‹</button
-        ><button
-          v-for="unit in units"
-          :key="unit.id"
-          :aria-label="unit.name"
-          :aria-current="waterUnitId === unit.id"
-          class="dot"
-          @click="focusUnit(unit.id)"
-        ></button
-        ><button aria-label="Lote siguiente" @click="step(1)">›</button>
-      </nav>
+        </li>
+      </ul>
+      <p v-if="!visibleUnits.length">Todavía no hay sectores.</p>
     </template>
   </section>
 </template>
-<style scoped src="../assets/aguadas.css"></style>
+<style scoped>
+.units {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.units h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.draft,
+.unit-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.draft input,
+.placement-field input {
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.unit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.unit-list > li {
+  display: grid;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.unit-name {
+  font-weight: 600;
+}
+.map-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+.placement-field {
+  display: grid;
+  gap: 4px;
+}
+
+.error {
+  margin: 0;
+  color: var(--color-danger);
+}
+
+button {
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.overview {
+  gap: 0;
+  margin-top: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 11px;
+  overflow: hidden;
+}
+.sector-heading {
+  padding: 16px;
+}
+.sector-heading h1,
+.sector-heading h2,
+.sector-heading h3 {
+  margin: 0;
+}
+.sector-heading h2 {
+  font-size: 0.95rem;
+}
+.overview :deep(.units-map) {
+  border: 0;
+  border-radius: 0;
+}
+.overview > .draft,
+.overview > .error,
+.overview > [role='status'] {
+  margin: 12px 16px;
+}
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 12px 16px;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.map-legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.map-legend i {
+  width: 10px;
+  height: 10px;
+  display: inline-block;
+}
+.coverage-key {
+  background: #90b889;
+  border-radius: 2px;
+}
+.water-key {
+  background: #2678a7;
+  border-radius: 50%;
+}
+.sector-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.sector-links li + li {
+  border-top: 1px solid var(--color-border);
+}
+.sector-links a {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 16px;
+  color: var(--color-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+.sector-links a:hover,
+.sector-links a:focus-visible {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+</style>

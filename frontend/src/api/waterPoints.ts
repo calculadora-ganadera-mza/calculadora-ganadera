@@ -1,5 +1,5 @@
 import { authenticatedFetch } from './auth'
-import type { Position } from './productionUnits'
+import type { Position, ProductionUnit } from './productionUnits'
 export interface WaterPointInput {
   shared: boolean
   name: string
@@ -9,6 +9,7 @@ export interface WaterPointInput {
 export interface WaterPoint extends WaterPointInput {
   id: number
   neighbor_unit_ids: number[]
+  shared_coverage_geometry?: ProductionUnit['usable_geometry']
 }
 export async function waterRequest<T>(
   path: string,

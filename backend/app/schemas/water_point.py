@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from app.schemas.production_unit import Position, UnitName
+from app.schemas.production_unit import MultiPolygonGeoJSON, Position, UnitName
 
 
 class PointGeoJSON(BaseModel):
@@ -20,6 +20,7 @@ class WaterPointInput(BaseModel):
 class WaterPointRead(WaterPointInput):
     id: int
     neighbor_unit_ids: list[int]
+    shared_coverage_geometry: MultiPolygonGeoJSON | None = None
 
 
 class ScenarioWaterPointRead(WaterPointRead):
