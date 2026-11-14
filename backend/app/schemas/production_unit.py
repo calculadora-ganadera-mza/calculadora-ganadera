@@ -36,9 +36,16 @@ class ProductionUnitInput(BaseModel):
     polygon: PolygonGeoJSON
 
 
+class MultiPolygonGeoJSON(BaseModel):
+    type: Literal["MultiPolygon"]
+    coordinates: list[list[Ring]]
+
+
 class ProductionUnitRead(BaseModel):
     id: int
     name: str
     polygon: PolygonGeoJSON
     area_ha: float
     usable_area_ha: float
+
+    usable_geometry: MultiPolygonGeoJSON | None = None

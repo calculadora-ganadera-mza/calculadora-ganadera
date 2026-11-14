@@ -1,0 +1,349 @@
+.units {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+  padding: 16px;
+  background: #1c201c;
+  color: #e5e7eb;
+  border: 1px solid #2e382e;
+  border-radius: 16px;
+  font-family: Inter, sans-serif;
+  --color-border: #2e382e;
+  --color-background: #141714;
+  --color-surface: #1c201c;
+  --color-text: #e5e7eb;
+  --color-text-muted: #9ca3af;
+}
+h3,
+p {
+  margin: 0;
+}
+h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: white;
+}
+button,
+input {
+  font: inherit;
+  border: 1px solid #344034;
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: #222822;
+  color: #d1d5db;
+  font-size: 12px;
+  min-width: 0;
+}
+button {
+  cursor: pointer;
+}
+button:hover {
+  background: #2c342c;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid #4ade80;
+  outline-offset: 2px;
+}
+.map-wrapper {
+  position: relative;
+  border-radius: 12px;
+  border: 1px solid #2e382e;
+  overflow: hidden;
+  isolation: isolate;
+}
+.map-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 450;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.map-actions button {
+  background: #141714f2;
+  font-weight: 700;
+  border-radius: 12px;
+}
+.map-actions .accent {
+  background: #1f3824f2;
+  color: #4ade80;
+  border-color: #4ade8080;
+}
+.map-bar {
+  width: 100%;
+  background: #141714f2;
+  border: 1px solid #4ade80b3;
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.map-bar small {
+  color: #9ca3af;
+  font-size: 11px;
+}
+.map-bar input {
+  flex: 1;
+  width: 150px;
+}
+.map-bar strong,
+.map-bar small {
+  display: block;
+}
+.water-bar {
+  border-color: #0ea5e999;
+}
+.water-bar > div {
+  flex: 1;
+  font-size: 12px;
+}
+.primary {
+  background: #22c55e;
+  color: #020617;
+  font-weight: 700;
+}
+.sky {
+  background: #0ea5e9;
+  color: #020617;
+  font-weight: 700;
+}
+#crosshair-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 500;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+}
+.crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  height: 48px;
+  border: 2px solid #38bdf8;
+  border-radius: 50%;
+  background: #0ea5e933;
+  text-align: center;
+  line-height: 44px;
+  color: white;
+  font-size: 28px;
+}
+#crosshair-overlay > span {
+  position: absolute;
+  top: calc(50% + 34px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 20px);
+  font-size: 11px;
+  color: #7dd3fc;
+  background: #141714eb;
+  border: 1px solid #38bdf899;
+  padding: 4px 9px;
+  border-radius: 20px;
+  text-align: center;
+}
+.diagnosis-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  border-top: 1px solid #2e382e;
+  padding-top: 12px;
+}
+.badge {
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-block;
+  border: 1px solid #2e382e;
+  border-radius: 999px;
+  background: #222822;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+.diagnosis-header .badge {
+  margin-left: 6px;
+  color: #d1d5db;
+}
+.view-toggle {
+  display: flex;
+  background: #141714;
+  border: 1px solid #2e382e;
+  border-radius: 12px;
+  padding: 4px;
+  gap: 4px;
+}
+.view-toggle button {
+  border: 0;
+  background: none;
+}
+.view-toggle [aria-pressed='true'] {
+  background: #223826;
+  color: #4ade80;
+}
+.lote-cards {
+  gap: 16px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+.carousel {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  position: relative;
+  padding-bottom: 8px;
+}
+.carousel::-webkit-scrollbar {
+  display: none;
+}
+.lote-card {
+  background: #141714;
+  border: 2px solid #2e382e;
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.lote-card.active {
+  border-color: #4ade80;
+}
+.carousel .lote-card {
+  flex: 0 0 88%;
+  scroll-snap-align: start;
+}
+.card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.lote-name {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: white;
+  font-size: 16px;
+  font-weight: 800;
+  text-align: left;
+}
+.card-heading p {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-top: 4px;
+}
+.progress {
+  height: 8px;
+  background: #1c201c;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.progress > div {
+  height: 100%;
+  background: #22c55e;
+}
+.coverage-legend {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 5px;
+}
+.coverage-legend b {
+  color: #4ade80;
+}
+.coverage-legend em {
+  font-style: normal;
+  color: #fcd34d;
+}
+footer {
+  margin-top: auto;
+  display: flex;
+  gap: 6px;
+  border-top: 1px solid #2e382e;
+  padding-top: 12px;
+  flex-wrap: wrap;
+}
+footer button {
+  background: #1c201c;
+  font-size: 11px;
+  padding: 7px 8px;
+}
+.shape {
+  flex: 1;
+}
+.delete:hover {
+  background: #450a0a99;
+  color: #fca5a5;
+}
+.carousel-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.dot {
+  padding: 0;
+  width: 8px;
+  height: 8px;
+  border: 0;
+  border-radius: 999px;
+  background: #4b5563;
+}
+.dot[aria-current='true'] {
+  width: 24px;
+  background: #4ade80;
+}
+.error {
+  color: #fca5a5;
+}
+@media (min-width: 768px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .carousel .lote-card {
+    flex-basis: 360px;
+  }
+}
+.placement-field {
+  display: grid;
+  gap: 4px;
+  color: #9ca3af;
+  font-size: 11px;
+  flex: 1 1 160px;
+}
+.placement-field input {
+  width: 100%;
+}
+
+.lote-name-field {
+  display: grid;
+  gap: 4px;
+  flex: 1 1 100%;
+  color: #9ca3af;
+  font-size: 11px;
+}
+.lote-name-field input {
+  width: 100%;
+}
