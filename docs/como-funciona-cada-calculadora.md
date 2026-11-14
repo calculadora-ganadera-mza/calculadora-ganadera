@@ -1,6 +1,6 @@
 # Cómo funciona cada calculadora
 
-Calculadora ganadera · actualizado al 4 de noviembre de 2026
+Calculadora ganadera · actualizado al 14 de noviembre de 2026
 
 Las decisiones generales (guardado, simulación, costos, ambientes) están en `definiciones-del-proyecto`. Los valores de referencia y su origen están en la sección 7 de ese documento.
 
@@ -14,51 +14,74 @@ Común a las cuatro:
 
 ## Receptividad ganadera y tamaño del rodeo
 
-**Qué responde:** cuántos animales puede mantener el campo, y cómo está la carga actual frente a ese máximo.
+**Qué responde:** cuántos animales puede mantener el sector, qué rodeo conviene tener y cómo está la carga actual frente a ese máximo.
 
-**Dónde aplica:** unidades de secano. No aplica a corral. En bajo riego, pendiente.
+**Dónde aplica:** sectores de secano. No aplica a corral. En bajo riego, pendiente.
 
 ### Datos que usa
 
 | Origen | Datos |
 |---|---|
-| Del mapa | Polígono de la unidad. Aguadas, con los litros que repone cada una por día (opcional). |
-| De la campaña | Lluvia de la campaña anterior. Estado del campo. Cantidad por categoría de animal. Porcentaje de reposición. Porcentaje de destete. Destete precoz y suplementación, marcados o no. |
-| Se carga en la calculadora | Toros por vaca. Precipitación, solo si se quiere simular otra lluvia. |
-| Del sistema | Eficiencia de uso de la lluvia: 2,15 kg MS/ha/mm en herbáceas y 1,4 en leñosas. Forraje accesible: 80% de las herbáceas y 50% de las leñosas. Factor de uso: 30%. Consumo de un EV: 3.285 kg MS por año. Índice por estado del campo. Índice por destete precoz. Índice por suplementación. Alcance de las aguadas: 2,5 km. Equivalencias en EV y consumo de agua de cada categoría. |
+| Del mapa | Polígono del sector. Aguadas del sector y aguadas compartidas con sectores vecinos, con los litros que repone cada una por día (opcional). |
+| De la campaña | Lluvia de la campaña anterior. Estado del campo. Cantidad por categoría de animal. Porcentaje de reposición. Porcentaje de destete. Inicio del entore. Destete precoz y suplementación, marcados o no. |
+| Se carga en la calculadora | Solo para simular: los datos de la campaña y los toros por vaca. La superficie y las aguadas siempre salen del mapa. |
+| Del sistema | Eficiencia de uso de la lluvia: 2,15 kg MS/ha/mm en herbáceas y 1,4 en leñosas. Forraje accesible: 80% de las herbáceas y 50% de las leñosas. Factor de uso: 30%. Consumo de un EV: 3.285 kg MS por año. Índices por estado del campo, destete precoz y suplementación. Alcance de las aguadas: 2,5 km. Equivalencias en EV y consumo de agua de cada categoría. Toros por vaca: 4,5 cada 100. Gestación: 283 días. Edad al destete: 6 meses, o 3 con destete precoz. Edad al primer entore: 24 meses. Hembras entre los terneros destetados: 50%. Meses de verano y de invierno. Límite del termómetro: 90%. |
 
 ### Cómo calcula
 
-1. **Superficie aprovechable:** intersección entre el polígono y los círculos de 2,5 km alrededor de cada aguada. Las superposiciones se cuentan una sola vez.
+1. **Superficie aprovechable:** intersección entre el polígono y los círculos de 2,5 km alrededor de las aguadas del sector y de las compartidas con él. Las superposiciones se cuentan una sola vez.
 2. **Forraje producido (kg MS por ha por año):** lluvia × 2,15 para herbáceas, y lluvia × 1,4 para leñosas. La lluvia es la de la campaña anterior, o la que cargue el productor si está simulando.
 3. **Forraje disponible:** 80% de las herbáceas + 50% de las leñosas.
 4. **Forraje consumible:** 30% del disponible.
 5. **Receptividad base (ha por EV):** consumo anual de un EV ÷ forraje consumible.
 6. **Receptividad corregida:** la base, corregida por los índices de estado del campo, destete precoz y suplementación, multiplicados entre sí. Los de destete precoz y suplementación se aplican solo si están marcados.
 7. **Límite por pasto (EV):** superficie aprovechable ÷ receptividad corregida.
-8. **Composición del límite por pasto:** el total en EV se reparte por categoría según toros por vaca, porcentaje de reposición, porcentaje de destete y las equivalencias de cada categoría.
-9. **Necesidad de agua:** con esa composición, litros por día que necesita el rodeo, en verano y en invierno, sumando el consumo de cada categoría.
-10. **Límite por agua (EV):** si las aguadas reponen un porcentaje de esa necesidad, el límite por agua es ese mismo porcentaje del límite por pasto. Se calcula para verano y para invierno.
-11. **Rodeo máximo (EV):** el menor entre el límite por pasto y el límite por agua en verano. Se informa cuál de los dos limita.
-12. **Rodeo actual (EV):** las cantidades de cada categoría de la campaña, convertidas con sus equivalencias.
-13. **Termómetro de carga:** rodeo actual ÷ rodeo máximo, en porcentaje. Indica si la carga está por debajo, dentro o por encima de la capacidad.
+8. **Composición por vaca:** lo que acompaña a cada vaca, en cabezas y en EV:
+   - Vaca: 1 EV todo el año.
+   - Toros: toros por vaca, con la equivalencia del toro.
+   - Terneras de reposición: porcentaje de reposición, sin superar las hembras destetadas (porcentaje de destete × 50%). Valen 0,5 EV desde el destete hasta el año de edad: 6 de los 12 meses con destete normal y 9 con destete precoz.
+   - Vaquillonas: la misma cantidad que las terneras de reposición. Valen 0,7 EV desde el año hasta el primer entore, a los 24 meses.
+   - El valor anual de las terneras y las vaquillonas es su EV × los meses que pasan en la etapa ÷ 12. Los terneros que no son de reposición salen al destete y no cuentan.
+9. **Calendario:** el parto es el inicio del entore + 283 días, y el destete llega 6 meses después del parto, o 3 con destete precoz. Las terneras están en el campo desde el destete hasta el año, y las vaquillonas desde el año hasta el primer entore. El calendario se repite todos los años.
+10. **Litros por EV en verano:** litros por día que necesita en verano la composición por vaca, sumando cada categoría por cabeza, ÷ los EV de esa composición. Las terneras y las vaquillonas cuentan solo si están en el campo en algún mes del verano.
+11. **Litros disponibles:** los litros por día de las aguadas del sector, más la parte que le toca de cada aguada compartida. La parte es la misma proporción del alcance que cae en el sector, calculada solo entre los sectores que comparten la aguada.
+12. **Límite por agua (EV):** litros disponibles ÷ litros por EV en verano.
+13. **Rodeo máximo (EV):** el menor entre el límite por pasto y el límite por agua. Se informa cuál de los dos limita.
+14. **Rodeo recomendado:** el rodeo máximo repartido según la composición por vaca, en cantidades enteras redondeadas al número más cercano, con al menos un toro. Si el rodeo entero supera el rodeo máximo o los litros disponibles en verano, se baja una vaca por vez hasta que entre. Se informan también los terneros destetados, machos y hembras.
+15. **Rodeo actual (EV):** las cantidades cargadas, convertidas con sus equivalencias, más las terneras de reposición que se calculan a partir de las vacas, con su valor anual.
+16. **Mi rodeo ajustado:** el rodeo actual agrandado o achicado hasta el rodeo máximo, con sus mismas proporciones. Se toma la mayor cantidad entera de vacas que entra y el resto sale de las proporciones cargadas. Lleva al menos un toro solo si se cargaron toros.
+17. **Termómetro de carga:** rodeo actual ÷ rodeo máximo, sin redondear. Por debajo de 90% la carga está por debajo de la capacidad, hasta 100% está dentro y si supera 100% está por encima.
+18. **Necesidad de agua:** litros por día que necesita el límite por pasto con la composición por vaca, en verano y en invierno, frente a los litros disponibles. Las terneras y las vaquillonas cuentan solo en la estación en que están en el campo.
 
-Los pasos 2 a 5 resumen el método de Guevara y otros (1995). En la práctica dan 0,73 kg de MS consumible por hectárea por cada mm de lluvia.
+Los pasos 2 a 5 resumen el método de Guevara y otros (1995). En la práctica dan 0,73 kg de MS consumible por hectárea por cada mm de lluvia. Sin índices, con 300 mm de lluvia la receptividad es de 15,1 ha por EV.
 
-Si no se cargaron los litros que reponen las aguadas, se omiten los pasos 9 y 10, el rodeo máximo es el límite por pasto y el resultado aclara que el agua no se evaluó.
+**Casos especiales:**
+
+- Si falta la lluvia o es 0, o si la superficie aprovechable es 0, no se calcula y la aplicación avisa.
+- Si falta un índice, se calcula sin él y la aplicación avisa.
+- Si las terneras de reposición superan a las hembras destetadas, se acepta el dato, se cuentan las hembras destetadas y la aplicación avisa.
+- Si solo algunas aguadas tienen litros, se calcula con esas y la aplicación avisa.
+- Si ninguna aguada tiene litros, se omiten los pasos 10 a 12. El rodeo máximo es el límite por pasto y el resultado aclara que el agua no se evaluó.
+- Si el sector no tiene vacas, no se arma la composición ni el rodeo recomendado. El rodeo máximo es el límite por pasto y el resultado aclara que el agua no se evaluó.
+- Si el rodeo máximo no alcanza para una vaca con su toro, no se muestra el rodeo recomendado y la aplicación avisa. Los límites, el rodeo máximo y el termómetro se muestran igual.
 
 ### Qué devuelve
 
 - Superficie aprovechable.
 - Receptividad, en hectáreas por EV.
 - Límite por pasto y límite por agua, en EV.
-- Rodeo máximo, en EV, desglosado por categoría, y cuál de los dos límites lo fija.
-- Necesidad de agua del rodeo frente a lo que reponen las aguadas, en verano y en invierno.
-- Termómetro de carga.
+- Rodeo máximo, en EV, y cuál de los dos límites lo fija.
+- Rodeo recomendado, en cabezas por categoría, con los terneros destetados machos y hembras.
+- Mi rodeo ajustado, en cabezas por categoría.
+- Termómetro de carga: su estado y los dos números que compara, rodeo actual y rodeo máximo.
+- Necesidad de agua frente a los litros disponibles, en verano y en invierno.
+- Los avisos de los casos especiales.
 
 ### Pendientes
 
-- Índices de corrección por estado del campo, destete precoz y suplementación.
+- Valores de los índices por estado del campo, destete precoz y suplementación, y dónde se guardan.
+- Fuente de los 283 días de gestación.
+- Meses de verano y de invierno, límite del termómetro y consumo de agua por categoría: son provisorios.
 - Cómo se calcula en bajo riego.
 
 ---
