@@ -1,7 +1,11 @@
 from fastapi import APIRouter, HTTPException
 
-from app.api.deps import CurrentUser, SessionDep
-from app.schemas.water_point import WaterPointInput, WaterPointRead
+from app.api.deps import CurrentUser, OwnedScenario, SessionDep
+from app.schemas.water_point import (
+    ScenarioWaterPointRead,
+    WaterPointInput,
+    WaterPointRead,
+)
 from app.services import water_points as service
 
 router = APIRouter(tags=["water-points"])
@@ -13,6 +17,8 @@ def list_points(
 ) -> list[WaterPointRead]:
     try:
         rows = service.list_user_points(session, user.id, production_unit_id)
+    except service.InvalidWaterPointError as err:
+        raise HTTPException(422, str(err)) from err
     except service.WaterPointNotFoundError as err:
         raise HTTPException(404, str(err)) from err
     return [WaterPointRead.model_validate(row) for row in rows]
@@ -27,6 +33,8 @@ def create_point(
 ) -> WaterPointRead:
     try:
         row = service.create_point(session, user.id, production_unit_id, data)
+    except service.InvalidWaterPointError as err:
+        raise HTTPException(422, str(err)) from err
     except service.WaterPointNotFoundError as err:
         raise HTTPException(404, str(err)) from err
     return WaterPointRead.model_validate(row)
@@ -38,6 +46,8 @@ def update_point(
 ) -> WaterPointRead:
     try:
         row = service.update_point(session, user.id, water_point_id, data)
+    except service.InvalidWaterPointError as err:
+        raise HTTPException(422, str(err)) from err
     except service.WaterPointNotFoundError as err:
         raise HTTPException(404, str(err)) from err
     return WaterPointRead.model_validate(row)
@@ -47,5 +57,17 @@ def update_point(
 def delete_point(water_point_id: int, session: SessionDep, user: CurrentUser) -> None:
     try:
         service.delete_point(session, user.id, water_point_id)
+    except service.InvalidWaterPointError as err:
+        raise HTTPException(422, str(err)) from err
     except service.WaterPointNotFoundError as err:
         raise HTTPException(404, str(err)) from err
+
+
+@router.get("/scenarios/{scenario_id}/water-points")
+def list_scenario_points(
+    scenario: OwnedScenario, session: SessionDep
+) -> list[ScenarioWaterPointRead]:
+    return [
+        ScenarioWaterPointRead.model_validate(row)
+        for row in service.read_points(session, scenario_id=scenario.id)
+    ]

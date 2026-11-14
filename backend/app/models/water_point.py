@@ -1,5 +1,5 @@
 from geoalchemy2 import Geometry, WKBElement
-from sqlalchemy import CheckConstraint, ForeignKey
+from sqlalchemy import CheckConstraint, ForeignKey, false
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, CreatedAt, IntPk
@@ -16,4 +16,5 @@ class WaterPoint(Base):
     name: Mapped[str]
     location: Mapped[WKBElement] = mapped_column(Geometry("POINT", srid=4326))
     refill_l_day: Mapped[float | None]
+    shared: Mapped[bool] = mapped_column(server_default=false())
     created_at: Mapped[CreatedAt]

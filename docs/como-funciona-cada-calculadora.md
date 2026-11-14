@@ -29,7 +29,7 @@ Común a las cuatro:
 
 ### Cómo calcula
 
-1. **Superficie aprovechable:** intersección entre el polígono y los círculos de 2,5 km alrededor de cada aguada. Las superposiciones se cuentan una sola vez.
+1. **Superficie aprovechable:** intersección entre el polígono y los círculos de 2,5 km alrededor de cada aguada. Las superposiciones se cuentan una sola vez. Cuentan las aguadas propias y las compartidas de sectores vecinos del mismo escenario, a menos de 5 m del polígono. Una aguada no puede estar fuera de su sector, salvo esa tolerancia técnica de borde. El uso compartido requiere confirmación del productor.
 2. **Forraje producido (kg MS por ha por año):** lluvia × 2,15 para herbáceas, y lluvia × 1,4 para leñosas. La lluvia es la de la campaña anterior, o la que cargue el productor si está simulando.
 3. **Forraje disponible:** 80% de las herbáceas + 50% de las leñosas.
 4. **Forraje consumible:** 30% del disponible.
@@ -185,3 +185,15 @@ Si no se cargaron los litros que reponen las aguadas, se omiten los pasos 9 y 10
 - Etapas de la dieta: qué se carga en cada una.
 - Cálculo en hotelería: qué conceptos cobra el feedlot y en qué unidades.
 - Listado de rubros de costos variables.
+
+## Reglas del mapa de aguadas
+
+- Cada aguada pertenece a un sector y debe quedar dentro de él o hasta 5 metros de su borde. La tolerancia permite ubicar puntos sobre alambrados sin exigir precisión perfecta. PostGIS valida la ubicación al guardar.
+- En el alta se prefiere el sector que contiene el punto. Si queda afuera, se asigna al sector más cercano dentro de los 5 metros; un empate se resuelve por id de sector.
+- El productor confirma si la aguada abastece también a vecinos. Solo beneficia a sectores del mismo escenario que contienen el punto o están a no más de 5 metros del punto. Que el círculo de alcance intercepte otro sector no basta para compartirla.
+- La cobertura se recalcula con los contornos actuales. Si un vecino se aleja del punto, pierde esa cobertura; si se elimina el sector dueño, se borran sus aguadas y los vecinos pierden su aporte.
+- No se permite guardar un contorno que deje aguadas propias a más de 5 metros. Primero hay que moverlas a una ubicación válida para ambos contornos o eliminarlas.
+- La reposición opcional se expresa en litros por día, no en litros de almacenamiento. No cambia el radio de alcance, que hoy es de 2,5 km y se obtiene de un parámetro del servidor.
+- Si falla un guardado, se conserva la posición pendiente para reintentar. Si se guarda la posición pero falla compartir, se actualizan el mapa y la superficie, y se permite reintentar solo el uso compartido.
+
+Al cambiar entre la edición del contorno y la de una aguada, se descarta el borrador sin guardar del modo anterior. Solo hay un modo de edición activo a la vez.

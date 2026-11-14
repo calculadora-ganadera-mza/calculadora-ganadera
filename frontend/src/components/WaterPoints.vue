@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue'
-import { waterRequest, type WaterPoint, type WaterPointInput } from '@/api/waterPoints'
+import {
+  confirmSharing,
+  waterRequest,
+  type WaterPoint,
+  type WaterPointInput,
+} from '@/api/waterPoints'
 import type { Position } from '@/api/productionUnits'
 const props = defineProps<{
   savedPoints?: WaterPoint[]
@@ -16,6 +21,7 @@ const emit = defineEmits<{
   mode: [active: boolean]
   points: [points: WaterPoint[]]
   changed: []
+  reload: []
   edit: [id: number | null]
 }>()
 const points = ref<WaterPoint[]>([])
@@ -28,13 +34,19 @@ watch(
   { immediate: true },
 )
 const creating = ref(false)
-const loading = ref(true)
+const loading = ref(props.savedPoints === undefined)
 const editing = ref<number | null>(null)
+const shared = ref(false)
 const name = ref('')
 const refill = ref<number | ''>('')
 const error = ref('')
 const saving = ref(false)
+const pendingSharing = ref<WaterPoint | null>(null)
 async function load() {
+  if (props.savedPoints !== undefined) {
+    error.value = ''
+    return
+  }
   loading.value = true
   error.value = ''
   try {
@@ -68,10 +80,12 @@ function create() {
   emit('mode', true)
 }
 async function edit(point: WaterPoint) {
+  if (pendingSharing.value?.id === point.id) pendingSharing.value = null
   emit('select', point.id)
   await nextTick()
   emit('mode', false)
   editing.value = point.id
+  shared.value = point.shared
   name.value = point.name
   refill.value = point.refill_l_day ?? ''
   emit('edit', point.id)
@@ -93,21 +107,53 @@ async function save() {
   saving.value = true
   error.value = ''
   const data: WaterPointInput = {
+    shared: props.position || creating.value ? false : shared.value,
     name: name.value.trim(),
     location: { type: 'Point', coordinates },
     refill_l_day: refill.value === '' ? null : Number(refill.value),
   }
   try {
-    await waterRequest(
+    const saved = await waterRequest<WaterPoint>(
       existing ? `/water-points/${existing.id}` : `/production-units/${props.unitId}/water-points`,
       existing ? 'PUT' : 'POST',
       data,
     )
+    let sharingError = ''
+    if (props.position || creating.value) {
+      try {
+        await confirmSharing(saved)
+        pendingSharing.value = null
+      } catch {
+        pendingSharing.value = saved
+        sharingError = 'La aguada se guardó, pero no se pudo confirmar el uso compartido.'
+      }
+    }
     cancel()
     await load()
     emit('changed')
+    if (sharingError) error.value = sharingError
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'No se pudo guardar la aguada.'
+  } finally {
+    saving.value = false
+  }
+}
+async function retrySharing() {
+  const point = pendingSharing.value
+  if (!point) return
+  saving.value = true
+  try {
+    await waterRequest(`/water-points/${point.id}`, 'PUT', {
+      name: point.name,
+      location: point.location,
+      refill_l_day: point.refill_l_day,
+      shared: true,
+    })
+    pendingSharing.value = null
+    await load()
+    emit('changed')
   } catch {
-    error.value = 'No se pudo guardar la aguada.'
+    error.value = 'No se pudo confirmar el uso compartido. La aguada sigue guardada.'
   } finally {
     saving.value = false
   }
@@ -117,6 +163,7 @@ async function remove(point: WaterPoint) {
   saving.value = true
   try {
     await waterRequest(`/water-points/${point.id}`, 'DELETE')
+    if (pendingSharing.value?.id === point.id) pendingSharing.value = null
     cancel()
     await load()
     emit('changed')
@@ -136,7 +183,7 @@ function confirmPosition() {
   emit('mode', false)
   void save()
 }
-defineExpose({ create, cancel, confirmPosition })
+defineExpose({ create, cancel, confirmPosition, load })
 watch(
   () => props.unitId,
   () => {
@@ -166,6 +213,9 @@ watch(
           ><button :disabled="saving" @click="edit(point)">Editar</button
           ><button :disabled="saving" @click="remove(point)">Eliminar</button>
         </div>
+        <p v-if="point.shared && !point.neighbor_unit_ids.length" role="status">
+          Esta aguada ya no está en el límite con otro sector y no se está compartiendo.
+        </p>
         <form v-if="editing === point.id" @submit.prevent="save">
           <label>Nombre<input v-model="name" required maxlength="100" :disabled="saving" /></label
           ><label
@@ -176,7 +226,11 @@ watch(
               step="any"
               :disabled="saving"
           /></label>
-          <p v-if="point.outside_unit">Esta aguada está fuera del sector.</p>
+
+          <label
+            ><input v-model="shared" type="checkbox" :disabled="saving" />Compartida con los
+            sectores vecinos</label
+          >
           <div class="actions">
             <button type="button" class="move" @click="emit('mode', true)">Mover punto</button
             ><button type="button" :disabled="saving" @click="cancel">Cancelar</button
@@ -204,8 +258,14 @@ watch(
         ><button type="button" :disabled="saving" @click="cancel">Cancelar</button>
       </div>
     </form>
+    <button v-if="pendingSharing" :disabled="saving" @click="retrySharing">
+      Reintentar uso compartido
+    </button>
     <p v-if="error" role="alert">
-      {{ error }} <button :disabled="saving" @click="load">Reintentar carga</button>
+      {{ error }}
+      <button :disabled="saving" @click="savedPoints === undefined ? load() : emit('reload')">
+        Reintentar carga
+      </button>
     </p>
   </section>
 </template>
@@ -319,6 +379,9 @@ label {
   gap: 4px;
   color: #9ca3af;
   font-size: 11px;
+}
+input[type='checkbox'] {
+  width: auto;
 }
 input {
   width: 100%;

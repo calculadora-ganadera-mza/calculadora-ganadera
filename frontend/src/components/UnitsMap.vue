@@ -49,10 +49,17 @@ defineExpose({ focusUnit, startDraw, cancelDraw, undoDraw })
 watch(
   () => props.waterMode,
   (active) => {
-    if (active && map) {
-      const c = map.getCenter()
-      emit('locate', [c.lng, c.lat])
-    }
+    if (active && props.editingWaterId == null)
+      map?.pm.enableDraw('Marker', { snappable: true, snapDistance: 20 })
+    else map?.pm.disableDraw()
+  },
+)
+// Permite volver a ubicar el punto después de un rechazo de validación.
+watch(
+  () => props.waterPosition,
+  (position) => {
+    if (!position && props.waterMode && props.editingWaterId == null)
+      map?.pm.enableDraw('Marker', { snappable: true, snapDistance: 20 })
   },
 )
 // Vista inicial cuando todavía no hay sectores: la provincia de Mendoza
@@ -136,7 +143,7 @@ function showWater() {
     const coordinates =
       editing && props.waterPosition ? props.waterPosition : point.location.coordinates
     const marker = L.marker([coordinates[1], coordinates[0]], {
-      draggable: editing,
+      draggable: false,
       icon: L.divIcon({
         className: 'water-point-marker',
         html: '<span class="aguada-pin" style="display:block;background:#087fbb;border:2px solid white;border-radius:50%;width:16px;height:16px;box-shadow:0 1px 4px #333"></span>',
@@ -149,14 +156,27 @@ function showWater() {
     })
     if (point.id === props.selectedWaterId) marker.setZIndexOffset(1000)
     marker.bindTooltip(textTooltip(point.name))
-    marker.on('dragend', () => {
+    waterLayer.addLayer(marker)
+    if (editing) marker.pm.enable({ snappable: true, snapDistance: 20 })
+    marker.on('pm:dragend', () => {
       const pos = marker.getLatLng()
       emit('locate', [pos.lng, pos.lat])
     })
-    waterLayer.addLayer(marker)
   }
   if (props.waterPosition && props.editingWaterId == null) {
-    L.circleMarker([props.waterPosition[1], props.waterPosition[0]]).addTo(waterLayer)
+    const marker = L.marker([props.waterPosition[1], props.waterPosition[0]], {
+      icon: L.divIcon({
+        className: 'water-point-marker',
+        html: '<span class="aguada-pin" style="display:block;width:16px;height:16px;border-radius:50%"></span>',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+      }),
+    }).addTo(waterLayer)
+    marker.pm.enable({ snappable: true, snapDistance: 20 })
+    marker.on('pm:dragend', () => {
+      const pos = marker.getLatLng()
+      emit('locate', [pos.lng, pos.lat])
+    })
   }
 }
 watch(
@@ -172,36 +192,18 @@ onMounted(() => {
   }).addTo(map)
   coverageLayer.addTo(map)
   waterLayer.addTo(map)
-  map.on('click', (event: L.LeafletMouseEvent) => {
-    if (props.waterMode && !map?.pm.globalDrawModeEnabled()) {
-      map?.panTo(event.latlng)
-      emit('locate', [event.latlng.lng, event.latlng.lat])
-    }
-  })
   unitsLayer.addTo(map)
   draftLayer.addTo(map)
 
   map.pm.setLang('es')
-  /* map.pm.addControls({
-    position: 'topleft',
-    drawMarker: false,
-    drawCircleMarker: false,
-    drawPolyline: false,
-    drawRectangle: false,
-    drawCircle: false,
-    drawText: false,
-    editControls: false,
-  })
-  */
-  map.on('moveend', () => {
-    if (props.waterMode && map) {
-      const c = map.getCenter()
-      emit('locate', [c.lng, c.lat])
-    }
-  })
   map.on('pm:create', (event) => {
     // El contorno pasa a mostrarse como borrador hasta que se guarde
     event.layer.remove()
+    if (event.shape === 'Marker') {
+      const pos = (event.layer as L.Marker).getLatLng()
+      map?.pm.disableDraw()
+      emit('locate', [pos.lng, pos.lat])
+    }
     if (event.shape === 'Polygon') emit('draw', toPolygon(event.layer as L.Polygon))
   })
 

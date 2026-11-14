@@ -5,18 +5,21 @@ from sqlalchemy import (
     JSON,
     ColumnElement,
     Select,
+    and_,
     case,
     cast,
     func,
+    or_,
     select,
     true,
 )
 from sqlalchemy.engine import RowMapping
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from app.models import Parameter, ProductionUnit, Scenario, WaterPoint
 from app.models.enums import ProductionSystem
 from app.schemas.production_unit import PolygonGeoJSON
+from app.services.water_points import within_sector
 
 
 class InvalidPolygonError(ValueError):
@@ -47,12 +50,17 @@ def select_units() -> Select:
         ),
         Geometry(srid=4326),
     )
+    owner = aliased(ProductionUnit)
     coverage = (
         select(
             func.ST_Multi(
                 func.ST_CollectionExtract(
-                    func.ST_Intersection(
-                        ProductionUnit.polygon, func.ST_Union(buffered_water)
+                    cast(
+                        func.ST_Intersection(
+                            cast(ProductionUnit.polygon, Geography(srid=4326)),
+                            cast(func.ST_Union(buffered_water), Geography(srid=4326)),
+                        ),
+                        Geometry(srid=4326),
                     ),
                     3,
                 )
@@ -60,8 +68,16 @@ def select_units() -> Select:
         )
         .select_from(WaterPoint)
         .join(Parameter, true())
+        .join(owner, owner.id == WaterPoint.production_unit_id)
         .where(
-            WaterPoint.production_unit_id == ProductionUnit.id,
+            or_(
+                WaterPoint.production_unit_id == ProductionUnit.id,
+                and_(
+                    WaterPoint.shared.is_(True),
+                    owner.scenario_id == ProductionUnit.scenario_id,
+                    within_sector(WaterPoint.location, ProductionUnit.polygon),
+                ),
+            ),
             Parameter.key == "water_point_radius_km",
         )
         .correlate(ProductionUnit)
@@ -104,14 +120,19 @@ def read_unit(session: Session, unit_id: int) -> RowMapping:
 
 
 def get_user_unit(
-    session: Session, user_id: int, unit_id: int
+    session: Session, user_id: int, unit_id: int, *, for_update: bool = False
 ) -> ProductionUnit | None:
     """El sector, solo si es de un establecimiento del usuario."""
-    return session.scalar(
+    query = (
         select(ProductionUnit)
         .join(Scenario)
         .where(ProductionUnit.id == unit_id, Scenario.user_id == user_id)
     )
+    if for_update:
+        query = query.with_for_update(of=ProductionUnit).execution_options(
+            populate_existing=True
+        )
+    return session.scalar(query)
 
 
 def create_unit(
@@ -136,6 +157,22 @@ def update_unit(
     session: Session, unit: ProductionUnit, name: str, polygon: PolygonGeoJSON
 ) -> None:
     """Cambia el nombre y el contorno."""
+    session.refresh(unit, with_for_update=True)
+    geometry = to_geometry(session, polygon)
+    outside = list(
+        session.scalars(
+            select(WaterPoint.name).where(
+                WaterPoint.production_unit_id == unit.id,
+                ~within_sector(WaterPoint.location, geometry),
+            )
+        )
+    )
+    if outside:
+        raise InvalidPolygonError(
+            "El contorno deja afuera estas aguadas: "
+            + ", ".join(outside)
+            + ". Borrá esas aguadas primero."
+        )
     unit.name = name
-    unit.polygon = to_geometry(session, polygon)
+    unit.polygon = geometry
     session.flush()

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { containsPosition } from '../geometry'
+import { containsPosition, distanceToPolygon } from '../geometry'
 import type { PolygonGeoJSON } from '@/api/productionUnits'
 const polygon: PolygonGeoJSON = {
   type: 'Polygon',
@@ -30,4 +30,23 @@ describe('Asignación espacial de aguadas', () => {
     expect(containsPosition(polygon, [5, 5])).toBe(false)
     expect(containsPosition(polygon, [4, 5])).toBe(false)
   })
+})
+
+it('mide en metros según la latitud y contempla los bordes de huecos', () => {
+  const square: PolygonGeoJSON = {
+    type: 'Polygon',
+    coordinates: [
+      [
+        [-68.09, -34.58],
+        [-68.08, -34.58],
+        [-68.08, -34.57],
+        [-68.09, -34.57],
+        [-68.09, -34.58],
+      ],
+    ],
+  }
+  expect(distanceToPolygon(square, [-68.085, -34.58003])).toBeCloseTo(3.328, 2)
+  expect(distanceToPolygon(square, [-68.09003, -34.575])).toBeCloseTo(2.753, 2)
+  expect(distanceToPolygon(polygon, [4.00001, 5])).toBeLessThan(1.2)
+  expect(distanceToPolygon(square, [-68.09, -34.58])).toBe(0)
 })

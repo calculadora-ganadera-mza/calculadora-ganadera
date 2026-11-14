@@ -11,6 +11,7 @@ class PointGeoJSON(BaseModel):
 
 
 class WaterPointInput(BaseModel):
+    shared: bool = False
     name: UnitName
     location: PointGeoJSON
     refill_l_day: float | None = Field(default=None, gt=0, allow_inf_nan=False)
@@ -18,4 +19,8 @@ class WaterPointInput(BaseModel):
 
 class WaterPointRead(WaterPointInput):
     id: int
-    outside_unit: bool
+    neighbor_unit_ids: list[int]
+
+
+class ScenarioWaterPointRead(WaterPointRead):
+    production_unit_id: int

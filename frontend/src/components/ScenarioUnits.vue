@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import WaterPoints from './WaterPoints.vue'
-import { waterRequest, type WaterPoint } from '@/api/waterPoints'
-import { containsPosition } from '@/utils/geometry'
+import { confirmSharing, waterRequest, type WaterPoint } from '@/api/waterPoints'
+import { containsPosition, distanceToPolygon } from '@/utils/geometry'
 import type { Position } from '@/api/productionUnits'
 import UnitsMap from './UnitsMap.vue'
 import {
@@ -44,7 +44,14 @@ const newWaterName = ref('')
 const newWaterRefill = ref<number | ''>('')
 const placingUnit = computed(() => {
   if (!waterPosition.value) return undefined
-  return units.value.find((unit) => containsPosition(unit.polygon, waterPosition.value!))
+  const position = waterPosition.value
+  return (
+    units.value.find((unit) => containsPosition(unit.polygon, position)) ??
+    units.value
+      .map((unit) => ({ unit, distance: distanceToPolygon(unit.polygon, position) }))
+      .filter(({ distance }) => distance <= 5)
+      .sort((a, b) => a.distance - b.distance || a.unit.id - b.unit.id)[0]?.unit
+  )
 })
 function addWater(id?: number) {
   waterRefs.value[waterUnitId.value ?? -1]?.cancel?.()
@@ -70,6 +77,7 @@ function cancelWaterPlacement() {
   } else waterRefs.value[waterUnitId.value ?? -1]?.cancel?.()
 }
 async function confirmWaterPlacement() {
+  if (saving.value) return
   if (!creatingWater.value) {
     waterRefs.value[waterUnitId.value ?? -1]?.confirmPosition()
     return
@@ -77,7 +85,7 @@ async function confirmWaterPlacement() {
   const unit = placingUnit.value
   const position = waterPosition.value
   if (!unit || !position) {
-    actionError.value = 'Ubicá el punto dentro de un sector para asignarle la aguada.'
+    actionError.value = 'Ubicá el punto dentro de un sector o hasta 5 m de su borde.'
     return
   }
   if (!newWaterName.value.trim()) {
@@ -94,15 +102,22 @@ async function confirmWaterPlacement() {
   saving.value = true
   actionError.value = ''
   try {
-    const point = await waterRequest<WaterPoint>(
+    let point = await waterRequest<WaterPoint>(
       `/production-units/${unit.id}/water-points`,
       'POST',
       {
+        shared: false,
         name: newWaterName.value.trim(),
         location: { type: 'Point', coordinates: position },
         refill_l_day: newWaterRefill.value === '' ? null : Number(newWaterRefill.value),
       },
     )
+    try {
+      point = await confirmSharing(point)
+    } catch (err) {
+      actionError.value =
+        err instanceof Error ? err.message : 'No se pudo confirmar el uso compartido.'
+    }
     pointsByUnit.value[unit.id] = [...(pointsByUnit.value[unit.id] ?? []), point]
     creatingWater.value = false
     waterMode.value = false
@@ -110,8 +125,10 @@ async function confirmWaterPlacement() {
     selectedWaterId.value = point.id
     waterPosition.value = null
     await refreshUnits()
-  } catch {
-    actionError.value = 'No se pudo guardar la aguada. Intentá nuevamente.'
+  } catch (err) {
+    waterPosition.value = null
+    actionError.value =
+      err instanceof Error ? err.message : 'No se pudo guardar la aguada. Intentá nuevamente.'
   } finally {
     saving.value = false
   }
@@ -163,11 +180,44 @@ function selectWater(id: number | null) {
   draft.value = null
 }
 function editWater(id: number | null) {
+  if (id !== null) {
+    // Cambiar de modo descarta el borrador de contorno anterior.
+    cancelDraft()
+    cancelEditing()
+  }
   editingWaterId.value = id
   waterPosition.value = null
 }
-async function refreshUnits() {
-  units.value = await listProductionUnits(props.scenarioId)
+const refreshError = ref('')
+const refreshing = ref(false)
+let refreshVersion = 0
+async function refreshUnits(): Promise<boolean> {
+  const version = ++refreshVersion
+  refreshing.value = true
+  refreshError.value = ''
+  try {
+    const [updatedUnits, points] = await Promise.all([
+      listProductionUnits(props.scenarioId),
+      waterRequest<(WaterPoint & { production_unit_id: number })[]>(
+        `/scenarios/${props.scenarioId}/water-points`,
+      ),
+    ])
+    if (version !== refreshVersion) return true
+    const grouped: Record<number, WaterPoint[]> = {}
+    for (const unit of updatedUnits) grouped[unit.id] = []
+    for (const point of points) grouped[point.production_unit_id]?.push(point)
+    pointsByUnit.value = grouped
+    units.value = updatedUnits
+    return true
+  } catch {
+    if (version === refreshVersion) {
+      refreshError.value =
+        'No se pudieron actualizar las aguadas y la superficie. Los datos mostrados pueden estar desactualizados.'
+    }
+    return false
+  } finally {
+    if (version === refreshVersion) refreshing.value = false
+  }
 }
 const units = ref<ProductionUnit[]>([])
 const loading = ref(true)
@@ -193,7 +243,7 @@ async function load() {
   loading.value = true
   loadError.value = ''
   try {
-    units.value = await listProductionUnits(props.scenarioId)
+    if (!(await refreshUnits())) loadError.value = 'No se pudieron cargar los sectores.'
   } catch {
     loadError.value = 'No se pudieron cargar los sectores.'
   } finally {
@@ -234,6 +284,7 @@ async function saveDraft() {
       drawing.value = false
       focusUnit(unit.id)
     }
+    await refreshUnits()
   } catch (err) {
     actionError.value = messageOf(err, 'No se pudo guardar el sector.')
   } finally {
@@ -253,6 +304,7 @@ function startEditing(unit: ProductionUnit) {
 }
 
 function cancelEditing() {
+  reshaped.value = null
   // Al dejar de editar, el mapa vuelve a dibujar el contorno guardado
   editingId.value = null
   actionError.value = ''
@@ -272,9 +324,12 @@ async function saveShape(unit: ProductionUnit) {
       polygon,
     })
     units.value = units.value.map((item) => (item.id === updated.id ? updated : item))
+    await refreshUnits()
     // Solo se cierra si no se empezó otra edición mientras se guardaba
     if (editingId.value === unit.id && reshaped.value === polygon) editingId.value = null
   } catch (err) {
+    cancelEditing()
+    reshaped.value = null
     actionError.value = messageOf(err, 'No se pudo guardar el contorno.')
   } finally {
     saving.value = false
@@ -282,7 +337,7 @@ async function saveShape(unit: ProductionUnit) {
 }
 
 async function remove(unit: ProductionUnit) {
-  const question = `¿Eliminar el sector «${unit.name}»? También se borran sus aguadas y rodeos.`
+  const question = `¿Eliminar el sector «${unit.name}»? También se borran sus aguadas y rodeos. Los sectores vecinos perderán las aguadas compartidas.`
   if (!window.confirm(question)) return
   actionError.value = ''
   try {
@@ -291,6 +346,7 @@ async function remove(unit: ProductionUnit) {
     delete pointsByUnit.value[unit.id]
     units.value = units.value.filter((item) => item.id !== unit.id)
     if (editingId.value === unit.id) editingId.value = null
+    await refreshUnits()
   } catch (err) {
     actionError.value = messageOf(err, 'No se pudo eliminar el sector.')
   }
@@ -307,6 +363,11 @@ onMounted(load)
       {{ loadError }} <button @click="load">Reintentar</button>
     </div>
     <template v-else>
+      <p v-if="refreshing" role="status">Actualizando aguadas y superficie…</p>
+      <p v-if="refreshError" role="alert" class="error">
+        {{ refreshError }}
+        <button :disabled="refreshing" @click="refreshUnits">Reintentar actualización</button>
+      </p>
       <div class="map-wrapper">
         <UnitsMap
           ref="mapRef"
@@ -336,8 +397,9 @@ onMounted(load)
           ><button class="accent" :disabled="!units.length" @click="addWater()">💧 + Aguada</button>
         </div>
         <div v-if="waterMode" id="crosshair-overlay">
-          <div class="crosshair">+</div>
-          <span>Mové el mapa o tocá un punto para ubicar la aguada</span>
+          <span
+            >Tocá el mapa para ubicar la aguada. Arrastrá el punto para ajustarlo al borde.</span
+          >
         </div>
       </div>
       <div v-if="waterMode" id="crosshair-action-bar" class="map-bar water-bar">
@@ -346,7 +408,7 @@ onMounted(load)
             creatingWater
               ? placingUnit
                 ? `Nueva aguada en ${placingUnit.name}`
-                : 'Ubicá la aguada dentro de un sector'
+                : 'Ubicá la aguada dentro de un sector o hasta 5 m del borde'
               : `Ubicando aguada para ${selectedUnit?.name}`
           }}</strong>
         </div>
@@ -355,7 +417,7 @@ onMounted(load)
             >Nombre<input v-model="newWaterName" maxlength="100" :disabled="saving"
           /></label>
           <label class="placement-field"
-            >Capacidad (lts)<input
+            >Reposición (L/día)<input
               v-model="newWaterRefill"
               type="number"
               min="0"
@@ -447,7 +509,7 @@ onMounted(load)
             "
             global-creation
             @create-requested="addWater(unit.id)"
-            :saved-points="pointsByUnit[unit.id]"
+            :saved-points="pointsByUnit[unit.id] ?? []"
             :unit-id="unit.id"
             :unit-name="unit.name"
             :selected-point-id="waterUnitId === unit.id ? selectedWaterId : null"
@@ -460,8 +522,11 @@ onMounted(load)
             "
             @points="pointsByUnit[unit.id] = $event"
             @changed="refreshUnits"
+            @reload="refreshUnits"
             @mode="
               (active) => {
+                // El alta global pertenece al padre; cancelar la tarjeta no la cierra.
+                if (creatingWater) return
                 if (active) {
                   if (waterUnitId !== unit.id) selectWater(unit.id)
                   mapRef?.cancelDraw?.()
@@ -472,7 +537,7 @@ onMounted(load)
             "
             @edit="
               (id) => {
-                if (waterUnitId === unit.id) editWater(id)
+                if (!creatingWater && waterUnitId === unit.id) editWater(id)
               }
             "
           />

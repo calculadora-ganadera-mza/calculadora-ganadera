@@ -1,14 +1,18 @@
 import { mount, flushPromises } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import WaterPoints from '../WaterPoints.vue'
-import { waterRequest, type WaterPoint } from '@/api/waterPoints'
-vi.mock('@/api/waterPoints', () => ({ waterRequest: vi.fn() }))
+import { confirmSharing, waterRequest, type WaterPoint } from '@/api/waterPoints'
+vi.mock('@/api/waterPoints', () => ({
+  waterRequest: vi.fn(),
+  confirmSharing: vi.fn((point: unknown) => Promise.resolve(point)),
+}))
 const point: WaterPoint = {
   id: 3,
   name: 'Tanque',
   location: { type: 'Point', coordinates: [-68, -34] },
   refill_l_day: null,
-  outside_unit: true,
+  shared: true,
+  neighbor_unit_ids: [],
 }
 beforeEach(() => {
   vi.resetAllMocks()
@@ -22,7 +26,7 @@ describe('Aguadas', () => {
       .findAll('button')
       .find((b) => b.text() === 'Editar')!
       .trigger('click')
-    expect(wrapper.text()).toContain('Esta aguada está fuera del sector')
+    expect(wrapper.text()).toContain('no se está compartiendo')
     expect(wrapper.emitted('edit')?.slice(-1)[0]).toEqual([3])
     expect((wrapper.find('input').element as HTMLInputElement).value).toBe('Tanque')
   })
@@ -58,6 +62,7 @@ describe('Aguadas', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
     expect(waterRequest).toHaveBeenCalledWith('/production-units/1/water-points', 'POST', {
+      shared: false,
       name: 'Nueva',
       location: { type: 'Point', coordinates: [-68, -34] },
       refill_l_day: null,
@@ -75,7 +80,7 @@ describe('Aguadas', () => {
     await wrapper.find('input').setValue('Nueva')
     await wrapper.find('form').trigger('submit')
     await flushPromises()
-    expect(wrapper.text()).toContain('No se pudo guardar')
+    expect(wrapper.text()).toContain('fallo')
     expect((wrapper.find('input').element as HTMLInputElement).value).toBe('Nueva')
   })
 })
@@ -89,4 +94,87 @@ it('actualiza el contador y la lista cuando se crea una aguada desde el mapa', a
   expect(wrapper.text()).toContain('AGUADAS (1)')
   expect(wrapper.find('.point-choice').text()).toContain('Tanque')
   expect(wrapper.find('.empty').exists()).toBe(false)
+})
+
+it('conserva la posición y reintenta el mismo movimiento tras un error', async () => {
+  const wrapper = mount(WaterPoints, { props: { unitId: 1, position: null, selectedPointId: 3 } })
+  await flushPromises()
+  await wrapper
+    .findAll('button')
+    .find((b) => b.text() === 'Editar')!
+    .trigger('click')
+  await wrapper.setProps({ position: [-68.001, -34] })
+  const editEvents = wrapper.emitted('edit')!.length
+  vi.mocked(waterRequest).mockRejectedValueOnce(new Error('Error de red'))
+  await wrapper.find('form').trigger('submit')
+  await flushPromises()
+  expect(wrapper.emitted('edit')).toHaveLength(editEvents)
+  expect(wrapper.find('form').exists()).toBe(true)
+  vi.mocked(waterRequest).mockResolvedValueOnce(point).mockResolvedValue([point])
+  await wrapper.find('form').trigger('submit')
+  await flushPromises()
+  expect(waterRequest).toHaveBeenCalledWith(
+    '/water-points/3',
+    'PUT',
+    expect.objectContaining({
+      location: { type: 'Point', coordinates: [-68.001, -34] },
+    }),
+  )
+  expect(wrapper.emitted('changed')).toHaveLength(1)
+})
+
+it('refresca el movimiento guardado aunque falle compartir y permite reintentar ese paso', async () => {
+  const wrapper = mount(WaterPoints, { props: { unitId: 1, position: null, selectedPointId: 3 } })
+  await flushPromises()
+  await wrapper
+    .findAll('button')
+    .find((b) => b.text() === 'Editar')!
+    .trigger('click')
+  const moved = {
+    ...point,
+    shared: false,
+    location: { type: 'Point' as const, coordinates: [-68.001, -34] as [number, number] },
+  }
+  await wrapper.setProps({ position: moved.location.coordinates })
+  vi.mocked(waterRequest).mockResolvedValueOnce(moved).mockResolvedValue([moved])
+  vi.mocked(confirmSharing).mockRejectedValueOnce(new Error('Error al compartir'))
+  await wrapper.find('form').trigger('submit')
+  await flushPromises()
+  expect(wrapper.emitted('changed')).toHaveLength(1)
+  expect(wrapper.find('form').exists()).toBe(false)
+  expect(wrapper.find('[role="alert"]').text()).toContain('La aguada se guardó')
+  expect(wrapper.emitted('points')!.slice(-1)[0]).toEqual([[moved]])
+  await wrapper
+    .findAll('button')
+    .find((b) => b.text() === 'Reintentar uso compartido')!
+    .trigger('click')
+  await flushPromises()
+  expect(waterRequest).toHaveBeenCalledWith('/water-points/3', 'PUT', {
+    name: moved.name,
+    location: moved.location,
+    refill_l_day: moved.refill_l_day,
+    shared: true,
+  })
+  expect(wrapper.emitted('changed')).toHaveLength(2)
+  expect(wrapper.text()).not.toContain('Reintentar uso compartido')
+})
+
+it('delega la recarga al padre cuando recibe las aguadas por props', async () => {
+  const wrapper = mount(WaterPoints, {
+    props: { unitId: 1, position: null, selectedPointId: 3, savedPoints: [point] },
+  })
+  await flushPromises()
+  await wrapper
+    .findAll('button')
+    .find((b) => b.text() === 'Editar')!
+    .trigger('click')
+  vi.mocked(waterRequest).mockRejectedValueOnce(new Error('sin red'))
+  await wrapper.find('form').trigger('submit')
+  await flushPromises()
+  await wrapper
+    .findAll('button')
+    .find((b) => b.text() === 'Reintentar carga')!
+    .trigger('click')
+  expect(wrapper.emitted('reload')).toHaveLength(1)
+  expect(waterRequest).toHaveBeenCalledTimes(1)
 })

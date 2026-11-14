@@ -4,8 +4,11 @@ import { flushPromises, mount } from '@vue/test-utils'
 import ScenarioUnits from '../ScenarioUnits.vue'
 import UnitsMap from '../UnitsMap.vue'
 import WaterPoints from '../WaterPoints.vue'
-import { waterRequest } from '@/api/waterPoints'
-vi.mock('@/api/waterPoints', () => ({ waterRequest: vi.fn() }))
+import { confirmSharing, waterRequest } from '@/api/waterPoints'
+vi.mock('@/api/waterPoints', () => ({
+  waterRequest: vi.fn(),
+  confirmSharing: vi.fn((point: unknown) => Promise.resolve(point)),
+}))
 import {
   ApiError,
   createProductionUnit,
@@ -67,7 +70,10 @@ function button(wrapper: Awaited<ReturnType<typeof mountUnits>>['wrapper'], text
 }
 
 beforeEach(() => {
-  vi.mocked(waterRequest).mockReset()
+  vi.mocked(waterRequest).mockReset().mockResolvedValue([])
+  vi.mocked(confirmSharing)
+    .mockReset()
+    .mockImplementation(async (point) => point)
   vi.mocked(listProductionUnits).mockReset().mockResolvedValue([UNIT])
   vi.mocked(createProductionUnit).mockReset()
   vi.mocked(updateProductionUnit).mockReset()
@@ -85,7 +91,9 @@ describe('ScenarioUnits', () => {
   })
 
   it('guarda el contorno dibujado con el nombre ingresado', async () => {
-    vi.mocked(listProductionUnits).mockResolvedValue([])
+    vi.mocked(listProductionUnits)
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([{ ...UNIT, id: 2, name: 'Bajo' }])
     vi.mocked(createProductionUnit).mockResolvedValue({ ...UNIT, id: 2, name: 'Bajo' })
     const { wrapper, map } = await mountUnits()
 
@@ -138,6 +146,7 @@ describe('ScenarioUnits', () => {
     await button(wrapper, 'Editar contorno').trigger('click')
     expect(map.props('editingId')).toBe(1)
     map.vm.$emit('reshape', wide)
+    vi.mocked(listProductionUnits).mockResolvedValue([{ ...UNIT, area_ha: 203.6 }])
     await button(wrapper, 'Guardar contorno').trigger('click')
     await flushPromises()
 
@@ -151,6 +160,7 @@ describe('ScenarioUnits', () => {
     vi.mocked(deleteProductionUnit).mockResolvedValue()
     const { wrapper } = await mountUnits()
 
+    vi.mocked(listProductionUnits).mockResolvedValue([])
     await button(wrapper, 'Eliminar').trigger('click')
     await flushPromises()
 
@@ -233,10 +243,11 @@ describe('Creación general de aguadas', () => {
     const inputs = wrapper.findAll('#crosshair-action-bar input')
     await inputs[0]!.setValue('Tanque nuevo')
     await inputs[1]!.setValue('900')
-    vi.mocked(waterRequest).mockResolvedValue({ id: 8, name: 'Tanque nuevo' })
+    vi.mocked(waterRequest).mockResolvedValueOnce({ id: 8, name: 'Tanque nuevo' })
     await wrapper.find('#crosshair-action-bar .sky').trigger('click')
     await flushPromises()
     expect(waterRequest).toHaveBeenCalledWith('/production-units/2/water-points', 'POST', {
+      shared: false,
       name: 'Tanque nuevo',
       location: { type: 'Point', coordinates: [-68.15, -34.55] },
       refill_l_day: 900,
@@ -258,7 +269,7 @@ describe('Creación general de aguadas', () => {
     await wrapper.find('#crosshair-action-bar .sky').trigger('click')
     await flushPromises()
     expect(wrapper.find('#crosshair-action-bar').exists()).toBe(true)
-    expect(wrapper.text()).toContain('No se pudo guardar la aguada')
+    expect(wrapper.text()).toContain('fallo')
     expect(waterRequest).toHaveBeenLastCalledWith(
       '/production-units/1/water-points',
       'POST',
@@ -281,11 +292,24 @@ it('refresca la tarjeta y la cobertura al guardar una aguada desde el mapa', asy
     .mockResolvedValueOnce([])
     .mockResolvedValueOnce({
       id: 8,
+      production_unit_id: 1,
       name: 'Aguada 1',
       location: { type: 'Point', coordinates: [-68.085, -34.575] },
       refill_l_day: null,
-      outside_unit: false,
+      shared: false,
+      neighbor_unit_ids: [],
     })
+  vi.mocked(waterRequest).mockResolvedValue([
+    {
+      id: 8,
+      production_unit_id: 1,
+      name: 'Aguada 1',
+      location: { type: 'Point', coordinates: [-68.085, -34.575] },
+      refill_l_day: null,
+      shared: false,
+      neighbor_unit_ids: [],
+    },
+  ])
   const wrapper = mount(ScenarioUnits, {
     props: { scenarioId: 7 },
     global: { stubs: { UnitsMap: true } },
@@ -318,4 +342,234 @@ it('mantiene el nombre durante el dibujo y habilita guardar solo al cerrar el co
   await flushPromises()
   expect((wrapper.find('#unit-name').element as HTMLInputElement).value).toBe('Lote Norte')
   expect(save.attributes('disabled')).toBeUndefined()
+})
+
+it('admite aguadas hasta 5 m del borde y rechaza las más alejadas', async () => {
+  const { wrapper, map } = await mountUnits()
+  await wrapper.find('.map-actions .accent').trigger('click')
+  map.vm.$emit('locate', [-68.085, -34.58003])
+  await flushPromises()
+  expect(wrapper.find('#crosshair-action-bar .sky').attributes('disabled')).toBeUndefined()
+  expect(wrapper.find('#crosshair-action-bar').text()).toContain('Nueva aguada en Potrero 1')
+  expect(wrapper.find('#crosshair-action-bar').text()).toContain('Reposición (L/día)')
+  map.vm.$emit('locate', [-68.085, -34.58011])
+  await flushPromises()
+  expect(wrapper.find('#crosshair-action-bar .sky').attributes('disabled')).toBeDefined()
+})
+
+it('carga todas las aguadas con una petición por escenario sin consultas por tarjeta', async () => {
+  vi.mocked(listProductionUnits).mockResolvedValue([UNIT, { ...UNIT, id: 2 }])
+  vi.mocked(waterRequest).mockResolvedValue([
+    {
+      id: 3,
+      production_unit_id: 2,
+      name: 'Tanque',
+      shared: false,
+      neighbor_unit_ids: [],
+      location: { type: 'Point', coordinates: [-68, -34] },
+      refill_l_day: null,
+    },
+  ])
+  const wrapper = mount(ScenarioUnits, {
+    props: { scenarioId: 7 },
+    global: { stubs: { UnitsMap: true } },
+  })
+  await flushPromises()
+  expect(waterRequest).toHaveBeenCalledTimes(1)
+  expect(waterRequest).toHaveBeenCalledWith('/scenarios/7/water-points')
+  expect(wrapper.findAll('.water-points h4').map((h) => h.text())).toEqual([
+    'AGUADAS (0)',
+    'AGUADAS (1)',
+  ])
+  vi.mocked(waterRequest).mockClear()
+  wrapper.findComponent(WaterPoints).vm.$emit('changed')
+  await flushPromises()
+  expect(waterRequest).toHaveBeenCalledTimes(1)
+  expect(waterRequest).toHaveBeenCalledWith('/scenarios/7/water-points')
+})
+
+it('termina el alta y refresca la cobertura aunque falle la confirmación de compartir', async () => {
+  const { wrapper, map } = await mountUnits()
+  await wrapper.find('.map-actions .accent').trigger('click')
+  map.vm.$emit('locate', [-68.085, -34.575])
+  await flushPromises()
+  const point = {
+    id: 9,
+    name: 'Nueva',
+    shared: false,
+    neighbor_unit_ids: [2],
+    location: { type: 'Point' as const, coordinates: [-68.085, -34.575] as [number, number] },
+    refill_l_day: null,
+  }
+  vi.mocked(waterRequest).mockResolvedValueOnce(point)
+  vi.mocked(confirmSharing).mockRejectedValueOnce(new Error('Falló compartir'))
+  await wrapper.find('#crosshair-action-bar .sky').trigger('click')
+  await flushPromises()
+  expect(wrapper.find('#crosshair-action-bar').exists()).toBe(false)
+  expect(map.props('waterMode')).toBe(false)
+  expect(map.props('selectedWaterId')).toBe(9)
+  expect(wrapper.text()).toContain('Falló compartir')
+  expect(waterRequest).toHaveBeenCalledWith('/scenarios/7/water-points')
+  expect(vi.mocked(waterRequest).mock.calls.filter(([, method]) => method === 'POST')).toHaveLength(
+    1,
+  )
+})
+
+it.each(['sectores', 'aguadas'])(
+  'avisa si falla el refresco de %s y permite reintentar',
+  async (resource) => {
+    const { wrapper, map } = await mountUnits()
+    if (resource === 'sectores')
+      vi.mocked(listProductionUnits).mockRejectedValueOnce(new Error('sin red'))
+    else vi.mocked(waterRequest).mockRejectedValueOnce(new Error('sin red'))
+    wrapper.findComponent(WaterPoints).vm.$emit('changed')
+    await flushPromises()
+    expect(wrapper.find('[role="alert"]').text()).toContain('pueden estar desactualizados')
+    expect(map.props('units')[0]!.usable_area_ha).toBe(0)
+    vi.mocked(listProductionUnits).mockResolvedValue([{ ...UNIT, usable_area_ha: 50 }])
+    await button(wrapper, 'Reintentar actualización').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(map.props('units')[0]!.usable_area_ha).toBe(50)
+  },
+)
+
+it.each(['éxito', 'error'])(
+  'ignora una respuesta antigua con %s tras un refresco más reciente',
+  async (result) => {
+    const { wrapper, map } = await mountUnits()
+    let finish!: (units: ProductionUnit[]) => void
+    let fail!: (error: Error) => void
+    vi.mocked(listProductionUnits)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve, reject) => {
+            finish = resolve
+            fail = reject
+          }),
+      )
+      .mockResolvedValueOnce([{ ...UNIT, usable_area_ha: 50 }])
+    const child = wrapper.findComponent(WaterPoints)
+    child.vm.$emit('changed')
+    child.vm.$emit('changed')
+    await flushPromises()
+    expect(map.props('units')[0]!.usable_area_ha).toBe(50)
+    if (result === 'éxito') finish([UNIT])
+    else fail(new Error('respuesta vieja'))
+    await flushPromises()
+    expect(map.props('units')[0]!.usable_area_ha).toBe(50)
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+  },
+)
+
+it('cierra la edición de contorno al editar una aguada y viceversa', async () => {
+  vi.mocked(waterRequest).mockResolvedValue([
+    {
+      id: 3,
+      production_unit_id: 1,
+      name: 'Tanque',
+      shared: false,
+      neighbor_unit_ids: [],
+      location: { type: 'Point', coordinates: [-68.085, -34.575] },
+      refill_l_day: null,
+    },
+  ])
+  const wrapper = mount(ScenarioUnits, {
+    props: { scenarioId: 7 },
+    global: { stubs: { UnitsMap: true } },
+  })
+  await flushPromises()
+  const map = wrapper.findComponent(UnitsMap)
+  await button(wrapper, 'Editar contorno').trigger('click')
+  map.vm.$emit('reshape', OTHER)
+  await flushPromises()
+  await wrapper
+    .findAll('button')
+    .find((b) => b.text() === 'Editar')!
+    .trigger('click')
+  await flushPromises()
+  expect(map.props('editingId')).toBe(null)
+  expect(map.props('editingWaterId')).toBe(3)
+  expect(wrapper.text()).not.toContain('Guardar contorno')
+  await button(wrapper, 'Editar contorno').trigger('click')
+  await flushPromises()
+  expect(map.props('editingId')).toBe(1)
+  expect(map.props('editingWaterId')).toBe(null)
+  expect(wrapper.find('.water-points form').exists()).toBe(false)
+  // El borrador anterior fue descartado, no se guarda al volver al contorno.
+  await button(wrapper, 'Guardar contorno').trigger('click')
+  expect(updateProductionUnit).not.toHaveBeenCalled()
+})
+
+it.each(['.map-actions .accent', '.water-points header button'])(
+  'mantiene el alta abierta desde %s después de seleccionar una aguada',
+  async (selector) => {
+    vi.mocked(waterRequest).mockResolvedValue([
+      {
+        id: 3,
+        production_unit_id: 1,
+        name: 'Tanque',
+        shared: false,
+        neighbor_unit_ids: [],
+        location: { type: 'Point', coordinates: [-68.085, -34.575] },
+        refill_l_day: null,
+      },
+    ])
+    const wrapper = mount(ScenarioUnits, {
+      props: { scenarioId: 7 },
+      global: { stubs: { UnitsMap: true } },
+    })
+    await flushPromises()
+    await wrapper.find('.point-choice').trigger('click')
+    const map = wrapper.findComponent(UnitsMap)
+    expect(map.props('selectedWaterId')).toBe(3)
+    await wrapper.find(selector).trigger('click')
+    await flushPromises()
+    expect(map.props('waterMode')).toBe(true)
+    expect(wrapper.find('#crosshair-action-bar').exists()).toBe(true)
+    map.vm.$emit('locate', [-68.085, -34.575])
+    await flushPromises()
+    expect(wrapper.find('#crosshair-action-bar .sky').attributes('disabled')).toBeUndefined()
+  },
+)
+
+it('actualiza los vecinos y elimina la advertencia al crear un sector', async () => {
+  const point = {
+    id: 3,
+    production_unit_id: 1,
+    name: 'Compartida',
+    shared: true,
+    neighbor_unit_ids: [],
+    location: { type: 'Point' as const, coordinates: [-68.08, -34.575] as [number, number] },
+    refill_l_day: null,
+  }
+  vi.mocked(waterRequest).mockResolvedValue([point])
+  const wrapper = mount(ScenarioUnits, {
+    props: { scenarioId: 7 },
+    global: { stubs: { UnitsMap: true } },
+  })
+  await flushPromises()
+  const map = wrapper.findComponent(UnitsMap)
+  vi.mocked(createProductionUnit).mockResolvedValue({
+    ...UNIT,
+    id: 2,
+    name: 'Vecino',
+    usable_area_ha: 50,
+  })
+  vi.mocked(listProductionUnits).mockResolvedValue([
+    UNIT,
+    { ...UNIT, id: 2, name: 'Vecino', usable_area_ha: 50 },
+  ])
+  vi.mocked(waterRequest).mockResolvedValue([{ ...point, neighbor_unit_ids: [2] }])
+  map.vm.$emit('draw', SQUARE)
+  await flushPromises()
+  await wrapper.find('#unit-name').setValue('Vecino')
+  await wrapper.find('#draw-lote-bar').trigger('submit')
+  await flushPromises()
+  expect(wrapper.findAll('.lote-card')).toHaveLength(2)
+  expect(wrapper.text()).not.toContain('no se está compartiendo')
+  expect(waterRequest).toHaveBeenCalledTimes(2)
+  expect(
+    wrapper.findAllComponents(WaterPoints)[0]!.props('savedPoints')![0]!.neighbor_unit_ids,
+  ).toEqual([2])
 })

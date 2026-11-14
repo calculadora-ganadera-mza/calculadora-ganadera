@@ -294,6 +294,7 @@ paths:
       - $ref: "#/components/parameters/ProductionUnitId"
     put:
       tags: [production-units]
+      description: Da 422 si el nuevo contorno deja aguadas afuera; borrarlas primero.
       operationId: updateProductionUnit
       summary: Editar el nombre y el contorno de un sector.
       requestBody:
@@ -328,6 +329,33 @@ paths:
         '404':
           $ref: "#/components/responses/NotFound"
 
+  /scenarios/{scenario_id}/water-points:
+    parameters:
+      - $ref: "#/components/parameters/ScenarioId"
+    get:
+      tags: [water-points]
+      operationId: listScenarioWaterPoints
+      summary: Todas las aguadas del escenario con sus vecinos.
+      responses:
+        '200':
+          description: Lista ordenada por fecha de creación, con el sector dueño.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: "#/components/schemas/WaterPoint"
+                    - type: object
+                      required: [production_unit_id]
+                      properties:
+                        production_unit_id:
+                          type: integer
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
+
   /production-units/{production_unit_id}/water-points:
     parameters:
       - $ref: "#/components/parameters/ProductionUnitId"
@@ -353,8 +381,7 @@ paths:
       operationId: createWaterPoint
       summary: Dibujar una aguada.
       description: |
-        Se acepta una aguada fuera del sector; en ese caso se indica con
-        `outside_unit`.
+        Una aguada a más de 5 m de su sector da 422.
       requestBody:
         required: true
         content:
@@ -382,6 +409,7 @@ paths:
       tags: [water-points]
       operationId: updateWaterPoint
       summary: Editar o mover una aguada.
+      description: Una aguada a más de 5 m de su sector da 422.
       requestBody:
         required: true
         content:
@@ -1186,13 +1214,16 @@ components:
           type: number
           description: |
             Superficie del polígono, en hectáreas, dentro del alcance de alguna
-            aguada. Las superposiciones se cuentan una sola vez. Es 0 si ninguna
+            aguada propia o compartida de sectores vecinos. Las superposiciones se cuentan una sola vez. Es 0 si ninguna
             aguada alcanza el sector.
 
     WaterPointInput:
       type: object
       required: [name, location]
       properties:
+        shared:
+          type: boolean
+          default: false
         name:
           type: string
           minLength: 1
@@ -1206,7 +1237,7 @@ components:
 
     WaterPoint:
       type: object
-      required: [id, name, location, refill_l_day, outside_unit]
+      required: [id, name, location, refill_l_day, shared, neighbor_unit_ids]
       properties:
         id:
           type: integer
@@ -1216,11 +1247,13 @@ components:
           $ref: "#/components/schemas/PointGeoJSON"
         refill_l_day:
           type: [number, "null"]
-        outside_unit:
+        shared:
           type: boolean
-          description: |
-            Indica que la aguada está fuera del polígono. Es una advertencia, no un
-            error.
+        neighbor_unit_ids:
+          type: array
+          description: Sectores del mismo escenario, distintos del dueño, a menos de 5 m.
+          items:
+            type: integer
 
     Season:
       type: object
