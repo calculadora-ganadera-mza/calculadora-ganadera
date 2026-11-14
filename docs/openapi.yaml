@@ -201,6 +201,26 @@ paths:
         '422':
           $ref: "#/components/responses/ValidationError"
 
+  /scenarios/first-season-years:
+    get:
+      tags: [scenarios]
+      operationId: listFirstSeasonYears
+      summary: Años disponibles para la primera campaña.
+      description: |
+        El año de la campaña actual y los dos siguientes, con sus fechas. El
+        formulario de registro los ofrece sin calcularlos.
+      responses:
+        '200':
+          description: Lista de años, del más antiguo al más reciente.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SeasonYearOption"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+
   /scenarios/{scenario_id}:
     parameters:
       - $ref: "#/components/parameters/ScenarioId"
@@ -1120,6 +1140,22 @@ components:
           type: boolean
           const: true
           description: Solo admite marcar como principal; no se puede desmarcar.
+
+    SeasonYearOption:
+      type: object
+      required: [start_year, start_date, end_date]
+      properties:
+        start_year:
+          type: integer
+          examples: [2026]
+        start_date:
+          type: string
+          format: date
+          examples: ["2026-07-01"]
+        end_date:
+          type: string
+          format: date
+          examples: ["2027-06-30"]
 
     Position:
       type: array

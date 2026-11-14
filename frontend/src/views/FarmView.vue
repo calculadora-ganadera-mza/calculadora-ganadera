@@ -2,11 +2,14 @@
 import { onMounted, ref } from 'vue'
 import ScenarioForm from '@/components/ScenarioForm.vue'
 import ScenarioUnits from '@/components/ScenarioUnits.vue'
+import SeasonRainfall from '@/components/SeasonRainfall.vue'
 import { listScenarios, listSeasons, type Scenario, type Season } from '@/api/scenarios'
 import { seasonLabel } from '@/utils/season'
 
 interface ScenarioWithSeasons extends Scenario {
   seasons: Season[]
+  // La campaña que se abre: la que contiene la fecha de hoy o la más cercana
+  current?: Season
 }
 
 const scenarios = ref<ScenarioWithSeasons[]>([])
@@ -14,7 +17,8 @@ const loading = ref(true)
 const loadError = ref('')
 
 async function withSeasons(scenario: Scenario): Promise<ScenarioWithSeasons> {
-  return { ...scenario, seasons: await listSeasons(scenario.id) }
+  const seasons = await listSeasons(scenario.id)
+  return { ...scenario, seasons, current: seasons.find((season) => season.is_current) }
 }
 
 async function load() {
@@ -61,7 +65,12 @@ onMounted(load)
             <span v-if="season.is_current" class="current">actual</span>
           </li>
         </ul>
-        <ScenarioUnits :scenario-id="scenario.id" />
+        <SeasonRainfall
+          v-if="scenario.current"
+          :season-id="scenario.current.id"
+          :rainfall-mm="scenario.current.rainfall_mm"
+        />
+        <ScenarioUnits :scenario-id="scenario.id" :season-id="scenario.current?.id" />
       </article>
     </template>
 

@@ -573,3 +573,19 @@ it('actualiza los vecinos y elimina la advertencia al crear un sector', async ()
     wrapper.findAllComponents(WaterPoints)[0]!.props('savedPoints')![0]!.neighbor_unit_ids,
   ).toEqual([2])
 })
+
+it('integra el rodeo por campaña con la gestión de aguadas en cada lote', async () => {
+  const wrapper = mount(ScenarioUnits, {
+    props: { scenarioId: 7, seasonId: 12 },
+    global: { stubs: { UnitsMap: true, WaterPoints: true, HerdForm: true } },
+  })
+  await flushPromises()
+  const herd = wrapper.findComponent({ name: 'HerdForm' })
+  expect(herd.props('seasonId')).toBe(12)
+  expect(herd.props('unitId')).toBe(1)
+  expect(wrapper.findComponent(WaterPoints).props('unitId')).toBe(1)
+  await button(wrapper, 'Editar contorno').trigger('click')
+  expect(wrapper.findComponent({ name: 'HerdForm' }).exists()).toBe(false)
+  await button(wrapper, 'Cancelar').trigger('click')
+  expect(wrapper.findComponent({ name: 'HerdForm' }).exists()).toBe(true)
+})

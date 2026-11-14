@@ -1,4 +1,8 @@
 import { authenticatedFetch } from './auth'
+import { ApiError, responseError } from './errors'
+
+// Se reexporta para quienes ya lo importaban desde acá
+export { ApiError }
 
 // Tipos según docs/openapi.yaml
 
@@ -22,17 +26,9 @@ export interface ProductionUnit extends ProductionUnitInput {
   usable_area_ha: number
 }
 
-/** Error con un mensaje del backend pensado para mostrar al usuario. */
-export class ApiError extends Error {}
-
 async function send<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await authenticatedFetch(path, init)
-  if (!response.ok) {
-    const body = await response.json().catch(() => null)
-    // Un detail de texto es un mensaje para el usuario; una lista es un error de formato
-    if (typeof body?.detail === 'string') throw new ApiError(body.detail)
-    throw new Error(`Error ${response.status}`)
-  }
+  if (!response.ok) throw await responseError(response)
   return response.status === 204 ? (undefined as T) : response.json()
 }
 

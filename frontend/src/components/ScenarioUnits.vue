@@ -5,6 +5,7 @@ import { confirmSharing, waterRequest, type WaterPoint } from '@/api/waterPoints
 import { containsPosition, distanceToPolygon } from '@/utils/geometry'
 import type { Position } from '@/api/productionUnits'
 import UnitsMap from './UnitsMap.vue'
+import HerdForm from './HerdForm.vue'
 import {
   ApiError,
   createProductionUnit,
@@ -15,7 +16,8 @@ import {
   type ProductionUnit,
 } from '@/api/productionUnits'
 
-const props = defineProps<{ scenarioId: number }>()
+// seasonId: campaña en la que se cargan los animales de cada sector
+const props = defineProps<{ scenarioId: number; seasonId?: number }>()
 
 const selectedWaterId = ref<number | null>(null)
 const waterMode = ref(false)
@@ -548,6 +550,11 @@ onMounted(load)
             ><button v-else class="shape" @click="startEditing(unit)">Editar contorno</button
             ><button class="delete" @click="remove(unit)">Eliminar</button>
           </footer>
+          <HerdForm
+            v-if="seasonId && editingId !== unit.id"
+            :season-id="seasonId"
+            :unit-id="unit.id"
+          />
         </article>
       </div>
       <p v-if="!units.length">Todavía no hay lotes. Usá + Lote para dibujar el primero.</p>

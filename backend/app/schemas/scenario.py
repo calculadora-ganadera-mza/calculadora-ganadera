@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 # Nombre sin espacios al principio ni al final, de 1 a 100 caracteres
 ScenarioName = Annotated[
@@ -37,3 +37,9 @@ class SeasonYearOption(BaseModel):
     start_year: int
     start_date: date
     end_date: date
+
+
+class SeasonUpdate(BaseModel):
+    """Lluvia de la campaña anterior, en milímetros; None la elimina."""
+
+    rainfall_mm: float | None = Field(ge=0)

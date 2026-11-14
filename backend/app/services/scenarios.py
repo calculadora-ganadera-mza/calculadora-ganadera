@@ -4,6 +4,7 @@ from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
 
 from app.models import Parameter, Scenario, Season
+from app.schemas.scenario import SeasonRead
 
 # Años que se pueden elegir para la primera campaña: el actual y los siguientes
 FIRST_SEASON_YEARS_AHEAD = 2
@@ -124,3 +125,28 @@ def current_season_id(seasons: list[Season], today: date) -> int | None:
         )
 
     return min(seasons, key=distance).id if seasons else None
+
+
+def get_user_season(session: Session, user_id: int, season_id: int) -> Season | None:
+    """La campaña, solo si es de un establecimiento del usuario."""
+    return session.scalar(
+        select(Season)
+        .join(Scenario)
+        .where(Season.id == season_id, Scenario.user_id == user_id)
+    )
+
+
+def season_reads(seasons: list[Season], today: date) -> list[SeasonRead]:
+    """Campañas en el formato de la API, con la actual marcada."""
+    current_id = current_season_id(seasons, today)
+    return [
+        SeasonRead(
+            id=season.id,
+            start_year=season.start_date.year,
+            start_date=season.start_date,
+            end_date=season.end_date,
+            rainfall_mm=season.rainfall_mm,
+            is_current=season.id == current_id,
+        )
+        for season in seasons
+    ]

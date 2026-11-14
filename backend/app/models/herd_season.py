@@ -1,6 +1,11 @@
 from datetime import date
 
-from sqlalchemy import CheckConstraint, ForeignKeyConstraint, UniqueConstraint
+from sqlalchemy import (
+    CheckConstraint,
+    ForeignKeyConstraint,
+    UniqueConstraint,
+    false,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, IntPk, UpdatedAt
@@ -49,5 +54,7 @@ class HerdSeason(Base):
     )
     replacement_rate: Mapped[float | None]
     weaning_rate: Mapped[float | None]
+    early_weaning: Mapped[bool] = mapped_column(server_default=false())
+    supplemented: Mapped[bool] = mapped_column(server_default=false())
     calving_body_condition: Mapped[float | None]
     updated_at: Mapped[UpdatedAt]
