@@ -1160,6 +1160,28 @@ components:
         area_ha:
           type: number
           description: Superficie del polígono en hectáreas, calculada por la base de datos.
+        usable_geometry:
+          description: Cobertura aprovechable recortada al sector; null sin cobertura.
+          oneOf:
+            - type: object
+              required: [type, coordinates]
+              properties:
+                type:
+                  type: string
+                  const: MultiPolygon
+                coordinates:
+                  type: array
+                  items:
+                    type: array
+                    items:
+                      type: array
+                      items:
+                        type: array
+                        minItems: 2
+                        maxItems: 2
+                        items:
+                          type: number
+            - type: 'null'
         usable_area_ha:
           type: number
           description: |

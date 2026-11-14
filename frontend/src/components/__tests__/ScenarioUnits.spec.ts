@@ -3,6 +3,9 @@ import { flushPromises, mount } from '@vue/test-utils'
 
 import ScenarioUnits from '../ScenarioUnits.vue'
 import UnitsMap from '../UnitsMap.vue'
+import WaterPoints from '../WaterPoints.vue'
+import { waterRequest } from '@/api/waterPoints'
+vi.mock('@/api/waterPoints', () => ({ waterRequest: vi.fn() }))
 import {
   ApiError,
   createProductionUnit,
@@ -53,7 +56,7 @@ const UNIT = { id: 1, name: 'Potrero 1', polygon: SQUARE, area_ha: 101.84, usabl
 async function mountUnits() {
   const wrapper = mount(ScenarioUnits, {
     props: { scenarioId: 7 },
-    global: { stubs: { UnitsMap: true } },
+    global: { stubs: { UnitsMap: true, WaterPoints: true } },
   })
   await flushPromises()
   return { wrapper, map: wrapper.findComponent(UnitsMap) }
@@ -64,6 +67,7 @@ function button(wrapper: Awaited<ReturnType<typeof mountUnits>>['wrapper'], text
 }
 
 beforeEach(() => {
+  vi.mocked(waterRequest).mockReset()
   vi.mocked(listProductionUnits).mockReset().mockResolvedValue([UNIT])
   vi.mocked(createProductionUnit).mockReset()
   vi.mocked(updateProductionUnit).mockReset()
@@ -76,7 +80,8 @@ describe('ScenarioUnits', () => {
     const { wrapper } = await mountUnits()
 
     expect(listProductionUnits).toHaveBeenCalledWith(7)
-    expect(wrapper.text()).toContain('Potrero 1: 101,8 ha')
+    expect(wrapper.find('.lote-name').text()).toContain('Potrero 1')
+    expect(wrapper.text()).toContain('101,8 ha')
   })
 
   it('guarda el contorno dibujado con el nombre ingresado', async () => {
@@ -92,7 +97,8 @@ describe('ScenarioUnits', () => {
 
     expect(createProductionUnit).toHaveBeenCalledWith(7, { name: 'Bajo', polygon: SQUARE })
     expect(wrapper.find('form').exists()).toBe(false)
-    expect(wrapper.text()).toContain('Bajo: 101,8 ha')
+    expect(wrapper.text()).toContain('Bajo')
+    expect(wrapper.text()).toContain('101,8 ha')
   })
 
   it('pide el nombre antes de guardar', async () => {
@@ -136,7 +142,7 @@ describe('ScenarioUnits', () => {
     await flushPromises()
 
     expect(updateProductionUnit).toHaveBeenCalledWith(1, { name: 'Potrero 1', polygon: wide })
-    expect(wrapper.text()).toContain('Potrero 1: 203,6 ha')
+    expect(wrapper.text()).toContain('203,6 ha')
     expect(map.props('editingId')).toBeNull()
   })
 
@@ -149,7 +155,7 @@ describe('ScenarioUnits', () => {
     await flushPromises()
 
     expect(deleteProductionUnit).toHaveBeenCalledWith(1)
-    expect(wrapper.text()).toContain('Todavía no hay sectores.')
+    expect(wrapper.text()).toContain('Todavía no hay lotes.')
   })
 
   it('no descarta un contorno dibujado mientras se guardaba otro', async () => {
@@ -198,4 +204,118 @@ describe('ScenarioUnits', () => {
     expect(deleteProductionUnit).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('Potrero 1')
   })
+})
+
+it('selecciona el sector desde el mapa y muestra sus aguadas en la card', async () => {
+  const { wrapper, map } = await mountUnits()
+  expect(wrapper.find('.lote-card').classes()).not.toContain('active')
+  map.vm.$emit('selectUnit', 1)
+  await flushPromises()
+  expect(wrapper.find('.lote-card').classes()).toContain('active')
+  expect(wrapper.findComponent(WaterPoints).props('unitId')).toBe(1)
+  expect(map.props('waterMode')).toBe(false)
+  map.vm.$emit('selectWater', 3)
+  await flushPromises()
+  expect(map.props('selectedWaterId')).toBe(3)
+})
+
+describe('Creación general de aguadas', () => {
+  it('asigna por ubicación aunque otro sector esté seleccionado y envía los litros', async () => {
+    const second = { ...UNIT, id: 2, name: 'Otro', polygon: OTHER }
+    vi.mocked(listProductionUnits).mockResolvedValue([UNIT, second])
+    const { wrapper, map } = await mountUnits()
+    map.vm.$emit('selectUnit', 1)
+    await flushPromises()
+    await wrapper.find('.map-actions .accent').trigger('click')
+    map.vm.$emit('locate', [-68.15, -34.55])
+    await flushPromises()
+    expect(wrapper.find('#crosshair-action-bar').text()).toContain('Nueva aguada en Otro')
+    const inputs = wrapper.findAll('#crosshair-action-bar input')
+    await inputs[0]!.setValue('Tanque nuevo')
+    await inputs[1]!.setValue('900')
+    vi.mocked(waterRequest).mockResolvedValue({ id: 8, name: 'Tanque nuevo' })
+    await wrapper.find('#crosshair-action-bar .sky').trigger('click')
+    await flushPromises()
+    expect(waterRequest).toHaveBeenCalledWith('/production-units/2/water-points', 'POST', {
+      name: 'Tanque nuevo',
+      location: { type: 'Point', coordinates: [-68.15, -34.55] },
+      refill_l_day: 900,
+    })
+    expect(map.props('selectedUnitId')).toBe(2)
+    expect(map.props('selectedWaterId')).toBe(8)
+    expect(wrapper.find('#crosshair-action-bar').exists()).toBe(false)
+  })
+
+  it('no asigna puntos exteriores y conserva el panel ante un error de guardado', async () => {
+    const { wrapper, map } = await mountUnits()
+    await wrapper.find('.map-actions .accent').trigger('click')
+    map.vm.$emit('locate', [-70, -35])
+    await flushPromises()
+    expect(wrapper.find('#crosshair-action-bar .sky').attributes('disabled')).toBeDefined()
+    map.vm.$emit('locate', [-68.085, -34.575])
+    await flushPromises()
+    vi.mocked(waterRequest).mockRejectedValueOnce(new Error('fallo'))
+    await wrapper.find('#crosshair-action-bar .sky').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('#crosshair-action-bar').exists()).toBe(true)
+    expect(wrapper.text()).toContain('No se pudo guardar la aguada')
+    expect(waterRequest).toHaveBeenLastCalledWith(
+      '/production-units/1/water-points',
+      'POST',
+      expect.objectContaining({ refill_l_day: null }),
+    )
+  })
+})
+
+it('refresca la tarjeta y la cobertura al guardar una aguada desde el mapa', async () => {
+  const covered = {
+    ...UNIT,
+    usable_area_ha: 50.92,
+    usable_geometry: {
+      type: 'MultiPolygon' as const,
+      coordinates: [SQUARE.coordinates],
+    },
+  }
+  vi.mocked(listProductionUnits).mockResolvedValueOnce([UNIT]).mockResolvedValue([covered])
+  vi.mocked(waterRequest)
+    .mockResolvedValueOnce([])
+    .mockResolvedValueOnce({
+      id: 8,
+      name: 'Aguada 1',
+      location: { type: 'Point', coordinates: [-68.085, -34.575] },
+      refill_l_day: null,
+      outside_unit: false,
+    })
+  const wrapper = mount(ScenarioUnits, {
+    props: { scenarioId: 7 },
+    global: { stubs: { UnitsMap: true } },
+  })
+  await flushPromises()
+  const map = wrapper.findComponent(UnitsMap)
+  await wrapper.find('.map-actions .accent').trigger('click')
+  map.vm.$emit('locate', [-68.085, -34.575])
+  await flushPromises()
+  await wrapper.find('#crosshair-action-bar .sky').trigger('click')
+  await flushPromises()
+  expect(wrapper.find('.water-points h4').text()).toBe('AGUADAS (1)')
+  expect(wrapper.find('.point-choice').text()).toContain('Aguada 1')
+  expect(wrapper.find('.card-heading .badge').text()).toBe('50% cubierto')
+  expect(map.props('units')[0]!.usable_geometry).toEqual(covered.usable_geometry)
+  expect(wrapper.text()).not.toContain('Radio fijo')
+  expect(wrapper.text()).not.toContain('2,5 km')
+})
+
+it('mantiene el nombre durante el dibujo y habilita guardar solo al cerrar el contorno', async () => {
+  const { wrapper, map } = await mountUnits()
+  await wrapper.find('.map-actions button').trigger('click')
+  const save = wrapper.find('#draw-lote-bar .primary')
+  expect(save.text()).toBe('Guardar lote')
+  expect(save.attributes('disabled')).toBeDefined()
+  await wrapper.find('#unit-name').setValue('Lote Norte')
+  await wrapper.find('#draw-lote-bar').trigger('submit')
+  expect(createProductionUnit).not.toHaveBeenCalled()
+  map.vm.$emit('draw', SQUARE)
+  await flushPromises()
+  expect((wrapper.find('#unit-name').element as HTMLInputElement).value).toBe('Lote Norte')
+  expect(save.attributes('disabled')).toBeUndefined()
 })

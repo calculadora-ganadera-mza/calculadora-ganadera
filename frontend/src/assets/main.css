@@ -58,3 +58,21 @@ h1 {
 p {
   margin: 0 0 12px;
 }
+
+/* Paleta Agro compartida con el espacio de lotes y aguadas. */
+:root {
+  --color-primary: #4ade80;
+  --color-primary-soft: #1f3824;
+  --color-background: #141714;
+  --color-surface: #1c201c;
+  --color-text: #e5e7eb;
+  --color-text-muted: #9ca3af;
+  --color-border: #2e382e;
+  --color-hover: #222822;
+  --color-success: #4ade80;
+  --color-danger: #fca5a5;
+  color-scheme: dark;
+}
+body {
+  font-family: Inter, system-ui, sans-serif;
+}

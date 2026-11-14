@@ -1,10 +1,20 @@
 from typing import Any
 
-from sqlalchemy import JSON, ColumnElement, Select, cast, func, literal, select
+from geoalchemy2 import Geography, Geometry
+from sqlalchemy import (
+    JSON,
+    ColumnElement,
+    Select,
+    case,
+    cast,
+    func,
+    select,
+    true,
+)
 from sqlalchemy.engine import RowMapping
 from sqlalchemy.orm import Session
 
-from app.models import ProductionUnit, Scenario
+from app.models import Parameter, ProductionUnit, Scenario, WaterPoint
 from app.models.enums import ProductionSystem
 from app.schemas.production_unit import PolygonGeoJSON
 
@@ -29,13 +39,51 @@ def to_geometry(session: Session, polygon: PolygonGeoJSON) -> ColumnElement[Any]
 
 def select_units() -> Select:
     """Sectores con el contorno en GeoJSON, tal como los devuelve la API."""
-    return select(
-        ProductionUnit.id,
-        ProductionUnit.name,
-        cast(func.ST_AsGeoJSON(ProductionUnit.polygon), JSON).label("polygon"),
-        ProductionUnit.area_ha,
-        # Se calcula con las aguadas en la issue #10; hasta entonces es 0.
-        literal(0.0).label("usable_area_ha"),
+    buffered_water = cast(
+        func.ST_Buffer(
+            cast(WaterPoint.location, Geography(srid=4326)),
+            Parameter.value * 1000,
+            32,
+        ),
+        Geometry(srid=4326),
+    )
+    coverage = (
+        select(
+            func.ST_Multi(
+                func.ST_CollectionExtract(
+                    func.ST_Intersection(
+                        ProductionUnit.polygon, func.ST_Union(buffered_water)
+                    ),
+                    3,
+                )
+            ).label("geom")
+        )
+        .select_from(WaterPoint)
+        .join(Parameter, true())
+        .where(
+            WaterPoint.production_unit_id == ProductionUnit.id,
+            Parameter.key == "water_point_radius_km",
+        )
+        .correlate(ProductionUnit)
+        .lateral("coverage")
+    )
+    return (
+        select(
+            ProductionUnit.id,
+            ProductionUnit.name,
+            cast(func.ST_AsGeoJSON(ProductionUnit.polygon), JSON).label("polygon"),
+            ProductionUnit.area_ha,
+            func.coalesce(
+                func.ST_Area(cast(coverage.c.geom, Geography(srid=4326))) / 10000,
+                0,
+            ).label("usable_area_ha"),
+            case(
+                (func.ST_IsEmpty(coverage.c.geom), None),
+                else_=cast(func.ST_AsGeoJSON(coverage.c.geom), JSON),
+            ).label("usable_geometry"),
+        )
+        .select_from(ProductionUnit)
+        .join(coverage, true(), isouter=True)
     )
 
 
