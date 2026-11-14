@@ -241,7 +241,7 @@ En el celular la navegación va en una barra inferior. En la computadora, en un 
 - **Rodeo de la campaña:** la campaña y la unidad productiva tienen que ser del mismo escenario. Hay un solo rodeo por unidad y por campaña.
 - **Superficie de la unidad:** la calcula la base a partir del polígono. Nunca se carga a mano.
 - **Porcentajes de reposición y de destete:** se guardan como fracción entre 0 y 1. En pantalla se muestran como porcentaje.
-- **Período de entore:** se carga completo, con inicio y fin, o no se carga.
+- **Período de entore:** se carga completo, con inicio y fin, o no se carga. El inicio y el fin caen dentro de la campaña.
 - **Datos obligatorios con vacas:** porcentaje de reposición, porcentaje de destete y período de entore.
 - **Aguadas:** cada aguada está dentro de su sector.
 - **Condición corporal al parto:** entre 1 y 5.
