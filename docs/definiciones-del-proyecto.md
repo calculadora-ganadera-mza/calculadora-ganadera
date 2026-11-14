@@ -1,6 +1,6 @@
 # Definiciones del proyecto
 
-Calculadora ganadera · actualizado al 4 de noviembre de 2026
+Calculadora ganadera · actualizado al 14 de noviembre de 2026
 
 Este documento reúne las decisiones vigentes del proyecto. Es la referencia del equipo: si otro documento lo contradice, vale este.
 
@@ -16,17 +16,18 @@ El funcionamiento de cada calculadora está explicado en `como-funciona-cada-cal
 ## 1. Alcance
 
 - **Producto:** aplicación web progresiva (PWA) para el Clúster Ganadero de Mendoza, con cuatro calculadoras para el ciclo ganadero: cría, recría y engorde.
-- **Zona:** provincia de Mendoza. Por ahora, solo la llanura (Lavalle, San Martín, Santa Rosa, La Paz, San Rafael y General Alvear), que es la zona con datos de receptividad publicados. Malargüe y el oeste se suman cuando haya datos.
+- **Zona:** provincia de Mendoza. El productor carga la lluvia de su campo, así que la calculadora no depende de la zona. Los coeficientes de Guevara y otros (1995) se midieron en la llanura; falta que el clúster confirme si acepta resultados fuera de ella.
 - **Especie:** solo ganado bovino. No se contemplan otras especies que compartan el campo.
 - **Dispositivos:** computadora y Android como prioridad. iPhone también se contempla.
 - **Alojamiento:** la aplicación quedaría alojada en el sitio del clúster.
 - **Entrega:** un producto mínimo viable en diciembre de 2026.
-- **Alcance del producto mínimo viable:** Pendiente. Falta definir qué entra en diciembre y qué queda para después.
+- **Alcance del producto mínimo viable:** solo la calculadora de Receptividad, en sectores de secano. Incluye registro e inicio de sesión, varios escenarios con su mapa, sectores y aguadas, campañas con sus datos, simulación, historial de campañas, guardado de cálculos, administración de los valores de referencia y una publicación en un host gratuito. Las otras tres calculadoras y lo que figura en "Para más adelante" quedan fuera.
 
 ## 2. Usuarios
 
-- **Registro:** abierto. Cualquier persona puede crear una cuenta, con verificación del correo.
-- **Rol:** cada usuario tiene un solo rol: productor, técnico o administrador.
+- **Registro:** abierto. Cualquier persona puede crear una cuenta. Toda la aplicación, calculadoras incluidas, requiere iniciar sesión.
+- **Rol:** cada usuario tiene un solo rol: productor, técnico o administrador. Todos se registran como productor. Nadie elige el rol al registrarse.
+- **Primer administrador:** se crea con un comando que le da el rol a un usuario ya registrado. El rol técnico existe, pero por ahora no se asigna.
 - **Productor y técnico:** por ahora ven y hacen lo mismo.
 - **Administrador:** además, carga y corrige las tablas de referencia y los parámetros.
 
@@ -36,25 +37,32 @@ Los datos no pertenecen a ninguna calculadora. Viven en cuatro niveles, y las ca
 
 | Nivel | Qué es | Qué guarda |
 |---|---|---|
-| Escenario | El establecimiento. | Nombre y ubicación. |
-| Unidad productiva | Un sector del campo que se usa para cría, recría o engorde. | Ambiente, polígono, superficie y aguadas. |
+| Escenario | El establecimiento: el campo entero, dividido en sectores. | Nombre, ubicación y si es el principal. |
+| Sector (unidad productiva) | Una parte cercada del campo que se usa para cría, recría o engorde. No se subdivide. | Ambiente, polígono, superficie y aguadas. |
 | Campaña | Un ciclo anual del establecimiento. | Fecha de inicio y de fin, y lluvia de la campaña anterior (opcional). |
 | Rodeo de la campaña | Los animales de una unidad en una campaña. | Cantidad por categoría, período de entore, estado del campo, porcentajes de reposición y de destete, destete precoz, suplementación y condición corporal al parto. |
 
-- **Categorías del rodeo:** el productor carga la cantidad de cada categoría de animal que tenga la unidad: vacas, toros, vaquillonas, novillos de recría u otras. Las categorías salen de una tabla que mantiene el administrador. No hace falta indicar para qué se usa la unidad.
-- **Terneros:** no se cargan. La aplicación los calcula a partir de las vacas.
+- **Categorías del rodeo:** el productor carga la cantidad de cada categoría de animal que tenga el sector: vacas, toros, vaquillonas, novillos de recría u otras. Las categorías salen de una tabla que mantiene el administrador. No hace falta indicar para qué se usa el sector.
+- **Vaquillonas cargadas:** son las de más de un año. La pantalla lo aclara, para no contarlas dos veces con las terneras de reposición.
+- **Terneros:** no se cargan. La aplicación calcula los terneros destetados y las terneras de reposición a partir de las vacas.
 - **Rodeo por unidad:** el productor puede repartir su hacienda entre varias unidades. Cada cálculo se hace sobre el rodeo de esa unidad, no sobre el total del establecimiento.
-- **Subdivisión interna:** si una unidad se divide en lotes y el rodeo rota entre ellos, se carga como una sola unidad. La rotación es manejo del productor y no cambia los cálculos.
+- **Sector:** es la unidad mínima y no se subdivide. Cada parte del campo que el productor quiera calcular por separado se dibuja como un sector propio.
 - **Precipitación de la campaña:** es la lluvia de la campaña anterior, en mm. Es opcional al guardar, pero la Receptividad la necesita para calcular.
 - **Histórico:** un escenario acumula campañas. Las campañas anteriores no se modifican.
-- **Meses de la campaña:** Pendiente.
+- **Meses de la campaña:** de julio a junio. El mes de inicio es un parámetro. El productor no carga fechas: elige el año.
+- **Primera campaña:** se crea con el escenario. El productor elige el año: el actual o uno de los dos siguientes.
+- **Campañas nuevas:** desde Mi campo solo se crean campañas de años posteriores. Nacen sin datos y no repiten año.
+- **Campañas pasadas:** se cargan desde el historial, en "Cargá tu campaña".
+- **Campaña actual:** la que contiene la fecha de hoy. Si ninguna la contiene, la más cercana.
+- **Varios escenarios:** un usuario puede tener varios. La aplicación abre siempre el principal.
 
 ## 4. Campo y aguadas
 
-- **Campo:** el productor dibuja el polígono de cada unidad sobre un mapa.
-- **Aguadas:** se marcan como puntos sobre el mismo mapa.
+- **Campo:** el productor dibuja el polígono de cada sector sobre un mapa.
+- **Aguadas:** se marcan como puntos dentro del sector que abastecen. Una aguada fuera del sector no cuenta, aunque su alcance llegue al sector: los animales están encerrados en el sector y no llegan al agua.
+- **Aguada compartida:** una aguada sobre el alambrado entre dos o más sectores puede abastecerlos a todos. Cada sector aprovecha la parte del alcance que cae dentro de él, y le tocan los litros en esa misma proporción. Por ejemplo, si el 70% del alcance cae en el sector 1, le toca el 70% del agua. El reparto se hace solo entre los sectores que comparten la aguada y sobre la parte del alcance que cae dentro de ellos.
 - **Alcance de una aguada:** 2,5 km. Es un parámetro y se puede cambiar.
-- **Superficie aprovechable:** la parte del polígono que queda dentro del alcance de alguna aguada. Si los alcances se superponen, la superficie se cuenta una sola vez.
+- **Superficie aprovechable:** la parte del polígono que queda dentro del alcance de alguna aguada del sector. Si los alcances se superponen, la superficie se cuenta una sola vez.
 - **Agua que repone la aguada:** litros por día, dato opcional. Se pide lo que repone, no lo que almacena.
 - **Estado de la aguada:** no se modela. Toda aguada marcada se considera operativa.
 
@@ -72,15 +80,22 @@ Son cuatro, independientes entre sí, y se pueden usar en cualquier orden. Ningu
 
 ### Receptividad ganadera y tamaño del rodeo
 
+- **Dónde aplica:** sectores de secano.
 - **Unidad de trabajo:** todo se expresa en equivalentes vaca (EV).
 - **Receptividad:** se calcula con el método de Guevara y otros (IADIZA, 1995), a partir de la lluvia de la campaña anterior. Después se corrige por estado del campo, destete precoz y suplementación.
-- **Otra lluvia:** si el año viene distinto, el productor puede simular con otra precipitación sin modificar sus datos.
+- **Datos que faltan:** si falta la lluvia o es 0, o si la superficie es 0, no se calcula y la aplicación avisa.
+- **Otra lluvia:** si el año viene distinto, el productor puede simular con otra precipitación, mayor que 0, sin modificar sus datos.
+- **Índices:** los de estado del campo, destete precoz y suplementación se multiplican entre sí. Destete precoz y suplementación se marcan con una casilla y su índice se aplica solo si está marcada. Si falta un índice, se calcula sin él y la aplicación avisa. Sus valores y dónde se guardan: Pendiente.
 - **Límite por pasto:** superficie aprovechable dividida por la receptividad.
-- **Límite por agua:** se calcula cuánta agua necesita el rodeo del límite por pasto, categoría por categoría. Si las aguadas cubren un porcentaje de esa necesidad, el límite por agua es ese mismo porcentaje del límite por pasto.
-- **Rodeo máximo:** el menor entre el límite por pasto y el límite por agua. Se informa desglosado por categoría.
-- **Sin dato de agua:** si no se cargó cuánto reponen las aguadas, se usa solo el límite por pasto y se aclara que el agua no se evaluó.
-- **Termómetro de carga:** compara el rodeo actual, en EV, con el rodeo máximo. Va en esta calculadora.
-- **Índices por estado del campo, destete precoz y suplementación:** Pendiente.
+- **Composición del rodeo:** por cada vaca, los toros según toros por vaca, las terneras de reposición (vacas × porcentaje de reposición) y la misma cantidad de vaquillonas. Las vacas valen 1 EV todo el año. Los terneros que no son de reposición salen al destete y no cuentan. Las terneras de reposición no pueden superar a las hembras destetadas: si la reposición pide más, se acepta el dato y se avisa.
+- **Calendario:** se arma desde el inicio del entore. El parto llega a los 283 días y el destete a los 6 meses, o a los 3 con destete precoz. Solo sirve para saber en qué estación están en el campo las terneras y las vaquillonas, para el agua.
+- **Límite por agua:** litros por día que reponen las aguadas del sector, divididos por los litros por día que necesita en verano cada EV de la composición.
+- **Sin dato de agua:** si solo algunas aguadas tienen litros, se calcula con esas y la aplicación avisa. Si ninguna tiene litros, o el sector no tiene vacas, se usa solo el límite por pasto y se aclara que el agua no se evaluó.
+- **Rodeo máximo:** el menor entre el límite por pasto y el límite por agua. Se informa cuál de los dos limita.
+- **Rodeo recomendado:** es el resultado principal. El rodeo máximo repartido según la composición, en cantidades enteras redondeadas al número más cercano, con al menos un toro. Si el rodeo entero se pasa del rodeo máximo o de los litros de verano, se bajan vacas hasta que entre. Si no entra una vaca con su toro, no se muestra y la aplicación avisa. Si el sector no tiene vacas, no se arma.
+- **Mi rodeo ajustado:** el rodeo cargado, agrandado o achicado hasta el rodeo máximo, con sus mismas proporciones. Se toma la mayor cantidad entera de vacas que entra. Al menos un toro solo si se cargaron toros.
+- **Termómetro de carga:** compara el rodeo actual con el rodeo máximo, sin redondear. El rodeo actual suma los animales cargados y las terneras de reposición que calcula la aplicación. Tiene tres estados: por debajo, dentro o por encima de la capacidad. El límite entre "por debajo" y "dentro" es un parámetro.
+- **Necesidad de agua:** litros por día que necesita el límite por pasto, con la composición del rodeo, en verano y en invierno, frente a lo que reponen las aguadas.
 
 ### Proyección del estado del rodeo
 
@@ -125,6 +140,14 @@ Todos son parámetros: el administrador los puede cambiar sin tocar el código.
 | Consumo de agua por categoría | Punto medio de cada rango de la tabla del clúster. Provisorio, a confirmar con una fuente local. | Clúster |
 | Toros por vaca | 4,5 cada 100 vacas por defecto. El clúster indica de 4 a 5, y hasta 6 o 7 en el noreste; 4,5 es el punto medio elegido por el equipo. Es el único parámetro que el productor puede cambiar desde la calculadora. | Clúster |
 | Consumo diario en corral | 3,5% del peso vivo | Clúster |
+| Mes de inicio de la campaña | Julio | Equipo |
+| Días de gestación | 283 | Falta citar la fuente |
+| Edad al destete | 6 meses, o 3 con destete precoz | Equipo |
+| Edad al primer entore de la vaquillona | 24 meses | Lámina de equivalencias |
+| Hembras entre los terneros destetados | 50%. Valor redondo: estudios de otros países dan entre 50 y 53% de machos. No hay un dato medido en Mendoza. | Equipo |
+| Meses de verano | Diciembre a febrero. Provisorio. | Equipo |
+| Meses de invierno | Junio a agosto. Provisorio. | Equipo |
+| Límite del termómetro entre "por debajo" y "dentro" | 90% del rodeo máximo. Provisorio. | Equipo |
 
 El equivalente vaca incluye el consumo del ternero hasta los 6 meses.
 
@@ -140,6 +163,7 @@ El equivalente vaca incluye el consumo del ternero hasta los 6 meses.
 | Ternero (destetado) | 0,5 | 25 | 12,5 |
 | Novillo de recría | 0,8 | 42,5 | 20 |
 
+Las terneras de reposición valen como ternero destetado (0,5 EV) desde el destete hasta el año, y las vaquillonas 0,7 EV desde el año hasta el primer entore. Su valor anual es su EV × los meses que pasa en la etapa ÷ 12.
 ## 8. Costos y margen
 
 - **Margen bruto:** incluye solo costos variables. No incluye amortizaciones ni costos financieros.
@@ -181,7 +205,7 @@ La aplicación tiene cinco secciones.
 | Sección | Para qué sirve |
 |---|---|
 | Inicio | Resumen de la campaña actual de cada unidad y próximos eventos. |
-| Mi campo | Escenario, unidades, mapa, aguadas y datos de la campaña. |
+| Mi campo | Escenario, sectores, mapa, aguadas y datos de la campaña. |
 | Calculadoras | Las cuatro calculadoras, cada una con su historial. |
 | Seguimiento | Evolución campaña a campaña y comparación entre unidades. |
 | Administración | Tablas de referencia y parámetros. Solo para administradores. |
@@ -213,11 +237,13 @@ En el celular la navegación va en una barra inferior. En la computadora, en un 
 ## 14. Reglas del modelo de datos
 
 - **Campañas:** dos campañas del mismo escenario no se pueden superponer en fechas.
-- **Escenario principal:** cada usuario tiene uno solo. El primero que registra queda como principal.
+- **Escenario principal:** cada usuario tiene uno solo. El primero que registra queda como principal, y puede marcar otro.
 - **Rodeo de la campaña:** la campaña y la unidad productiva tienen que ser del mismo escenario. Hay un solo rodeo por unidad y por campaña.
 - **Superficie de la unidad:** la calcula la base a partir del polígono. Nunca se carga a mano.
 - **Porcentajes de reposición y de destete:** se guardan como fracción entre 0 y 1. En pantalla se muestran como porcentaje.
-- **Período de entore:** se carga completo, con inicio y fin, o no se carga.
+- **Período de entore:** se carga completo, con inicio y fin, o no se carga. El inicio y el fin caen dentro de la campaña.
+- **Datos obligatorios con vacas:** porcentaje de reposición, porcentaje de destete y período de entore.
+- **Aguadas:** cada aguada está dentro de su sector.
 - **Condición corporal al parto:** entre 1 y 5.
 - **Terneros:** no se cargan.
 
@@ -230,7 +256,8 @@ En el celular la navegación va en una barra inferior. En la computadora, en un 
 
 ## 16. Para más adelante
 
-- **Malargüe y el oeste:** se suman cuando haya datos de receptividad.
+- **Verificación del correo y recuperación de contraseña.**
+- **Fin automático de la campaña:** al terminar, la campaña se cierra, pasa al historial y se crea la siguiente.
 - **Lluvia mensual:** que el productor cargue cada mes y la aplicación sume el total de la campaña.
 - **Vista del establecimiento completo:** el rodeo máximo total de todas las unidades frente al rodeo total.
 - **Bajo riego y dieta por etapas:** se suman al modelo de datos cuando estén definidos.
