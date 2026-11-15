@@ -8,8 +8,7 @@ import {
 } from '@/api/waterPoints'
 import type { Position } from '@/api/productionUnits'
 const props = defineProps<{
-  savedPoints?: WaterPoint[]
-  globalCreation?: boolean
+  savedPoints: WaterPoint[]
   unitName?: string
   unitId: number
   position: Position | null
@@ -19,49 +18,17 @@ const emit = defineEmits<{
   createRequested: []
   select: [id: number | null]
   mode: [active: boolean]
-  points: [points: WaterPoint[]]
   changed: []
-  reload: []
   resetPosition: []
   edit: [id: number | null]
 }>()
-const points = ref<WaterPoint[]>([])
-// Las altas desde el mapa actualizan la misma lista que muestra cada tarjeta.
-watch(
-  () => props.savedPoints,
-  (value) => {
-    if (value) points.value = value
-  },
-  { immediate: true },
-)
-const creating = ref(false)
-const loading = ref(props.savedPoints === undefined)
 const editing = ref<number | null>(null)
 const shared = ref(false)
 const name = ref('')
 const refill = ref<number | ''>('')
 const error = ref('')
 const saving = ref(false)
-async function load() {
-  if (props.savedPoints !== undefined) {
-    error.value = ''
-    return
-  }
-  loading.value = true
-  error.value = ''
-  try {
-    points.value = await waterRequest<WaterPoint[]>(
-      `/production-units/${props.unitId}/water-points`,
-    )
-    emit('points', points.value)
-  } catch {
-    error.value = 'No se pudieron cargar las aguadas.'
-  } finally {
-    loading.value = false
-  }
-}
 function cancel() {
-  creating.value = false
   emit('mode', false)
   error.value = ''
   editing.value = null
@@ -70,14 +37,7 @@ function cancel() {
   emit('edit', null)
 }
 function create() {
-  if (props.globalCreation) {
-    emit('createRequested')
-    return
-  }
-  cancel()
-  creating.value = true
-  name.value = `Aguada ${points.value.length + 1}`
-  emit('mode', true)
+  emit('createRequested')
 }
 async function edit(point: WaterPoint) {
   emit('select', point.id)
@@ -90,8 +50,9 @@ async function edit(point: WaterPoint) {
   emit('edit', point.id)
 }
 async function save() {
-  const existing = points.value.find((p) => p.id === editing.value)
-  const coordinates = props.position ?? existing?.location.coordinates
+  const existing = props.savedPoints.find((p) => p.id === editing.value)
+  if (!existing) return
+  const coordinates = props.position ?? existing.location.coordinates
   if (!coordinates || !name.value.trim()) {
     error.value = 'Marcá una ubicación y completá el nombre.'
     return
@@ -106,19 +67,17 @@ async function save() {
   saving.value = true
   error.value = ''
   const data: WaterPointInput = {
-    shared: props.position || creating.value ? false : shared.value,
+    // Al moverla se confirma otra vez con los vecinos de la nueva ubicación.
+    // Se guarda primero sin compartir para no extender el uso sin consentimiento.
+    shared: props.position ? false : shared.value,
     name: name.value.trim(),
     location: { type: 'Point', coordinates },
     refill_l_day: refill.value === '' ? null : Number(refill.value),
   }
   try {
-    const saved = await waterRequest<WaterPoint>(
-      existing ? `/water-points/${existing.id}` : `/production-units/${props.unitId}/water-points`,
-      existing ? 'PUT' : 'POST',
-      data,
-    )
+    const saved = await waterRequest<WaterPoint>(`/water-points/${existing.id}`, 'PUT', data)
     let sharingError = ''
-    if (props.position || creating.value) {
+    if (props.position) {
       try {
         await confirmSharing(saved)
       } catch {
@@ -126,7 +85,6 @@ async function save() {
       }
     }
     cancel()
-    await load()
     emit('changed')
     if (sharingError) error.value = sharingError
   } catch (err) {
@@ -142,7 +100,6 @@ async function remove(point: WaterPoint) {
   try {
     await waterRequest(`/water-points/${point.id}`, 'DELETE')
     cancel()
-    await load()
     emit('changed')
   } catch {
     error.value = 'No se pudo eliminar la aguada.'
@@ -153,19 +110,18 @@ async function remove(point: WaterPoint) {
 watch(
   () => props.selectedPointId,
   () => {
-    if (!creating.value) cancel()
+    cancel()
   },
 )
 function confirmPosition() {
   emit('mode', false)
   void save()
 }
-defineExpose({ create, cancel, confirmPosition, load })
+defineExpose({ cancel, confirmPosition })
 watch(
   () => props.unitId,
   () => {
     cancel()
-    void load()
   },
   { immediate: true },
 )
@@ -173,13 +129,12 @@ watch(
 <template>
   <section class="water-points">
     <header>
-      <h4>AGUADAS ({{ points.length }})</h4>
+      <h4>AGUADAS ({{ savedPoints.length }})</h4>
       <button class="quick" :disabled="saving" @click="create">+ Ubicar aguada</button>
     </header>
-    <p v-if="loading">Cargando aguadas…</p>
-    <ul v-else-if="points.length" class="point-list">
+    <ul v-if="savedPoints.length" class="point-list">
       <li
-        v-for="point in points"
+        v-for="point in savedPoints"
         :key="point.id"
         :class="{ selected: selectedPointId === point.id }"
       >
@@ -222,26 +177,8 @@ watch(
         Agregar aguada en {{ unitName ?? 'este sector' }}
       </button>
     </div>
-    <form v-if="creating" @submit.prevent="save">
-      <label>Nombre<input v-model="name" required maxlength="100" :disabled="saving" /></label
-      ><label
-        >Litros que repone por día (opcional)<input
-          v-model="refill"
-          type="number"
-          min="0"
-          step="any"
-          :disabled="saving"
-      /></label>
-      <div class="actions">
-        <button class="quick" :disabled="saving">Guardar aguada</button
-        ><button type="button" :disabled="saving" @click="cancel">Cancelar</button>
-      </div>
-    </form>
     <p v-if="error" role="alert">
       {{ error }}
-      <button :disabled="saving" @click="savedPoints === undefined ? load() : emit('reload')">
-        Reintentar carga
-      </button>
     </p>
   </section>
 </template>

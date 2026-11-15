@@ -198,15 +198,14 @@ const items = [
     width: var(--sidebar-width);
     flex-direction: column;
     gap: 4px;
-    padding: 12px 5px;
+    padding: 16px 12px;
     border-top: none;
     border-right: 1px solid var(--color-border);
   }
 
   .brand {
     align-self: stretch;
-    padding: 0 9px 22px;
-    font-size: 0.85rem;
+    padding: 0 8px 20px;
   }
 
   .brand summary span {
@@ -221,10 +220,10 @@ const items = [
   .nav-link {
     flex: none;
     flex-direction: row;
-    gap: 9px;
-    padding: 9px 10px;
+    gap: 12px;
+    padding: 10px 12px;
     border-radius: 8px;
-    font-size: 0.85rem;
+    font-size: 0.95rem;
   }
 
   .nav-link:hover {

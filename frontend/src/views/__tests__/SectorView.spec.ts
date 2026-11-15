@@ -105,6 +105,14 @@ describe('Navegación de sectores', () => {
     expect(wrapper.findComponent({ name: 'WaterPoints' }).props('savedPoints')).toEqual([own])
   })
 
+  it('abre el sector al tocar su polígono en Mi campo', async () => {
+    const { wrapper, router } = await open('/farm')
+    wrapper.findComponent({ name: 'UnitsMap' }).vm.$emit('selectUnit', 2)
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/farm/7/sectors/2')
+    expect(wrapper.find('h1').text()).toBe('Sector Sur')
+  })
+
   it('admite URL directa y recarga al navegar a otro sector', async () => {
     const { wrapper, router } = await open('/farm/7/sectors/2')
     expect(wrapper.find('h1').text()).toBe('Sector Sur')

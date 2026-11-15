@@ -1,16 +1,16 @@
 /* Colores y medidas comunes de la app */
 :root {
-  --color-primary: #376a32;
-  --color-primary-soft: #e5eddf;
-  --color-background: #f7f6f2;
+  --color-primary: #3d6b35;
+  --color-primary-soft: #e3ecdf;
+  --color-background: #f7f5f0;
   --color-surface: #ffffff;
-  --color-text: #202322;
-  --color-text-muted: #737873;
-  --color-border: #deded7;
+  --color-text: #24221f;
+  --color-text-muted: #6b665d;
+  --color-border: #ddd8cd;
   --color-hover: #efece5;
   --color-success: #2e7d32;
   --color-danger: #c62828;
-  --sidebar-width: 177px;
+  --sidebar-width: 240px;
   color-scheme: light dark;
 }
 

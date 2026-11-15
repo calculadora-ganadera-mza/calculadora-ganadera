@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import WaterPoints from './WaterPoints.vue'
 import { confirmSharing, waterRequest, type WaterPoint } from '@/api/waterPoints'
 import type { Position } from '@/api/productionUnits'
@@ -23,6 +23,7 @@ const props = defineProps<{
   overview?: boolean
   unitId?: number
 }>()
+const router = props.overview ? useRouter() : undefined
 const emit = defineEmits<{ removed: [] }>()
 const visibleUnits = computed(() =>
   props.unitId === undefined ? units.value : units.value.filter((unit) => unit.id === props.unitId),
@@ -50,7 +51,10 @@ const sharedWaterPoints = computed(() => {
 const mapRef = ref<InstanceType<typeof UnitsMap>>()
 const waterRefs = ref<Record<number, InstanceType<typeof WaterPoints>>>({})
 function focusUnit(id: number) {
-  if (props.overview) return
+  if (props.overview) {
+    void router?.push({ name: 'sector', params: { scenarioId: props.scenarioId, unitId: id } })
+    return
+  }
   selectWater(id)
   mapRef.value?.focusUnit?.(id)
 }
@@ -451,7 +455,6 @@ onMounted(load)
                 if (el) waterRefs[unit.id] = el as InstanceType<typeof WaterPoints>
               }
             "
-            global-creation
             @create-requested="addWater(unit.id)"
             :saved-points="pointsByUnit[unit.id] ?? []"
             :unit-id="unit.id"
@@ -464,10 +467,8 @@ onMounted(load)
                 selectedWaterId = id
               }
             "
-            @points="pointsByUnit[unit.id] = $event"
             @changed="refreshUnits"
             @reset-position="waterPosition = null"
-            @reload="refreshUnits"
             @mode="
               (active) => {
                 // El alta pertenece al padre; cancelar la lista no la cierra.

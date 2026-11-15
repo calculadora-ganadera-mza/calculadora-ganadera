@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session, aliased
 from app.models import Parameter, ProductionUnit, Scenario, WaterPoint
 from app.models.enums import ProductionSystem
 from app.schemas.production_unit import PolygonGeoJSON
-from app.services.water_points import within_sector
+from app.services.spatial import within_sector
 
 
 class InvalidPolygonError(ValueError):

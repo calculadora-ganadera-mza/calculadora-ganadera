@@ -55,9 +55,6 @@ onMounted(load)
     </div>
     <template v-else-if="scenarios.length > 0">
       <article v-for="scenario in scenarios" :key="scenario.id" class="scenario">
-        <nav class="breadcrumb" aria-label="Ubicación">
-          <span>Mi campo</span><span aria-hidden="true">›</span><span>{{ scenario.name }}</span>
-        </nav>
         <h1>{{ scenario.name }}</h1>
         <p class="subtitle">Administrá los sectores y la campaña de tu establecimiento.</p>
         <section v-if="scenario.current" class="campaign" aria-label="Campaña actual">
@@ -106,16 +103,6 @@ onMounted(load)
 }
 .scenario + .scenario {
   margin-top: 32px;
-}
-.breadcrumb {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
-  color: var(--color-text-muted);
-  font-size: 0.8rem;
-}
-.breadcrumb > span:first-child {
-  color: var(--color-primary);
 }
 h1 {
   font-size: 1.6rem;

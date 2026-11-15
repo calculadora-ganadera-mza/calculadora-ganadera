@@ -1,11 +1,13 @@
 from geoalchemy2 import Geography, Geometry, WKBElement
 from sqlalchemy import JSON, and_, cast, func, select
 from sqlalchemy.dialects.postgresql import aggregate_order_by
-from sqlalchemy.orm import aliased
+from sqlalchemy.engine import RowMapping
+from sqlalchemy.orm import Session, aliased
 
 from app.models import Parameter, ProductionUnit, WaterPoint
-
-WATER_POINT_EDGE_TOLERANCE_M = 5.0
+from app.schemas.water_point import WaterPointInput
+from app.services.production_units import get_user_unit
+from app.services.spatial import WATER_POINT_EDGE_TOLERANCE_M, within_sector
 
 
 class InvalidWaterPointError(ValueError):
@@ -16,33 +18,25 @@ class WaterPointNotFoundError(ValueError):
     """El recurso no existe o no pertenece al usuario."""
 
 
-def within_sector(location, polygon):
-    if isinstance(polygon, WKBElement):
-        polygon = func.ST_GeomFromEWKB(bytes.fromhex(polygon.desc))
-    return func.ST_DWithin(
-        cast(location, Geography(srid=4326)),
-        cast(polygon, Geography(srid=4326)),
-        WATER_POINT_EDGE_TOLERANCE_M,
-    )
-
-
-def assign(point, data):
+def assign(point: WaterPoint, data: WaterPointInput) -> None:
     point.shared = data.shared
     point.name = data.name
     point.location = func.ST_GeomFromGeoJSON(data.location.model_dump_json())
     point.refill_l_day = data.refill_l_day
 
 
-def owned_unit(session, user_id, unit_id, *, for_update=False):
-    from app.services.production_units import get_user_unit
-
+def owned_unit(
+    session: Session, user_id: int, unit_id: int, *, for_update: bool = False
+) -> ProductionUnit:
     unit = get_user_unit(session, user_id, unit_id, for_update=for_update)
     if unit is None:
         raise WaterPointNotFoundError("Sector no encontrado.")
     return unit
 
 
-def owned_point(session, user_id, point_id, *, for_update=False):
+def owned_point(
+    session: Session, user_id: int, point_id: int, *, for_update: bool = False
+) -> tuple[WaterPoint, ProductionUnit]:
     point = session.get(WaterPoint, point_id)
     if point is None:
         raise WaterPointNotFoundError("Aguada no encontrada.")
@@ -50,15 +44,20 @@ def owned_point(session, user_id, point_id, *, for_update=False):
     return point, unit
 
 
-def validate_location(session, data, polygon):
+def validate_location(
+    session: Session, data: WaterPointInput, polygon: WKBElement
+) -> None:
     location = func.ST_GeomFromGeoJSON(data.location.model_dump_json())
     if not session.scalar(select(within_sector(location, polygon))):
         raise InvalidWaterPointError(
-            "La aguada debe estar dentro de su sector o a menos de 5 m de su borde."
+            "La aguada debe estar dentro de su sector o a menos de "
+            f"{WATER_POINT_EDGE_TOLERANCE_M:g} m de su borde."
         )
 
 
-def read_points(session, unit_id=None, *, scenario_id=None):
+def read_points(
+    session: Session, unit_id: int | None = None, *, scenario_id: int | None = None
+) -> list[RowMapping]:
     """Una consulta para los puntos y todos sus vecinos"""
     neighbor = aliased(ProductionUnit)
     # Calcula únicamente el aporte de esta aguada en los vecinos habilitados.
@@ -137,12 +136,14 @@ def read_points(session, unit_id=None, *, scenario_id=None):
     return list(session.execute(query).mappings())
 
 
-def list_user_points(session, user_id, unit_id):
+def list_user_points(session: Session, user_id: int, unit_id: int) -> list[RowMapping]:
     owned_unit(session, user_id, unit_id)
     return read_points(session, unit_id)
 
 
-def create_point(session, user_id, unit_id, data):
+def create_point(
+    session: Session, user_id: int, unit_id: int, data: WaterPointInput
+) -> RowMapping:
     # Bloquea y obtiene el contorno actual antes de validar la ubicación.
     unit = owned_unit(session, user_id, unit_id, for_update=True)
     validate_location(session, data, unit.polygon)
@@ -153,7 +154,9 @@ def create_point(session, user_id, unit_id, data):
     return next(row for row in read_points(session, unit_id) if row["id"] == point.id)
 
 
-def update_point(session, user_id, point_id, data):
+def update_point(
+    session: Session, user_id: int, point_id: int, data: WaterPointInput
+) -> RowMapping:
     point, unit = owned_point(session, user_id, point_id, for_update=True)
     validate_location(session, data, unit.polygon)
     assign(point, data)
@@ -165,7 +168,7 @@ def update_point(session, user_id, point_id, data):
     )
 
 
-def delete_point(session, user_id, point_id):
+def delete_point(session: Session, user_id: int, point_id: int) -> None:
     point, _ = owned_point(session, user_id, point_id)
     session.delete(point)
     session.commit()

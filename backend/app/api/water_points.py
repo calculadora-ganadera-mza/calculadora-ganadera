@@ -17,8 +17,6 @@ def list_points(
 ) -> list[WaterPointRead]:
     try:
         rows = service.list_user_points(session, user.id, production_unit_id)
-    except service.InvalidWaterPointError as err:
-        raise HTTPException(422, str(err)) from err
     except service.WaterPointNotFoundError as err:
         raise HTTPException(404, str(err)) from err
     return [WaterPointRead.model_validate(row) for row in rows]
@@ -57,8 +55,6 @@ def update_point(
 def delete_point(water_point_id: int, session: SessionDep, user: CurrentUser) -> None:
     try:
         service.delete_point(session, user.id, water_point_id)
-    except service.InvalidWaterPointError as err:
-        raise HTTPException(422, str(err)) from err
     except service.WaterPointNotFoundError as err:
         raise HTTPException(404, str(err)) from err
 
