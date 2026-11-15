@@ -8,7 +8,7 @@ Antes de diseñar o programar algo del dominio, leer:
 
 - `docs/definiciones-del-proyecto.md`: decisiones vigentes. Si otro documento lo contradice, vale este.
 - `docs/como-funciona-cada-calculadora.md`: datos, pasos de cálculo y resultados de cada calculadora.
-- `docs/diagrama-base-de-datos.pdf`: modelo de datos completo.
+- `docs/diagrama-base-de-datos.md`: modelo de datos completo, en un diagrama Mermaid.
 - `docs/openapi.yaml`: contrato de la API. Toda ruta nueva sigue este contrato; si una ruta necesita cambiar, primero se modifica el contrato.
 
 Si algo no está definido en esos documentos, no inventarlo: preguntar.
@@ -106,11 +106,11 @@ Traducción fija de los términos del dominio. El código usa la columna de la d
 | rol: productor / técnico / administrador | `role`: `producer` / `technician` / `admin` |
 | categoría animal | `animal_category` |
 | EV (equivalente vaca) | `cow_equivalent` |
-| consumo de materia seca (MS) | `dm_intake_kg_year` |
+| consumo anual de materia seca (MS) de un EV | `cow_equivalent_dm_intake_kg_year` |
 | agua en verano / invierno | `summer_water_l_day` / `winter_water_l_day` |
 | parámetro (clave, valor, unidad) | `parameter` (`key`, `value`, `unit`) |
 | escenario | `scenario` |
-| unidad productiva | `production_unit` |
+| sector (unidad productiva) | `production_unit` |
 | ambiente: secano / bajo riego / corral | `production_system`: `rainfed` / `irrigated` / `feedlot` |
 | superficie | `area_ha` |
 | aguada | `water_point` |
@@ -124,6 +124,20 @@ Traducción fija de los términos del dominio. El código usa la columna de la d
 | condición corporal al parto | `calving_body_condition` |
 | precipitación | `rainfall_mm` |
 | receptividad | `carrying_capacity` |
+| categorías: vaca / toro / vaquillona / ternero / novillo | `code`: `cow` / `bull` / `heifer` / `calf` / `steer` |
+| escenario principal | `is_main` |
+| ubicación | `location` |
+| aguada compartida | `shared` |
+| superficie aprovechable | `usable_area_ha` |
+| destete precoz | `early_weaning` |
+| suplementación | `supplemented` |
+| límite por pasto / límite por agua | `pasture_limit` / `water_limit` |
+| rodeo máximo | `max_herd` |
+| qué lo limita: pasto / agua | `limited_by`: `pasture` / `water` |
+| rodeo recomendado | `recommended_herd` |
+| Mi rodeo ajustado | `scaled_herd` |
+| terneros destetados | `weaned_calves` |
+| termómetro de carga: por debajo / dentro / por encima | `load_thermometer`: `below` / `within` / `above` |
 
 ## Comandos
 
