@@ -29,7 +29,7 @@ Común a las cuatro:
 
 ### Cómo calcula
 
-1. **Superficie aprovechable:** intersección entre el polígono y los círculos de 2,5 km alrededor de cada aguada. Las superposiciones se cuentan una sola vez.
+1. **Superficie aprovechable:** intersección entre el polígono y los círculos de 2,5 km alrededor de cada aguada. Las superposiciones se cuentan una sola vez. Cuentan las aguadas propias y las compartidas de sectores vecinos del mismo escenario, a menos de 5 m del polígono. Una aguada no puede estar fuera de su sector, salvo esa tolerancia técnica de borde. El uso compartido requiere confirmación del productor.
 2. **Forraje producido (kg MS por ha por año):** lluvia × 2,15 para herbáceas, y lluvia × 1,4 para leñosas. La lluvia es la de la campaña anterior, o la que cargue el productor si está simulando.
 3. **Forraje disponible:** 80% de las herbáceas + 50% de las leñosas.
 4. **Forraje consumible:** 30% del disponible.

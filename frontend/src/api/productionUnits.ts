@@ -22,6 +22,7 @@ export interface ProductionUnitInput {
 export interface ProductionUnit extends ProductionUnitInput {
   id: number
   area_ha: number
+  usable_geometry?: { type: 'MultiPolygon'; coordinates: Position[][][] } | null
   usable_area_ha: number
 }
 

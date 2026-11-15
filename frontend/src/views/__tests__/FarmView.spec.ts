@@ -51,7 +51,9 @@ describe('FarmView', () => {
     expect(listSeasons).toHaveBeenCalledWith(1)
     expect(wrapper.find('#scenario-name').exists()).toBe(false)
     expect(wrapper.text()).toContain('La Aguada')
-    expect(wrapper.text()).toContain('Campaña 2026/27 (del 1/7/2026 al 30/6/2027)')
+    expect(wrapper.text()).toContain('Campaña 2026/27')
+    expect(wrapper.text()).toContain('Del 1/7/2026 al 30/6/2027')
+    expect(wrapper.findComponent({ name: 'ScenarioUnits' }).props('overview')).toBe(true)
     expect(wrapper.find('.current').text()).toBe('actual')
   })
 

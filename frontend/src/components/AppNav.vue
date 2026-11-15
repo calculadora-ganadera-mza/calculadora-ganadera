@@ -72,7 +72,15 @@ const items = [
         <p v-if="logoutError" role="alert">{{ logoutError }}</p>
       </div>
     </details>
-    <RouterLink v-for="item in items" :key="item.to" :to="item.to" class="nav-link">
+    <RouterLink
+      v-for="item in items"
+      :key="item.to"
+      :to="item.to"
+      class="nav-link"
+      :class="{
+        'section-active': item.to === '/farm' && router.currentRoute.value.name === 'sector',
+      }"
+    >
       <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
         <path
           :d="item.icon"
@@ -176,7 +184,8 @@ const items = [
   text-decoration: none;
 }
 
-.nav-link.router-link-exact-active {
+.nav-link.router-link-exact-active,
+.nav-link.section-active {
   color: var(--color-primary);
   font-weight: 600;
 }
@@ -221,7 +230,8 @@ const items = [
     background: var(--color-hover);
   }
 
-  .nav-link.router-link-exact-active {
+  .nav-link.router-link-exact-active,
+  .nav-link.section-active {
     background: var(--color-primary-soft);
   }
 }
