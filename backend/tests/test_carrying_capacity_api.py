@@ -1,6 +1,5 @@
 import pytest
-from pydantic import ValidationError
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 
 from app.models import AnimalCategory, Parameter, ProductionUnit, Scenario
 from app.models.enums import ProductionSystem
@@ -127,12 +126,10 @@ def test_sector_of_another_user_is_not_found(api, session, other_user):
     assert calculate(api, unit.id).status_code == 404
 
 
-def test_reference_parameter_without_value_fails(session):
+def test_missing_reference_parameter_fails(session):
     session.execute(
-        update(Parameter)
-        .where(Parameter.key == "cow_equivalent_dm_intake_kg_year")
-        .values(value=None)
+        delete(Parameter).where(Parameter.key == "cow_equivalent_dm_intake_kg_year")
     )
 
-    with pytest.raises(ValidationError):
+    with pytest.raises(LookupError, match="cow_equivalent_dm_intake_kg_year"):
         read_pasture_parameters(session)

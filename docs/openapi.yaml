@@ -1479,9 +1479,10 @@ components:
           type: string
         value:
           type: [number, "null"]
+          exclusiveMinimum: 0
           description: |
-            Solo los índices pueden ser `null`, que significa que todavía no están
-            cargados.
+            Mayor que 0. Solo los índices pueden ser `null`, que significa que
+            todavía no están cargados.
         unit:
           type: string
         producer_editable:
@@ -1493,7 +1494,8 @@ components:
       properties:
         value:
           type: [number, "null"]
-          description: Solo los índices aceptan `null`.
+          exclusiveMinimum: 0
+          description: Mayor que 0. Solo los índices aceptan `null`.
 
     CarryingCapacityInput:
       description: |

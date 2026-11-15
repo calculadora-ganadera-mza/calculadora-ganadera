@@ -145,3 +145,31 @@ def test_deleting_scenario_cascades(session: Session, cows: HerdCategory):
 
     for model in (ProductionUnit, WaterPoint, Season, HerdSeason, HerdCategory):
         assert session.scalar(select(func.count()).select_from(model)) == 0
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("cow_equivalent_dm_intake_kg_year", None),
+        ("cow_equivalent_dm_intake_kg_year", 0),
+        ("range_condition_index_good", 0),
+        ("range_condition_index_good", -1),
+    ],
+)
+def test_parameter_rejects_invalid_value(session: Session, key: str, value):
+    parameter = session.scalars(select(Parameter).where(Parameter.key == key)).one()
+
+    with (
+        pytest.raises(IntegrityError, match="ck_parameter_value_positive"),
+        session.begin_nested(),
+    ):
+        parameter.value = value
+
+
+def test_index_accepts_positive_value(session: Session):
+    parameter = session.scalars(
+        select(Parameter).where(Parameter.key == "range_condition_index_good")
+    ).one()
+
+    parameter.value = 1.2
+    session.flush()
