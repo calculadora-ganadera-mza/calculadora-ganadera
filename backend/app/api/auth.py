@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.api.deps import CurrentUser, SessionDep
 from app.core.config import settings
 from app.schemas.auth import Token
-from app.schemas.user import UserCreate
+from app.schemas.user import UserCreate, UserRead
 from app.services.auth import AuthService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -79,5 +79,6 @@ def logout(request: Request, response: Response, session: SessionDep) -> None:
 
 
 @router.get("/me")
-def me(user: CurrentUser) -> dict:
-    return {"id": user.id, "name": user.name, "email": user.email}
+def me(user: CurrentUser) -> UserRead:
+    """Datos del usuario con la sesión iniciada."""
+    return UserRead.model_validate(user)

@@ -162,3 +162,18 @@ def test_email_is_stored_and_matched_in_lowercase(client):
             ).status_code
             == 200
         )
+
+
+def test_me_returns_current_user_with_role(client):
+    browser, session = client
+    token = register(browser).json()["access_token"]
+
+    response = browser.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": session.scalar(select(User.id).where(User.email == "test@example.com")),
+        "name": "Test User",
+        "email": "test@example.com",
+        "role": "producer",
+    }
