@@ -81,7 +81,7 @@ function calculate() {
       <span>Receptividad</span>
     </nav>
     <h1>Calcular receptividad</h1>
-        <form class="card" @submit.prevent="calculate">
+    <form class="card" @submit.prevent="calculate">
       <label>
         Escenario
         <select v-model="scenarioId" :disabled="loading" @change="loadScenario()">
