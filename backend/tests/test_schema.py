@@ -23,6 +23,14 @@ SQUARE_1KM = func.ST_Transform(
     func.ST_MakeEnvelope(500000, 6350000, 501000, 6351000, 32719), 4326
 )
 
+INDEX_KEYS = [
+    "range_condition_index_fair",
+    "range_condition_index_good",
+    "range_condition_index_very_good",
+    "early_weaning_index",
+    "supplementation_index",
+]
+
 
 @pytest.fixture
 def herd(session: Session) -> HerdSeason:
@@ -82,6 +90,14 @@ def test_seed_data_is_loaded(session: Session):
 
     assert session.scalar(select(func.count()).select_from(AnimalCategory)) == 5
     assert "cow_equivalent_dm_intake_kg_year" in keys
+
+
+def test_indices_are_loaded_without_value(session: Session):
+    rows = session.execute(
+        select(Parameter.key, Parameter.value).where(Parameter.key.in_(INDEX_KEYS))
+    ).all()
+
+    assert dict(rows) == dict.fromkeys(INDEX_KEYS)
 
 
 def test_area_is_calculated_from_polygon(session: Session, herd: HerdSeason):

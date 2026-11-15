@@ -10,7 +10,6 @@ class Parameter(Base):
     id: Mapped[IntPk]
     key: Mapped[str] = mapped_column(unique=True)
     description: Mapped[str]
-    value: Mapped[float]
+    value: Mapped[float | None]
     unit: Mapped[str]
-    confirmed: Mapped[bool] = mapped_column(server_default=false())
     producer_editable: Mapped[bool] = mapped_column(server_default=false())
