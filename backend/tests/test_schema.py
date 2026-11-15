@@ -23,6 +23,14 @@ SQUARE_1KM = func.ST_Transform(
     func.ST_MakeEnvelope(500000, 6350000, 501000, 6351000, 32719), 4326
 )
 
+INDEX_KEYS = [
+    "range_condition_index_fair",
+    "range_condition_index_good",
+    "range_condition_index_very_good",
+    "early_weaning_index",
+    "supplementation_index",
+]
+
 
 @pytest.fixture
 def herd(session: Session) -> HerdSeason:
@@ -84,6 +92,14 @@ def test_seed_data_is_loaded(session: Session):
     assert "cow_equivalent_dm_intake_kg_year" in keys
 
 
+def test_indices_are_loaded_without_value(session: Session):
+    rows = session.execute(
+        select(Parameter.key, Parameter.value).where(Parameter.key.in_(INDEX_KEYS))
+    ).all()
+
+    assert dict(rows) == dict.fromkeys(INDEX_KEYS)
+
+
 def test_area_is_calculated_from_polygon(session: Session, herd: HerdSeason):
     unit = session.get_one(ProductionUnit, herd.production_unit_id)
     session.refresh(unit)
@@ -129,3 +145,31 @@ def test_deleting_scenario_cascades(session: Session, cows: HerdCategory):
 
     for model in (ProductionUnit, WaterPoint, Season, HerdSeason, HerdCategory):
         assert session.scalar(select(func.count()).select_from(model)) == 0
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("cow_equivalent_dm_intake_kg_year", None),
+        ("cow_equivalent_dm_intake_kg_year", 0),
+        ("range_condition_index_good", 0),
+        ("range_condition_index_good", -1),
+    ],
+)
+def test_parameter_rejects_invalid_value(session: Session, key: str, value):
+    parameter = session.scalars(select(Parameter).where(Parameter.key == key)).one()
+
+    with (
+        pytest.raises(IntegrityError, match="ck_parameter_value_positive"),
+        session.begin_nested(),
+    ):
+        parameter.value = value
+
+
+def test_index_accepts_positive_value(session: Session):
+    parameter = session.scalars(
+        select(Parameter).where(Parameter.key == "range_condition_index_good")
+    ).one()
+
+    parameter.value = 1.2
+    session.flush()

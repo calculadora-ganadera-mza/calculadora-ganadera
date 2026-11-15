@@ -10,6 +10,8 @@
   --color-hover: #efece5;
   --color-success: #2e7d32;
   --color-danger: #c62828;
+  --color-warning: #6b4e12;
+  --color-warning-soft: #f5ecd6;
   --sidebar-width: 240px;
   color-scheme: light dark;
 }
@@ -26,6 +28,8 @@
     --color-hover: #2b2e28;
     --color-success: #66bb6a;
     --color-danger: #ef5350;
+    --color-warning: #e8c77a;
+    --color-warning-soft: #3a3020;
   }
 }
 

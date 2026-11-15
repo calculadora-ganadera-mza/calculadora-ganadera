@@ -4,8 +4,9 @@ from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.engine import RowMapping
 from sqlalchemy.orm import Session, aliased
 
-from app.models import Parameter, ProductionUnit, WaterPoint
+from app.models import ProductionUnit, WaterPoint
 from app.schemas.water_point import WaterPointInput
+from app.services.parameters import select_parameter
 from app.services.production_units import get_user_unit
 from app.services.spatial import WATER_POINT_EDGE_TOLERANCE_M, within_sector
 
@@ -62,11 +63,7 @@ def read_points(
     neighbor = aliased(ProductionUnit)
     # Calcula únicamente el aporte de esta aguada en los vecinos habilitados.
     coverage_neighbor = aliased(ProductionUnit)
-    radius = (
-        select(Parameter.value)
-        .where(Parameter.key == "water_point_radius_km")
-        .scalar_subquery()
-    )
+    radius = select_parameter("water_point_radius_km").scalar_subquery()
     reach = func.ST_Buffer(
         cast(WaterPoint.location, Geography(srid=4326)), radius * 1000, 32
     )

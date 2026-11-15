@@ -123,4 +123,5 @@ erDiagram
 - **Una cantidad por categoría:** `herd_category` no repite la misma categoría dentro de un rodeo.
 - **Superficie:** `area_ha` es una columna calculada y guardada (`ST_Area(polygon::geography) / 10000`). No se escribe a mano.
 - **Borrado en cascada:** al borrar un usuario se borra todo lo suyo. Lo mismo pasa con un establecimiento, un sector, una campaña o un rodeo: arrastran lo que depende de ellos. Una categoría animal en uso no se puede borrar.
+- **Valores de referencia:** todo valor de `parameter` es mayor que 0, y solo los índices pueden quedar sin valor (`ck_parameter_value_positive`).
 - **Tablas sueltas:** `parameter` no se relaciona con otras tablas. La consulta el motor de cálculo por su `key`.

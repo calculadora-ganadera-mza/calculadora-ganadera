@@ -16,9 +16,10 @@ from sqlalchemy import (
 from sqlalchemy.engine import RowMapping
 from sqlalchemy.orm import Session, aliased
 
-from app.models import Parameter, ProductionUnit, Scenario, WaterPoint
+from app.models import ProductionUnit, Scenario, WaterPoint
 from app.models.enums import ProductionSystem
 from app.schemas.production_unit import PolygonGeoJSON
+from app.services.parameters import select_parameter
 from app.services.spatial import within_sector
 
 
@@ -42,10 +43,11 @@ def to_geometry(session: Session, polygon: PolygonGeoJSON) -> ColumnElement[Any]
 
 def select_units() -> Select:
     """Sectores con el contorno en GeoJSON, tal como los devuelve la API."""
+    radius = select_parameter("water_point_radius_km").scalar_subquery()
     buffered_water = cast(
         func.ST_Buffer(
             cast(WaterPoint.location, Geography(srid=4326)),
-            Parameter.value * 1000,
+            radius * 1000,
             32,
         ),
         Geometry(srid=4326),
@@ -67,7 +69,6 @@ def select_units() -> Select:
             ).label("geom")
         )
         .select_from(WaterPoint)
-        .join(Parameter, true())
         .join(owner, owner.id == WaterPoint.production_unit_id)
         .where(
             or_(
@@ -78,7 +79,6 @@ def select_units() -> Select:
                     within_sector(WaterPoint.location, ProductionUnit.polygon),
                 ),
             ),
-            Parameter.key == "water_point_radius_km",
         )
         .correlate(ProductionUnit)
         .lateral("coverage")

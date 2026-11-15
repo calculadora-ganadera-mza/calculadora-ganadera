@@ -50,6 +50,7 @@ async function open(path: string) {
     routes: [
       { path: '/farm', component: ScenarioUnits, props: { scenarioId: 7, overview: true } },
       { path: '/farm/:scenarioId/sectors/:unitId', name: 'sector', component: SectorView },
+      { path: '/calculators/carrying-capacity', name: 'carrying-capacity', component: {} },
     ],
   })
   await router.push(path)
@@ -120,6 +121,13 @@ describe('Navegación de sectores', () => {
     await flushPromises()
     expect(wrapper.find('h1').text()).toBe('Sector Norte')
     expect(wrapper.findComponent({ name: 'WaterPoints' }).props('unitId')).toBe(1)
+  })
+
+  it('lleva a calcular con el escenario, el sector y la campaña ya elegidos', async () => {
+    const { wrapper } = await open('/farm/7/sectors/2')
+    expect(wrapper.find('.calculate').attributes('href')).toBe(
+      '/calculators/carrying-capacity?scenario=7&unit=2&season=12',
+    )
   })
 
   it('informa que un sector no pertenece al escenario sin mostrar administración', async () => {

@@ -3,8 +3,9 @@ from datetime import date, timedelta
 from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
 
-from app.models import Parameter, Scenario, Season
+from app.models import Scenario, Season
 from app.schemas.scenario import SeasonRead
+from app.services.parameters import select_parameter
 
 # Años que se pueden elegir para la primera campaña: el actual y los siguientes
 FIRST_SEASON_YEARS_AHEAD = 2
@@ -41,9 +42,9 @@ def first_season_years(today: date, start_month: int) -> list[int]:
 
 
 def get_season_start_month(session: Session) -> int:
-    value = session.scalars(
-        select(Parameter.value).where(Parameter.key == "season_start_month")
-    ).one()
+    value = session.scalars(select_parameter("season_start_month")).one()
+    if value is None:
+        raise ValueError("El parámetro season_start_month no tiene valor.")
     return int(value)
 
 

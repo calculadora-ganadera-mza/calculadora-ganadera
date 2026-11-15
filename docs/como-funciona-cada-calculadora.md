@@ -34,7 +34,7 @@ Común a las cuatro:
 3. **Forraje disponible:** 80% de las herbáceas + 50% de las leñosas.
 4. **Forraje consumible:** 30% del disponible.
 5. **Receptividad base (ha por EV):** consumo anual de un EV ÷ forraje consumible.
-6. **Receptividad corregida:** la base, corregida por los índices de estado del campo, destete precoz y suplementación, multiplicados entre sí. Los de destete precoz y suplementación se aplican solo si están marcados.
+6. **Receptividad corregida:** la base dividida por el producto de los índices de estado del campo, destete precoz y suplementación. Un índice mayor que 1 indica que el campo soporta más animales. Los de destete precoz y suplementación se aplican solo si están marcados.
 7. **Límite por pasto (EV):** superficie aprovechable ÷ receptividad corregida.
 8. **Composición por vaca:** lo que acompaña a cada vaca, en cabezas y en EV:
    - Vaca: 1 EV todo el año.
