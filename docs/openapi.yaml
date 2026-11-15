@@ -1470,7 +1470,7 @@ components:
 
     Parameter:
       type: object
-      required: [key, description, value, unit, confirmed, producer_editable]
+      required: [key, description, value, unit, producer_editable]
       properties:
         key:
           type: string
@@ -1484,8 +1484,6 @@ components:
             cargados.
         unit:
           type: string
-        confirmed:
-          type: boolean
         producer_editable:
           type: boolean
 
