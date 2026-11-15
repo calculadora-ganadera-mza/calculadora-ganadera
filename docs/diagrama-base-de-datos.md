@@ -109,9 +109,8 @@ erDiagram
         int id PK
         string key UK
         string description
-        float value
+        float value "opcional, solo en los índices"
         string unit
-        bool confirmed "por defecto false"
         bool producer_editable "por defecto false"
     }
 ```

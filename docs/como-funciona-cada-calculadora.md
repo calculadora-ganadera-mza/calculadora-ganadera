@@ -79,7 +79,7 @@ Los pasos 2 a 5 resumen el método de Guevara y otros (1995). En la práctica da
 
 ### Pendientes
 
-- Valores de los índices por estado del campo, destete precoz y suplementación, y dónde se guardan.
+- Valores de los índices por estado del campo, destete precoz y suplementación.
 - Fuente de los 283 días de gestación.
 - Meses de verano y de invierno, límite del termómetro y consumo de agua por categoría: son provisorios.
 - Cómo se calcula en bajo riego.
