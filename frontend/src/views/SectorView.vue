@@ -67,9 +67,21 @@ watch(() => [route.params.scenarioId, route.params.unitId], load, { immediate: t
       <button type="button" @click="load">Reintentar</button>
     </div>
     <template v-else-if="scenario && unitId">
-      <p class="subtitle">
-        Administrá el contorno, las aguadas y los datos de la campaña de este sector.
-      </p>
+      <div class="heading">
+        <p class="subtitle">
+          Administrá el contorno, las aguadas y los datos de la campaña de este sector.
+        </p>
+        <RouterLink
+          v-if="season"
+          class="calculate"
+          :to="{
+            name: 'carrying-capacity',
+            query: { scenario: scenario.id, unit: unitId, season: season.id },
+          }"
+        >
+          Calcular
+        </RouterLink>
+      </div>
       <ScenarioUnits
         :key="scenario.id + ':' + unitId"
         :scenario-id="scenario.id"
@@ -95,6 +107,23 @@ watch(() => [route.params.scenarioId, route.params.unitId], load, { immediate: t
 }
 .breadcrumb a {
   color: var(--color-primary);
+}
+.heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.calculate {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: var(--color-surface);
+  text-decoration: none;
 }
 .subtitle {
   color: var(--color-text-muted);
