@@ -133,3 +133,78 @@ def test_missing_reference_parameter_fails(session):
 
     with pytest.raises(LookupError, match="cow_equivalent_dm_intake_kg_year"):
         read_pasture_parameters(session)
+
+
+# Rodeo recomendado (#15). El sector de prueba tiene unas 101,8 ha y, con
+# 300 mm, 15,08 ha/EV: el límite por pasto es de unos 6,75 EV.
+
+
+def herd_with_cows(session, **changes) -> dict:
+    cow = session.scalars(
+        select(AnimalCategory.id).where(AnimalCategory.code == "cow")
+    ).one()
+    data = {
+        "categories": [{"animal_category_id": cow, "quantity": 10}],
+        "replacement_rate": 0.2,
+        "weaning_rate": 0.5,
+        "breeding_start": "2026-11-01",
+        "breeding_end": "2027-01-31",
+    }
+    return data | changes
+
+
+def test_recommended_herd_fits_in_the_pasture_limit(api, session, unit_id):
+    add_water_point(api, unit_id)
+
+    result = calculate(api, unit_id, **herd_with_cows(session)).json()
+
+    # 5 vacas con su toro, ternera y vaquillona suman 7,25 EV: se pasa.
+    # 4 vacas + 1 toro + 1 ternera + 1 vaquillona = 4 + 1,3 + 0,25 + 0,7 = 6,25.
+    herd = result["recommended_herd"]
+    assert [c["quantity"] for c in herd["categories"]] == [4, 1, 1, 1]
+    assert herd["cow_equivalents"] == pytest.approx(6.25)
+    assert herd["cow_equivalents"] <= result["pasture_limit_cow_equivalents"]
+    assert herd["weaned_calves"] == {"males": 1, "females": 1}
+
+
+def test_without_cows_there_is_no_recommended_herd(api, unit_id):
+    add_water_point(api, unit_id)
+
+    result = calculate(api, unit_id).json()
+
+    assert result["recommended_herd"] is None
+    assert [w["code"] for w in result["warnings"]] == ["missing_index"]
+
+
+def test_bulls_per_100_cows_from_the_request(api, session, unit_id):
+    add_water_point(api, unit_id)
+
+    result = calculate(
+        api, unit_id, **herd_with_cows(session), bulls_per_100_cows=50
+    ).json()
+
+    # 3 vacas con 50 toros cada 100: round(1,5) = 2 toros.
+    assert [c["quantity"] for c in result["recommended_herd"]["categories"]][:2] == [
+        3,
+        2,
+    ]
+
+
+def test_replacement_above_weaned_females_warns(api, session, unit_id):
+    add_water_point(api, unit_id)
+
+    result = calculate(api, unit_id, **herd_with_cows(session, weaning_rate=0.3)).json()
+
+    codes = [w["code"] for w in result["warnings"]]
+    assert "replacement_exceeds_females" in codes
+    assert result["recommended_herd"] is not None
+
+
+def test_field_too_small_for_a_cow_and_her_bull(api, session, unit_id):
+    add_water_point(api, unit_id)
+
+    result = calculate(api, unit_id, **herd_with_cows(session), rainfall_mm=1).json()
+
+    assert result["recommended_herd"] is None
+    assert "herd_does_not_fit" in [w["code"] for w in result["warnings"]]
+    assert result["pasture_limit_cow_equivalents"] > 0

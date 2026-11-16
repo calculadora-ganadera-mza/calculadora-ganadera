@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { calculateCarryingCapacity, type CarryingCapacityResult } from '@/api/carryingCapacity'
 import { ApiError } from '@/api/errors'
+import RecommendedHerd from '@/components/RecommendedHerd.vue'
 import { listHerds } from '@/api/herds'
 import { listProductionUnits, type ProductionUnit } from '@/api/productionUnits'
 import { listScenarios, listSeasons, type Scenario, type Season } from '@/api/scenarios'
@@ -132,6 +133,11 @@ onMounted(load)
         <p class="sub">{{ oneDecimal.format(result.usable_area_ha) }} ha aprovechables</p>
       </div>
     </section>
+    <RecommendedHerd
+      v-if="result && season && !loading && !error && !missing"
+      :herd="result.recommended_herd"
+      :warnings="result.warnings"
+    />
   </section>
 </template>
 
