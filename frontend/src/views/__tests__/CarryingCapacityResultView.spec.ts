@@ -39,6 +39,7 @@ const result = {
   usable_area_ha: 981.8,
   carrying_capacity_ha_per_cow_equivalent: 15.1,
   pasture_limit_cow_equivalents: 65.02,
+  recommended_herd: null,
   warnings: [],
 }
 
