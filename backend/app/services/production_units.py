@@ -22,9 +22,12 @@ from app.schemas.production_unit import PolygonGeoJSON
 from app.services.parameters import select_parameter
 from app.services.spatial import within_sector
 
+# Una franja de unos 10 cm a lo largo de 1 km de alambrado.
+SECTOR_OVERLAP_TOLERANCE_M2 = 100.0
+
 
 class InvalidPolygonError(ValueError):
-    """El contorno no forma un polígono válido, por ejemplo porque se cruza."""
+    """El contorno no cumple las reglas para guardar un sector."""
 
 
 def to_geometry(session: Session, polygon: PolygonGeoJSON) -> ColumnElement[Any]:
@@ -39,6 +42,37 @@ def to_geometry(session: Session, polygon: PolygonGeoJSON) -> ColumnElement[Any]
             "El contorno no es válido: no puede cruzarse consigo mismo."
         )
     return geometry
+
+
+def check_sector_overlap(
+    session: Session,
+    scenario_id: int,
+    geometry: ColumnElement[Any],
+    *,
+    exclude_unit_id: int | None = None,
+) -> None:
+    """Rechaza contornos que ocupan superficie de otro sector del escenario."""
+    # Serializa altas y cambios de contorno dentro del mismo escenario.
+    session.execute(
+        select(Scenario.id)
+        .where(Scenario.id == scenario_id)
+        .with_for_update(key_share=True)
+    ).scalar_one()
+    # La parte compartida puede incluir puntos o líneas, que no aportan superficie.
+    intersection = func.ST_CollectionExtract(
+        func.ST_Intersection(ProductionUnit.polygon, geometry), 3
+    )
+    area_m2 = func.ST_Area(cast(intersection, Geography(srid=4326)))
+    query = select(ProductionUnit.name).where(
+        ProductionUnit.scenario_id == scenario_id,
+        func.ST_Intersects(ProductionUnit.polygon, geometry),
+        area_m2 > SECTOR_OVERLAP_TOLERANCE_M2,
+    )
+    if exclude_unit_id is not None:
+        query = query.where(ProductionUnit.id != exclude_unit_id)
+    name = session.scalar(query.order_by(ProductionUnit.id).limit(1))
+    if name is not None:
+        raise InvalidPolygonError(f"El contorno se superpone con el sector «{name}».")
 
 
 def select_units() -> Select:
@@ -142,11 +176,13 @@ def create_unit(
 
     La API no recibe el ambiente.
     """
+    geometry = to_geometry(session, polygon)
+    check_sector_overlap(session, scenario_id, geometry)
     unit = ProductionUnit(
         scenario_id=scenario_id,
         name=name,
         production_system=ProductionSystem.RAINFED,
-        polygon=to_geometry(session, polygon),
+        polygon=geometry,
     )
     session.add(unit)
     session.flush()
@@ -157,8 +193,9 @@ def update_unit(
     session: Session, unit: ProductionUnit, name: str, polygon: PolygonGeoJSON
 ) -> None:
     """Cambia el nombre y el contorno."""
-    session.refresh(unit, with_for_update=True)
     geometry = to_geometry(session, polygon)
+    check_sector_overlap(session, unit.scenario_id, geometry, exclude_unit_id=unit.id)
+    session.refresh(unit, with_for_update=True)
     outside = list(
         session.scalars(
             select(WaterPoint.name).where(

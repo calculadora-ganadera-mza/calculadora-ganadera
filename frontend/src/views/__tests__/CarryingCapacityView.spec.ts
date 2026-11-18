@@ -37,6 +37,8 @@ beforeEach(() => {
   vi.mocked(listProductionUnits).mockResolvedValue([unit, { ...unit, id: 3, name: 'Sector 2' }])
 })
 
+const EmptyView = { render: () => null }
+
 async function open(path: string) {
   const router = createRouter({
     history: createMemoryHistory(),
@@ -45,9 +47,9 @@ async function open(path: string) {
       {
         path: '/calc/:scenarioId/:unitId/:seasonId',
         name: 'carrying-capacity-result',
-        component: {},
+        component: EmptyView,
       },
-      { path: '/:other(.*)', component: {} },
+      { path: '/:other(.*)', component: EmptyView },
     ],
   })
   await router.push(path)

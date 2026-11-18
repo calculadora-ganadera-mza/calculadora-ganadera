@@ -59,6 +59,7 @@ Los datos no pertenecen a ninguna calculadora. Viven en cuatro niveles, y las ca
 ## 4. Campo y aguadas
 
 - **Campo:** el productor dibuja el polígono de cada sector sobre un mapa.
+- **Contorno de los sectores:** un contorno no puede cruzarse consigo mismo. Al crear o editar un sector, no puede ocupar superficie de otro sector del mismo escenario. Se permite compartir el borde, con una tolerancia técnica de superficie para pequeñas diferencias de trazado. Los sectores de escenarios distintos pueden superponerse.
 - **Aguadas:** se marcan como puntos dentro del sector que abastecen. Una aguada fuera del sector no cuenta, aunque su alcance llegue al sector: los animales están encerrados en el sector y no llegan al agua.
 - **Aguada compartida:** una aguada sobre el alambrado entre dos o más sectores puede abastecerlos a todos. Cada sector aprovecha la parte del alcance que cae dentro de él, y le tocan los litros en esa misma proporción. Por ejemplo, si el 70% del alcance cae en el sector 1, le toca el 70% del agua. El reparto se hace solo entre los sectores que comparten la aguada y sobre la parte del alcance que cae dentro de ellos.
 - **Alcance de una aguada:** 2,5 km. Es un parámetro y se puede cambiar.
