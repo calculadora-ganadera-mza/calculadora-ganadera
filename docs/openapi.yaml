@@ -570,6 +570,10 @@ paths:
       tags: [herds]
       operationId: createHerd
       summary: Registrar el rodeo de un sector en la campaña.
+      description: |
+        Si se informa el período de entore, su inicio y su fin deben caer dentro
+        de la campaña, incluidos el primer y el último día. Si alguna fecha
+        queda fuera, se devuelve 422.
       requestBody:
         required: true
         content:
@@ -603,6 +607,10 @@ paths:
       tags: [herds]
       operationId: updateHerd
       summary: Reemplazar los datos del rodeo.
+      description: |
+        Si se informa el período de entore, su inicio y su fin deben caer dentro
+        de la campaña del rodeo, incluidos el primer y el último día. Si alguna
+        fecha queda fuera, se devuelve 422.
       requestBody:
         required: true
         content:

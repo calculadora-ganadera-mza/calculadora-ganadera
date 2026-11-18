@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -158,6 +158,54 @@ def test_register_herd_and_list_it(api: TestClient, setup: dict):
 
     listed = api.get(f"/seasons/{season_id}/herds").json()
     assert [h["id"] for h in listed] == [herd["id"]]
+
+
+@pytest.mark.parametrize("method", ["POST", "PUT"])
+@pytest.mark.parametrize(
+    ("start_offset", "end_offset", "valid"),
+    [
+        pytest.param(1, -1, True, id="inside"),
+        pytest.param(0, -1, True, id="starts-on-first-day"),
+        pytest.param(1, 0, True, id="ends-on-last-day"),
+        pytest.param(-1, -1, False, id="starts-before-season"),
+        pytest.param(1, 1, False, id="ends-after-season"),
+    ],
+)
+def test_herd_breeding_period_in_season(
+    api: TestClient,
+    setup: dict,
+    method: str,
+    start_offset: int,
+    end_offset: int,
+    valid: bool,
+):
+    season = setup["season"]
+    season_path = f"/seasons/{season.id}/herds"
+    start = (season.start_date + timedelta(days=start_offset)).isoformat()
+    end = (season.end_date + timedelta(days=end_offset)).isoformat()
+    data = herd_json(setup, breeding_start=start, breeding_end=end)
+    path = season_path
+    before = []
+    if method == "PUT":
+        created = api.post(season_path, json=herd_json(setup))
+        assert created.status_code == 201
+        herd = created.json()
+        before = [herd]
+        path = f"/herds/{herd['id']}"
+        del data["production_unit_id"]
+
+    response = api.request(method, path, json=data)
+
+    if valid:
+        assert response.status_code == (201 if method == "POST" else 200)
+        assert response.json()["breeding_start"] == start
+        assert response.json()["breeding_end"] == end
+    else:
+        assert response.status_code == 422
+        assert response.json()["detail"] == (
+            "El inicio y el fin del entore tienen que estar dentro de la campaña."
+        )
+        assert api.get(season_path).json() == before
 
 
 def test_register_herd_twice_for_the_same_unit_is_a_conflict(
