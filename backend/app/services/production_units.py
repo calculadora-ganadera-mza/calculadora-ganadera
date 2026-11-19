@@ -5,11 +5,9 @@ from sqlalchemy import (
     JSON,
     ColumnElement,
     Select,
-    and_,
     case,
     cast,
     func,
-    or_,
     select,
     true,
 )
@@ -19,8 +17,7 @@ from sqlalchemy.orm import Session, aliased
 from app.models import ProductionUnit, Scenario, WaterPoint
 from app.models.enums import ProductionSystem
 from app.schemas.production_unit import PolygonGeoJSON
-from app.services.parameters import select_parameter
-from app.services.spatial import within_sector
+from app.services.spatial import supplies_sector, water_point_reach, within_sector
 
 
 class InvalidPolygonError(ValueError):
@@ -43,15 +40,7 @@ def to_geometry(session: Session, polygon: PolygonGeoJSON) -> ColumnElement[Any]
 
 def select_units() -> Select:
     """Sectores con el contorno en GeoJSON, tal como los devuelve la API."""
-    radius = select_parameter("water_point_radius_km").scalar_subquery()
-    buffered_water = cast(
-        func.ST_Buffer(
-            cast(WaterPoint.location, Geography(srid=4326)),
-            radius * 1000,
-            32,
-        ),
-        Geometry(srid=4326),
-    )
+    buffered_water = cast(water_point_reach(WaterPoint.location), Geometry(srid=4326))
     owner = aliased(ProductionUnit)
     coverage = (
         select(
@@ -70,16 +59,7 @@ def select_units() -> Select:
         )
         .select_from(WaterPoint)
         .join(owner, owner.id == WaterPoint.production_unit_id)
-        .where(
-            or_(
-                WaterPoint.production_unit_id == ProductionUnit.id,
-                and_(
-                    WaterPoint.shared.is_(True),
-                    owner.scenario_id == ProductionUnit.scenario_id,
-                    within_sector(WaterPoint.location, ProductionUnit.polygon),
-                ),
-            ),
-        )
+        .where(supplies_sector(WaterPoint, owner, ProductionUnit))
         .correlate(ProductionUnit)
         .lateral("coverage")
     )
