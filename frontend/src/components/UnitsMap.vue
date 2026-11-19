@@ -153,7 +153,7 @@ function showUnits() {
     unitsLayer.addLayer(layer)
     if (editing) {
       // Geoman solo edita capas que ya están en el mapa
-      layer.pm.enable()
+      layer.pm.enable({ allowSelfIntersection: false })
       layer.on('pm:edit', () => {
         reshapedPolygon = toPolygon(layer)
         emit('reshape', reshapedPolygon)
@@ -250,6 +250,7 @@ onMounted(() => {
   draftLayer.addTo(map)
 
   map.pm.setLang('es')
+  map.pm.setGlobalOptions({ allowSelfIntersection: false })
   if (!props.readOnly)
     map.pm.addControls({
       position: 'topleft',

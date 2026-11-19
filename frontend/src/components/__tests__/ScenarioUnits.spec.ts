@@ -120,21 +120,18 @@ describe('ScenarioUnits', () => {
     expect(wrapper.text()).toContain('Falta el nombre del sector.')
   })
 
-  it('muestra el mensaje del backend si el contorno no es válido', async () => {
-    vi.mocked(createProductionUnit).mockRejectedValue(
-      new ApiError('El contorno no es válido: no puede cruzarse consigo mismo.'),
-    )
+  it('muestra el sector con el que se superpone el contorno dibujado', async () => {
+    const message = 'El contorno se superpone con el sector «Potrero 1».'
+    vi.mocked(createProductionUnit).mockRejectedValue(new ApiError(message))
     const { wrapper, map } = await mountUnits()
 
     map.vm.$emit('draw', SQUARE)
     await flushPromises()
-    await wrapper.find('#unit-name').setValue('Moño')
+    await wrapper.find('#unit-name').setValue('Potrero 2')
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.find('[role="alert"]').text()).toBe(
-      'El contorno no es válido: no puede cruzarse consigo mismo.',
-    )
+    expect(wrapper.find('[role="alert"]').text()).toBe(message)
     expect(wrapper.find('form').exists()).toBe(true)
   })
 
@@ -153,6 +150,21 @@ describe('ScenarioUnits', () => {
     expect(updateProductionUnit).toHaveBeenCalledWith(1, { name: 'Potrero 1', polygon: wide })
     expect(wrapper.text()).toContain('203,6 ha')
     expect(map.props('editingId')).toBeNull()
+  })
+
+  it('muestra el sector con el que se superpone el contorno editado', async () => {
+    const message = 'El contorno se superpone con el sector «Potrero 2».'
+    vi.mocked(updateProductionUnit).mockRejectedValue(new ApiError(message))
+    const { wrapper, map } = await mountUnits()
+
+    await button(wrapper, 'Editar contorno').trigger('click')
+    map.vm.$emit('reshape', SQUARE)
+    await button(wrapper, 'Guardar contorno').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[role="alert"]').text()).toBe(message)
+    expect(map.props('editingId')).toBeNull()
+    expect(map.props('units')).toEqual([UNIT])
   })
 
   it('elimina el sector después de confirmar', async () => {

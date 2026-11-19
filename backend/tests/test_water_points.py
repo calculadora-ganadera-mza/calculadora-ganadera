@@ -127,11 +127,24 @@ def test_boundary_radius_and_polygon_changes(api, session, unit):
     session.flush()
     covered = api.get(f"/scenarios/{scenario.id}/production-units").json()[0]
     assert 0 < covered["usable_area_ha"] < sector["area_ha"]
-    # Un segundo sector no hereda la aguada del primero.
+    # Un sector lindero no hereda la aguada del primero.
+    adjacent = {
+        "type": "Polygon",
+        "coordinates": [
+            [
+                [-68.10, -34.58],
+                [-68.09, -34.58],
+                [-68.09, -34.57],
+                [-68.10, -34.57],
+                [-68.10, -34.58],
+            ]
+        ],
+    }
     other = api.post(
         f"/scenarios/{scenario.id}/production-units",
-        json={"name": "Otro", "polygon": sector["polygon"]},
+        json={"name": "Otro", "polygon": adjacent},
     )
+    assert other.status_code == 201
     assert other.json()["usable_area_ha"] == 0
     moved = {
         "type": "Polygon",
@@ -246,8 +259,15 @@ def test_shared_neighbors_and_dynamic_contours(api, unit):
         ]
         is None
     )
+    without_water = {
+        "type": "Polygon",
+        "coordinates": [
+            [[-68.09, -34.58], [-68.085, -34.58], [-68.09, -34.57], [-68.09, -34.58]]
+        ],
+    }
     rejected = api.put(
-        f"/production-units/{sector['id']}", json={"name": "Dueño", "polygon": moved}
+        f"/production-units/{sector['id']}",
+        json={"name": "Dueño", "polygon": without_water},
     )
     assert rejected.status_code == 422
     assert "Compartida" in rejected.json()["detail"]
