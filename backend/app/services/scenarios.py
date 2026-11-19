@@ -15,6 +15,10 @@ class InvalidFirstSeasonYearError(ValueError):
     """El año elegido para la primera campaña no está entre los permitidos."""
 
 
+class SeasonExistsError(ValueError):
+    """El establecimiento ya tiene una campaña para ese año."""
+
+
 def season_dates(start_year: int, start_month: int) -> tuple[date, date]:
     """Inicio y fin de la campaña que arranca en start_month de start_year.
 
@@ -151,3 +155,22 @@ def season_reads(seasons: list[Season], today: date) -> list[SeasonRead]:
         )
         for season in seasons
     ]
+
+
+def create_season(session: Session, scenario_id: int, start_year: int) -> Season:
+    """Crea una campaña sin datos para el año pedido, si el establecimiento no la tiene.
+
+    Cada pantalla decide qué años ofrece: Mi campo, solo los posteriores.
+    """
+    start, end = season_dates(start_year, get_season_start_month(session))
+    exists = session.scalar(
+        select(Season.id).where(
+            Season.scenario_id == scenario_id, Season.start_date == start
+        )
+    )
+    if exists:
+        raise SeasonExistsError("El establecimiento ya tiene una campaña para ese año.")
+    season = Season(scenario_id=scenario_id, start_date=start, end_date=end)
+    session.add(season)
+    session.flush()
+    return season
