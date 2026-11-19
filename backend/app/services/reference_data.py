@@ -10,12 +10,18 @@ class ReferenceNotFoundError(LookupError):
     """El parámetro o la categoría no existe."""
 
 
-class InvalidParameterValueError(ValueError):
-    """El valor no cumple la regla de la tabla parameter."""
+class InvalidReferenceValueError(ValueError):
+    """El valor no cumple una regla de los valores de referencia."""
 
 
 class DuplicateCategoryNameError(ValueError):
     """Ya existe otra categoría con ese nombre."""
+
+
+def violated_constraint(err: IntegrityError) -> str | None:
+    """Nombre de la restricción de la base que rechazó el cambio."""
+    diag = getattr(err.orig, "diag", None)
+    return getattr(diag, "constraint_name", None)
 
 
 def list_parameters(session: Session) -> list[Parameter]:
@@ -41,7 +47,10 @@ def update_parameter(session: Session, key: str, value: float | None) -> Paramet
         with session.begin_nested():
             session.flush()
     except IntegrityError as err:
-        raise InvalidParameterValueError(
+        if violated_constraint(err) != "ck_parameter_value_positive":
+            raise
+        # El esquema ya exige mayor que 0: lo único que llega acá es un None
+        raise InvalidReferenceValueError(
             "Solo los índices pueden quedar sin valor."
         ) from err
     return parameter
@@ -56,12 +65,14 @@ def update_animal_category(
         raise ReferenceNotFoundError("Categoría no encontrada.")
     for field, value in data.model_dump(exclude_unset=True).items():
         if value is None:
-            raise InvalidParameterValueError(f"El campo {field} no puede quedar vacío.")
+            raise InvalidReferenceValueError(f"El campo {field} no puede quedar vacío.")
         setattr(category, field, value)
     try:
         with session.begin_nested():
             session.flush()
     except IntegrityError as err:
+        if violated_constraint(err) != "uq_animal_category_name":
+            raise
         raise DuplicateCategoryNameError(
             "Ya existe una categoría con ese nombre."
         ) from err

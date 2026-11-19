@@ -5,7 +5,7 @@ from app.schemas.animal_category import AnimalCategoryRead, AnimalCategoryUpdate
 from app.schemas.parameter import ParameterRead, ParameterUpdate
 from app.services.reference_data import (
     DuplicateCategoryNameError,
-    InvalidParameterValueError,
+    InvalidReferenceValueError,
     ReferenceNotFoundError,
     list_animal_categories,
     list_parameters,
@@ -33,7 +33,7 @@ def edit_parameter(
         parameter = update_parameter(session, key, data.value)
     except ReferenceNotFoundError as err:
         raise HTTPException(404, str(err)) from err
-    except InvalidParameterValueError as err:
+    except InvalidReferenceValueError as err:
         raise HTTPException(422, str(err)) from err
     session.commit()
     return ParameterRead.model_validate(parameter)
@@ -62,7 +62,7 @@ def edit_animal_category(
         category = update_animal_category(session, animal_category_id, data)
     except ReferenceNotFoundError as err:
         raise HTTPException(404, str(err)) from err
-    except InvalidParameterValueError as err:
+    except InvalidReferenceValueError as err:
         raise HTTPException(422, str(err)) from err
     except DuplicateCategoryNameError as err:
         raise HTTPException(409, str(err)) from err

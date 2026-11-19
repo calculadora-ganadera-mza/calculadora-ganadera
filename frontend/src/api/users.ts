@@ -1,6 +1,6 @@
 import { authenticatedFetch } from './auth'
 import { responseError } from './errors'
-import { useAuthStore } from '../stores/auth'
+import { useAuthStore, type Role } from '../stores/auth'
 
 // Tipos según docs/openapi.yaml
 
@@ -8,7 +8,7 @@ export interface CurrentUser {
   id: number
   name: string
   email: string
-  role: 'producer' | 'technician' | 'admin'
+  role: Role
 }
 
 export async function fetchCurrentUser(): Promise<CurrentUser> {

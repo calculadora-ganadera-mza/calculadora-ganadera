@@ -10,6 +10,7 @@ from app.core.jwt import create_access_token
 from app.main import app
 from app.models import AnimalCategory, Parameter, User
 from app.models.enums import Role
+from app.services.carrying_capacity import read_pasture_parameters
 
 
 @pytest.fixture
@@ -125,8 +126,6 @@ def test_unknown_parameter_is_not_found(admin_api: TestClient):
 def test_the_next_calculation_uses_the_new_value(
     admin_api: TestClient, session: Session
 ):
-    from app.services.carrying_capacity import read_pasture_parameters
-
     admin_api.patch("/parameters/range_condition_index_good", json={"value": 1.5})
 
     assert read_pasture_parameters(session).range_condition_index_good == 1.5
