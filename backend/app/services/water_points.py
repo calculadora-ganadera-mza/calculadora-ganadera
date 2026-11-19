@@ -49,8 +49,9 @@ def litres_share(
     """Parte de los litros de la aguada que le toca al sector.
 
     Una aguada no compartida le da todo a su sector. Una compartida reparte
-    según la parte de su alcance que cae en cada sector que abastece, sin
-    contar dos veces las partes superpuestas.
+    según la parte de su alcance que cae en cada sector que abastece. Cada
+    parte se divide por la suma de todas, así que entre los sectores reciben
+    exactamente los litros de la aguada, aunque se superpongan.
     """
     supplied = aliased(ProductionUnit)
     reach = water_point_reach(WaterPoint.location)
@@ -59,9 +60,11 @@ def litres_share(
     )
     supplied_area = (
         select(
-            func.ST_Area(
-                func.ST_Intersection(
-                    reach, cast(func.ST_Union(supplied.polygon), Geography(srid=4326))
+            func.sum(
+                func.ST_Area(
+                    func.ST_Intersection(
+                        reach, cast(supplied.polygon, Geography(srid=4326))
+                    )
                 )
             )
         )

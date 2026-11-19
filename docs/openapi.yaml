@@ -1362,6 +1362,7 @@ components:
           `breeding_start` y `breeding_end`.
         - Las fechas de entore se informan juntas (inicio y fin) o se omiten las
           dos, y el fin es posterior al inicio.
+        - El entore termina a más tardar el 2100-12-31.
         - No se aceptan la categoría `calf` ni categorías repetidas.
       required: [categories, range_condition]
       properties:

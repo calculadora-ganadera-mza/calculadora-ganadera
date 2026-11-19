@@ -356,3 +356,38 @@ def test_shared_point_splits_its_litres(api, session, unit_id):
     # El alcance cubre los dos cuadrados enteros, que miden lo mismo: cada
     # sector recibe la mitad y entre los dos suman todos los litros.
     assert refills == pytest.approx([500, 500], rel=0.001)
+
+
+def test_breeding_beyond_the_limit_is_rejected(api, session, unit_id):
+    add_water_point(api, unit_id)
+    herd = herd_with_cows(
+        session, breeding_start="9999-06-01", breeding_end="9999-07-01"
+    )
+
+    response = calculate(api, unit_id, **herd)
+
+    assert response.status_code == 422
+
+
+def test_overlapping_sectors_share_the_litres_without_creating_more(
+    api, session, unit_id
+):
+    # La API ya no deja crear sectores superpuestos, pero pueden quedar de antes.
+    unit = session.get(ProductionUnit, unit_id)
+    copy = ProductionUnit(
+        scenario_id=unit.scenario_id,
+        name="Copia",
+        production_system=ProductionSystem.RAINFED,
+        polygon=unit.polygon,
+    )
+    session.add(copy)
+    session.flush()
+    add_water_point(api, unit_id, location=EDGE, refill_l_day=1000, shared=True)
+
+    refills = [
+        calculate(api, unit, **herd_with_cows(session)).json()["water"]["refill_l_day"]
+        for unit in (unit_id, copy.id)
+    ]
+
+    # Los dos sectores son idénticos: cada uno recibe la mitad, no los 1.000.
+    assert refills == pytest.approx([500, 500], rel=0.001)
