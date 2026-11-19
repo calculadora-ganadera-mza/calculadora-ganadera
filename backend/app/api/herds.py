@@ -3,7 +3,6 @@ from fastapi import APIRouter, HTTPException
 from app.api.deps import CurrentUser, SessionDep
 from app.core.dates import today
 from app.models import Season
-from app.schemas.animal_category import AnimalCategoryRead
 from app.schemas.herd import HerdCreate, HerdData, HerdRead
 from app.schemas.scenario import SeasonRead, SeasonUpdate
 from app.services.herds import (
@@ -13,7 +12,6 @@ from app.services.herds import (
     create_herd,
     get_user_herd,
     herd_read,
-    list_animal_categories,
     list_herds,
     update_herd,
 )
@@ -28,15 +26,6 @@ def owned_season(session: SessionDep, user: CurrentUser, season_id: int) -> Seas
     if season is None:
         raise HTTPException(404, "Campaña no encontrada.")
     return season
-
-
-@router.get("/animal-categories", tags=["reference-data"])
-def list_categories(session: SessionDep, user: CurrentUser) -> list[AnimalCategoryRead]:
-    """Categorías de animales, para el formulario del rodeo."""
-    return [
-        AnimalCategoryRead.model_validate(category)
-        for category in list_animal_categories(session)
-    ]
 
 
 @router.patch("/seasons/{season_id}", tags=["seasons"])

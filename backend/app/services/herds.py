@@ -63,10 +63,6 @@ def category_codes(session: Session) -> dict[int, str]:
     return dict(session.execute(select(AnimalCategory.id, AnimalCategory.code)).all())
 
 
-def list_animal_categories(session: Session) -> list[AnimalCategory]:
-    return list(session.scalars(select(AnimalCategory).order_by(AnimalCategory.id)))
-
-
 def get_user_herd(session: Session, user_id: int, herd_id: int) -> HerdSeason | None:
     """El rodeo, solo si es de un establecimiento del usuario."""
     return session.scalar(
