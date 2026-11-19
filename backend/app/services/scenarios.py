@@ -163,9 +163,13 @@ def create_season(session: Session, scenario_id: int, start_year: int) -> Season
     Cada pantalla decide qué años ofrece: Mi campo, solo los posteriores.
     """
     start, end = season_dates(start_year, get_season_start_month(session))
+    # Se busca cualquier campaña que se cruce en fechas, no solo la del mismo
+    # inicio: el mes de inicio es un parámetro y el administrador lo puede cambiar.
     exists = session.scalar(
         select(Season.id).where(
-            Season.scenario_id == scenario_id, Season.start_date == start
+            Season.scenario_id == scenario_id,
+            Season.start_date <= end,
+            Season.end_date >= start,
         )
     )
     if exists:

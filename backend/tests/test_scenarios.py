@@ -3,13 +3,13 @@ from datetime import date
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.dates import today
 from app.main import app
-from app.models import Scenario, Season, User
+from app.models import Parameter, Scenario, Season, User
 from app.schemas.scenario import ScenarioCreate
 from app.services.scenarios import (
     InvalidFirstSeasonYearError,
@@ -279,6 +279,21 @@ def test_a_season_year_cannot_be_repeated(
     assert response.json() == {
         "detail": "El establecimiento ya tiene una campaña para ese año."
     }
+
+
+def test_a_season_overlapping_after_changing_the_start_month_is_a_conflict(
+    api: TestClient, session: Session, user: User
+):
+    # La campaña 2026 va de julio de 2026 a junio de 2027. Si el mes de inicio
+    # pasa a enero, la campaña 2027 (enero a diciembre de 2027) se cruza con ella.
+    scenario, _ = create_scenario(session, user.id, "La Aguada", 2026, TODAY)
+    session.execute(
+        update(Parameter).where(Parameter.key == "season_start_month").values(value=1)
+    )
+
+    response = api.post(f"/scenarios/{scenario.id}/seasons", json={"start_year": 2027})
+
+    assert response.status_code == 409
 
 
 def test_the_api_also_accepts_earlier_years(
