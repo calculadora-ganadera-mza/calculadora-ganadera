@@ -1,10 +1,18 @@
-import { computed, shallowRef } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 import { defineStore } from 'pinia'
 
 export const useAuthStore = defineStore('auth', () => {
   const accessToken = shallowRef<string | null>(null)
   const authenticationRequired = shallowRef(false)
   const isAuthenticated = computed(() => accessToken.value !== null)
+  // Rol del usuario de la sesión, leído de /auth/me; null hasta que se lee
+  const role = shallowRef<'producer' | 'technician' | 'admin' | null>(null)
+  const isAdmin = computed(() => role.value === 'admin')
 
-  return { accessToken, authenticationRequired, isAuthenticated }
+  // Al cerrar o perder la sesión, el rol deja de valer
+  watch(accessToken, (token) => {
+    if (token === null) role.value = null
+  })
+
+  return { accessToken, authenticationRequired, isAuthenticated, role, isAdmin }
 })
