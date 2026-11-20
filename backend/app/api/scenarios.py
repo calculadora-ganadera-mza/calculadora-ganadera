@@ -5,12 +5,15 @@ from app.core.dates import today
 from app.schemas.scenario import (
     ScenarioCreate,
     ScenarioRead,
+    SeasonCreate,
     SeasonRead,
     SeasonYearOption,
 )
 from app.services.scenarios import (
     InvalidFirstSeasonYearError,
+    SeasonExistsError,
     create_scenario,
+    create_season,
     first_season_years,
     get_season_start_month,
     list_scenarios,
@@ -68,3 +71,18 @@ def list_scenario_seasons(
 ) -> list[SeasonRead]:
     """Campañas del establecimiento, ordenadas por año."""
     return season_reads(list_seasons(session, scenario.id), today())
+
+
+@router.post("/{scenario_id}/seasons", status_code=201)
+def add_season(
+    data: SeasonCreate, scenario: OwnedScenario, session: SessionDep
+) -> SeasonRead:
+    """Crea una campaña sin datos para un año que el establecimiento no tiene."""
+    try:
+        season = create_season(session, scenario.id, data.start_year)
+    except SeasonExistsError as err:
+        raise HTTPException(409, str(err)) from err
+    session.commit()
+    # is_current depende de las demás campañas del establecimiento
+    reads = season_reads(list_seasons(session, scenario.id), today())
+    return next(read for read in reads if read.id == season.id)

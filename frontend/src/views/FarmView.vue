@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import ScenarioForm from '@/components/ScenarioForm.vue'
 import ScenarioUnits from '@/components/ScenarioUnits.vue'
 import SeasonRainfall from '@/components/SeasonRainfall.vue'
+import AddSeason from '@/components/AddSeason.vue'
 import { listScenarios, listSeasons, type Scenario, type Season } from '@/api/scenarios'
 import { formatDate, seasonLabel } from '@/utils/season'
 
@@ -42,6 +43,16 @@ async function onCreated(scenario: Scenario) {
   }
 }
 
+// Recarga las campañas del establecimiento: la actual puede cambiar
+async function onSeasonCreated(scenario: ScenarioWithSeasons) {
+  const index = scenarios.value.indexOf(scenario)
+  try {
+    scenarios.value[index] = await withSeasons(scenario)
+  } catch {
+    await load()
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -76,6 +87,11 @@ onMounted(load)
             :rainfall-mm="scenario.current.rainfall_mm"
           />
         </section>
+        <AddSeason
+          :scenario-id="scenario.id"
+          :seasons="scenario.seasons"
+          @created="onSeasonCreated(scenario)"
+        />
         <details v-if="scenario.seasons.some((season) => !season.is_current)" class="past-seasons">
           <summary>Otras campañas</summary>
           <ul>

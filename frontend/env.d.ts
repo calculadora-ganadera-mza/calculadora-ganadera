@@ -7,5 +7,7 @@ import 'vue-router'
 declare module 'vue-router' {
   interface RouteMeta {
     title?: string
+    // Solo la ven los administradores
+    adminOnly?: boolean
   }
 }

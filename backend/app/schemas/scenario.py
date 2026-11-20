@@ -43,3 +43,13 @@ class SeasonUpdate(BaseModel):
     """Lluvia de la campaña anterior, en milímetros; None la elimina."""
 
     rainfall_mm: float | None = Field(ge=0)
+
+
+class SeasonCreate(BaseModel):
+    """Año de inicio de la campaña nueva.
+
+    El tope evita fechas que Python no puede representar; el fin de la
+    campaña cae en el año siguiente.
+    """
+
+    start_year: int = Field(ge=1, le=9998)
