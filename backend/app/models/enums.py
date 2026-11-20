@@ -24,3 +24,8 @@ class RangeCondition(StrEnum):
     FAIR = "fair"
     GOOD = "good"
     VERY_GOOD = "very_good"
+
+
+class LimitedBy(StrEnum):
+    PASTURE = "pasture"
+    WATER = "water"
