@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import { useAuthStore } from '../stores/auth'
+import { loadRole } from '../api/users'
 
 // Secciones de la app. El título se muestra en la pestaña del navegador.
 export const routes: RouteRecordRaw[] = [
@@ -59,6 +60,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: 'Seguimiento' },
   },
   {
+    path: '/admin',
+    name: 'admin',
+    component: () => import('../views/AdminView.vue'),
+    meta: { title: 'Administración', adminOnly: true },
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
     component: () => import('../views/NotFoundView.vue'),
@@ -71,10 +78,12 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach((to) => {
-  if (!useAuthStore().isAuthenticated && to.name !== 'login')
-    return { name: 'login', replace: true }
-  if (useAuthStore().isAuthenticated && to.name === 'login') return { name: 'home', replace: true }
+router.beforeEach(async (to) => {
+  const auth = useAuthStore()
+  if (!auth.isAuthenticated && to.name !== 'login') return { name: 'login', replace: true }
+  if (auth.isAuthenticated && to.name === 'login') return { name: 'home', replace: true }
+  if (auth.isAuthenticated && auth.role === null) await loadRole()
+  if (to.meta.adminOnly && !auth.isAdmin) return { name: 'home', replace: true }
 })
 
 router.afterEach((to) => {

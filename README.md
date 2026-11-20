@@ -60,6 +60,7 @@ Con eso la app queda en http://localhost:5173 y la API en http://localhost:8000.
 | Ver los logs del backend | `docker compose logs -f backend` |
 | Ver los logs del frontend | `docker compose logs -f frontend` |
 | Aplicar migraciones nuevas | `docker compose run --rm backend alembic upgrade head` |
+| Dar el rol de administrador a un usuario ya registrado | `docker compose run --rm backend python -m app.commands.make_admin <correo>` |
 | Correr las pruebas del backend | `docker compose run --rm backend pytest` |
 | Correr las pruebas del frontend | `docker compose run --rm frontend npm run test:unit -- --run` |
 | Revisar el formato del backend | `docker compose run --rm backend ruff check .` |

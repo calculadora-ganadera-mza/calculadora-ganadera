@@ -1,8 +1,10 @@
 from datetime import date, timedelta
 
 from sqlalchemy import exists, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.db import violated_constraint
 from app.models import Scenario, Season
 from app.schemas.scenario import SeasonRead
 from app.services.parameters import select_parameter
@@ -13,6 +15,10 @@ FIRST_SEASON_YEARS_AHEAD = 2
 
 class InvalidFirstSeasonYearError(ValueError):
     """El año elegido para la primera campaña no está entre los permitidos."""
+
+
+class SeasonExistsError(ValueError):
+    """El establecimiento ya tiene una campaña para ese año."""
 
 
 def season_dates(start_year: int, start_month: int) -> tuple[date, date]:
@@ -151,3 +157,28 @@ def season_reads(seasons: list[Season], today: date) -> list[SeasonRead]:
         )
         for season in seasons
     ]
+
+
+def create_season(session: Session, scenario_id: int, start_year: int) -> Season:
+    """Crea una campaña sin datos para el año pedido, si el establecimiento no la tiene.
+
+    Cada pantalla decide qué años ofrece: Mi campo, solo los posteriores. Que
+    no se cruce en fechas con otra campaña lo decide la restricción
+    ex_season_no_overlap de la base, que vale aunque cambie el mes de inicio y
+    aunque lleguen dos pedidos al mismo tiempo.
+    """
+    start, end = season_dates(start_year, get_season_start_month(session))
+    season = Season(scenario_id=scenario_id, start_date=start, end_date=end)
+    try:
+        # El add y el flush van dentro del savepoint, para que el error quede
+        # aislado en él
+        with session.begin_nested():
+            session.add(season)
+            session.flush()
+    except IntegrityError as err:
+        if violated_constraint(err) != "ex_season_no_overlap":
+            raise
+        raise SeasonExistsError(
+            "El establecimiento ya tiene una campaña para ese año."
+        ) from err
+    return season
