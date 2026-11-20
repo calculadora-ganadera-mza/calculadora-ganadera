@@ -48,7 +48,7 @@ Los datos no pertenecen a ninguna calculadora. Viven en cuatro niveles, y las ca
 - **Rodeo por unidad:** el productor puede repartir su hacienda entre varias unidades. Cada cálculo se hace sobre el rodeo de esa unidad, no sobre el total del establecimiento.
 - **Sector:** es la unidad mínima y no se subdivide. Cada parte del campo que el productor quiera calcular por separado se dibuja como un sector propio.
 - **Precipitación de la campaña:** es la lluvia de la campaña anterior, en mm. Es opcional al guardar, pero la Receptividad la necesita para calcular.
-- **Histórico:** un escenario acumula campañas. Las campañas anteriores no se modifican.
+- **Histórico:** un escenario acumula campañas. Todas se pueden editar, también las pasadas.
 - **Meses de la campaña:** de julio a junio. El mes de inicio es un parámetro. El productor no carga fechas: elige el año.
 - **Primera campaña:** se crea con el escenario. El productor elige el año: el actual o uno de los dos siguientes.
 - **Campañas nuevas:** desde Mi campo solo se crean campañas de años posteriores. Nacen sin datos y no repiten año.
