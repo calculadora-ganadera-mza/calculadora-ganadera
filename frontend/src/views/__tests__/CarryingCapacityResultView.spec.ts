@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
 import CarryingCapacityResultView from '../CarryingCapacityResultView.vue'
-import { calculateCarryingCapacity } from '@/api/carryingCapacity'
+import { calculateCarryingCapacity, type CarryingCapacityResult } from '@/api/carryingCapacity'
 import { ApiError } from '@/api/errors'
 import { listHerds } from '@/api/herds'
 import { listProductionUnits } from '@/api/productionUnits'
@@ -34,11 +34,13 @@ const herd = {
   breeding_start: null,
   breeding_end: null,
 }
-const result = {
+const result: CarryingCapacityResult = {
   area_ha: 1000,
   usable_area_ha: 981.8,
   carrying_capacity_ha_per_cow_equivalent: 15.1,
   pasture_limit_cow_equivalents: 65.02,
+  water: { evaluated: true, limit_cow_equivalents: 60.7, refill_l_day: 4200 },
+  max_herd: { cow_equivalents: 60.7, limited_by: 'water', categories: [] },
   recommended_herd: null,
   warnings: [],
 }
@@ -76,7 +78,7 @@ async function open() {
 }
 
 describe('Resultado de receptividad', () => {
-  it('calcula con el rodeo y la lluvia de la campaña y muestra receptividad y límite por pasto', async () => {
+  it('calcula con el rodeo y la lluvia de la campaña y muestra los límites y el rodeo máximo', async () => {
     const wrapper = await open()
 
     expect(calculateCarryingCapacity).toHaveBeenCalledWith(2, { ...herd, rainfall_mm: 300 })
@@ -84,12 +86,16 @@ describe('Resultado de receptividad', () => {
     expect(wrapper.findAll('.kpi .value').map((value) => value.text())).toEqual([
       '15,1 ha/EV',
       '65,0 EV',
+      '60,7 EV',
+      '60,7 EV',
     ])
     expect(wrapper.findAll('.kpi .sub').map((sub) => sub.text())).toEqual([
       '300 mm de lluvia',
       '981,8 ha aprovechables',
+      '4.200 L/día de reposición',
+      'Limita el agua',
     ])
-    expect(wrapper.find('.tag').exists()).toBe(false)
+    expect(wrapper.find('.tag.warn').exists()).toBe(false)
   })
 
   it('marca la receptividad si se calculó sin algún índice', async () => {
@@ -105,18 +111,66 @@ describe('Resultado de receptividad', () => {
 
     const wrapper = await open()
 
-    expect(wrapper.find('.tag').text()).toBe('Falta un índice')
+    expect(wrapper.find('.tag.warn').text()).toBe('Falta un índice')
   })
 
   it('explica cada término con un tooltip asociado a su botón', async () => {
     const wrapper = await open()
     const buttons = wrapper.findAll('.term button')
 
-    expect(buttons.map((button) => button.text())).toEqual(['Receptividad', 'Límite por pasto'])
+    expect(buttons.map((button) => button.text())).toEqual([
+      'Receptividad',
+      'Límite por pasto',
+      'Límite por agua',
+      'Rodeo máximo',
+    ])
     for (const button of buttons) {
       const tip = wrapper.get(`#${button.attributes('aria-describedby')}`)
       expect(tip.attributes('role')).toBe('tooltip')
     }
+  })
+
+  it('muestra que el pasto limita el rodeo máximo', async () => {
+    vi.mocked(calculateCarryingCapacity).mockResolvedValue({
+      ...result,
+      max_herd: { cow_equivalents: 65.02, limited_by: 'pasture', categories: [] },
+    })
+
+    const wrapper = await open()
+    const max = wrapper.get('.kpi.max')
+
+    expect(max.get('.value').text()).toBe('65,0 EV')
+    expect(max.get('.tag').text()).toBe('Limita el pasto')
+  })
+
+  it('aclara en el límite por agua por qué no se evaluó', async () => {
+    const message = 'Ninguna aguada tiene litros cargados: no se evaluó el agua.'
+    vi.mocked(calculateCarryingCapacity).mockResolvedValue({
+      ...result,
+      water: { evaluated: false, limit_cow_equivalents: null, refill_l_day: null },
+      max_herd: { cow_equivalents: 65.02, limited_by: 'pasture', categories: [] },
+      warnings: [{ code: 'water_not_evaluated', message }],
+    })
+
+    const wrapper = await open()
+    const water = wrapper.findAll('.kpi')[2]!
+
+    expect(water.get('.value').text()).toBe('Sin evaluar')
+    expect(water.get('.sub').text()).toBe(message)
+  })
+
+  it('marca el límite por agua cuando alguna aguada no tiene litros', async () => {
+    const message = 'Algunas aguadas no tienen litros cargados.'
+    vi.mocked(calculateCarryingCapacity).mockResolvedValue({
+      ...result,
+      warnings: [{ code: 'partial_water_data', message }],
+    })
+
+    const wrapper = await open()
+    const water = wrapper.findAll('.kpi')[2]!
+
+    expect(water.get('.tag.warn').text()).toBe('Datos parciales')
+    expect(water.text()).toContain(message)
   })
 
   it.each([null, 0])('pide la lluvia si es %s, sin calcular', async (rainfall) => {

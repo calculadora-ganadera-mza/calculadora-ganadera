@@ -1,14 +1,28 @@
+from dataclasses import dataclass
+
 from geoalchemy2 import Geography, Geometry, WKBElement
-from sqlalchemy import JSON, and_, cast, func, select
+from sqlalchemy import (
+    JSON,
+    ColumnElement,
+    and_,
+    case,
+    cast,
+    func,
+    select,
+)
 from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.engine import RowMapping
 from sqlalchemy.orm import Session, aliased
 
 from app.models import ProductionUnit, WaterPoint
 from app.schemas.water_point import WaterPointInput
-from app.services.parameters import select_parameter
 from app.services.production_units import get_user_unit
-from app.services.spatial import WATER_POINT_EDGE_TOLERANCE_M, within_sector
+from app.services.spatial import (
+    WATER_POINT_EDGE_TOLERANCE_M,
+    supplies_sector,
+    water_point_reach,
+    within_sector,
+)
 
 
 class InvalidWaterPointError(ValueError):
@@ -17,6 +31,69 @@ class InvalidWaterPointError(ValueError):
 
 class WaterPointNotFoundError(ValueError):
     """El recurso no existe o no pertenece al usuario."""
+
+
+@dataclass(frozen=True)
+class AvailableWater:
+    """Litros por día que le tocan a un sector."""
+
+    # None si ninguna aguada que cuenta tiene litros cargados
+    refill_l_day: float | None
+    # Hay aguadas que cuenta para el sector y no tienen litros cargados
+    partial: bool
+
+
+def litres_share(
+    owner: type[ProductionUnit], sector: type[ProductionUnit]
+) -> ColumnElement[float]:
+    """Parte de los litros de la aguada que le toca al sector.
+
+    Una aguada no compartida le da todo a su sector. Una compartida reparte
+    según la parte de su alcance que cae en cada sector que abastece. Cada
+    parte se divide por la suma de todas, así que entre los sectores reciben
+    exactamente los litros de la aguada, aunque se superpongan.
+    """
+    supplied = aliased(ProductionUnit)
+    reach = water_point_reach(WaterPoint.location)
+    sector_area = func.ST_Area(
+        func.ST_Intersection(reach, cast(sector.polygon, Geography(srid=4326)))
+    )
+    supplied_area = (
+        select(
+            func.sum(
+                func.ST_Area(
+                    func.ST_Intersection(
+                        reach, cast(supplied.polygon, Geography(srid=4326))
+                    )
+                )
+            )
+        )
+        .where(supplies_sector(WaterPoint, owner, supplied))
+        .correlate(WaterPoint, owner)
+        .scalar_subquery()
+    )
+    return case(
+        (WaterPoint.shared.is_(True), sector_area / func.nullif(supplied_area, 0)),
+        else_=1.0,
+    )
+
+
+def available_water(session: Session, unit_id: int) -> AvailableWater:
+    """Litros por día de las aguadas que abastecen al sector."""
+    owner = aliased(ProductionUnit)
+    sector = aliased(ProductionUnit)
+    refill, points, with_litres = session.execute(
+        select(
+            func.sum(WaterPoint.refill_l_day * litres_share(owner, sector)),
+            func.count(),
+            func.count(WaterPoint.refill_l_day),
+        )
+        .select_from(WaterPoint)
+        .join(owner, owner.id == WaterPoint.production_unit_id)
+        .join(sector, supplies_sector(WaterPoint, owner, sector))
+        .where(sector.id == unit_id)
+    ).one()
+    return AvailableWater(refill_l_day=refill, partial=0 < with_litres < points)
 
 
 def assign(point: WaterPoint, data: WaterPointInput) -> None:
@@ -63,10 +140,7 @@ def read_points(
     neighbor = aliased(ProductionUnit)
     # Calcula únicamente el aporte de esta aguada en los vecinos habilitados.
     coverage_neighbor = aliased(ProductionUnit)
-    radius = select_parameter("water_point_radius_km").scalar_subquery()
-    reach = func.ST_Buffer(
-        cast(WaterPoint.location, Geography(srid=4326)), radius * 1000, 32
-    )
+    reach = water_point_reach(WaterPoint.location)
     shared_coverage = (
         select(
             cast(
