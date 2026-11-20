@@ -3,6 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.db import violated_constraint
 from app.models import AnimalCategory, Parameter
 from app.schemas.animal_category import AnimalCategoryUpdate
 from app.services.carrying_capacity import check_calculation_parameters
@@ -18,12 +19,6 @@ class InvalidReferenceValueError(ValueError):
 
 class DuplicateCategoryNameError(ValueError):
     """Ya existe otra categoría con ese nombre."""
-
-
-def violated_constraint(err: IntegrityError) -> str | None:
-    """Nombre de la restricción de la base que rechazó el cambio."""
-    diag = getattr(err.orig, "diag", None)
-    return getattr(diag, "constraint_name", None)
 
 
 def list_parameters(session: Session) -> list[Parameter]:

@@ -3,17 +3,19 @@ from datetime import date
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.dates import today
 from app.main import app
-from app.models import Scenario, Season, User
+from app.models import Parameter, Scenario, Season, User
 from app.schemas.scenario import ScenarioCreate
 from app.services.scenarios import (
     InvalidFirstSeasonYearError,
+    SeasonExistsError,
     create_scenario,
+    create_season,
     current_season_id,
     current_season_start_year,
     first_season_years,
@@ -236,6 +238,111 @@ def test_first_season_years_endpoint(api: TestClient):
     assert options[0]["end_date"] == f"{current + 1}-06-30"
 
 
+# Campañas nuevas (#21)
+
+
+def test_add_the_next_season(api: TestClient, session: Session, user: User):
+    scenario, _ = create_scenario(session, user.id, "La Aguada", 2026, TODAY)
+
+    response = api.post(f"/scenarios/{scenario.id}/seasons", json={"start_year": 2027})
+
+    assert response.status_code == 201
+    season = response.json()
+    assert (season["start_year"], season["start_date"], season["end_date"]) == (
+        2027,
+        "2027-07-01",
+        "2028-06-30",
+    )
+    assert season["rainfall_mm"] is None
+    listed = api.get(f"/scenarios/{scenario.id}/seasons").json()
+    assert [s["start_year"] for s in listed] == [2026, 2027]
+
+
+def test_a_new_season_starts_without_herds(
+    api: TestClient, session: Session, user: User
+):
+    scenario, _ = create_scenario(session, user.id, "La Aguada", 2026, TODAY)
+
+    season = api.post(
+        f"/scenarios/{scenario.id}/seasons", json={"start_year": 2027}
+    ).json()
+
+    assert api.get(f"/seasons/{season['id']}/herds").json() == []
+
+
+def test_a_season_year_cannot_be_repeated(
+    api: TestClient, session: Session, user: User
+):
+    scenario, _ = create_scenario(session, user.id, "La Aguada", 2026, TODAY)
+
+    response = api.post(f"/scenarios/{scenario.id}/seasons", json={"start_year": 2026})
+
+    assert response.status_code == 409
+    assert response.json() == {
+        "detail": "El establecimiento ya tiene una campaña para ese año."
+    }
+
+
+def test_a_season_overlapping_after_changing_the_start_month_is_a_conflict(
+    api: TestClient, session: Session, user: User
+):
+    # La campaña 2026 va de julio de 2026 a junio de 2027. Si el mes de inicio
+    # pasa a enero, la campaña 2027 (enero a diciembre de 2027) se cruza con ella.
+    scenario, _ = create_scenario(session, user.id, "La Aguada", 2026, TODAY)
+    session.execute(
+        update(Parameter).where(Parameter.key == "season_start_month").values(value=1)
+    )
+
+    response = api.post(f"/scenarios/{scenario.id}/seasons", json={"start_year": 2027})
+
+    assert response.status_code == 409
+
+
+def test_a_rejected_season_leaves_the_session_usable(session: Session, user: User):
+    # El error de la base queda dentro del savepoint: después se puede seguir
+    # usando la misma sesión, por ejemplo para crear otro año.
+    scenario, _ = create_scenario(session, user.id, "La Aguada", 2026, TODAY)
+
+    with pytest.raises(SeasonExistsError):
+        create_season(session, scenario.id, 2026)
+    season = create_season(session, scenario.id, 2027)
+
+    assert season.start_date == date(2027, 7, 1)
+
+
+def test_the_api_also_accepts_earlier_years(
+    api: TestClient, session: Session, user: User
+):
+    # El contrato acepta cualquier año que falte; Mi campo solo ofrece los
+    # posteriores y el historial (#24), los anteriores.
+    scenario, _ = create_scenario(session, user.id, "La Aguada", 2026, TODAY)
+
+    response = api.post(f"/scenarios/{scenario.id}/seasons", json={"start_year": 2024})
+
+    assert response.status_code == 201
+
+
+@pytest.mark.parametrize("year", [0, 9999])
+def test_season_year_out_of_range_is_rejected(
+    api: TestClient, session: Session, user: User, year: int
+):
+    scenario, _ = create_scenario(session, user.id, "La Aguada", 2026, TODAY)
+
+    response = api.post(f"/scenarios/{scenario.id}/seasons", json={"start_year": year})
+
+    assert response.status_code == 422
+
+
+def test_add_season_to_another_users_scenario_is_not_found(
+    api: TestClient, session: Session, other_user: User
+):
+    scenario, _ = create_scenario(session, other_user.id, "Ajeno", 2026, TODAY)
+
+    response = api.post(f"/scenarios/{scenario.id}/seasons", json={"start_year": 2027})
+
+    assert response.status_code == 404
+
+
 @pytest.mark.parametrize(
     ("method", "path"),
     [
@@ -243,6 +350,7 @@ def test_first_season_years_endpoint(api: TestClient):
         ("post", "/scenarios"),
         ("get", "/scenarios/1/seasons"),
         ("get", "/scenarios/first-season-years"),
+        ("post", "/scenarios/1/seasons"),
     ],
 )
 def test_routes_require_login(method: str, path: str):
