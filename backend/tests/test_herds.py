@@ -117,6 +117,10 @@ def test_herd_without_cows_does_not_need_rates_or_breeding():
             {"breeding_start": date(2027, 1, 1), "breeding_end": date(2026, 12, 1)},
             "posterior",
         ),
+        (
+            {"breeding_start": date(2100, 12, 1), "breeding_end": date(2101, 1, 31)},
+            "2100",
+        ),
     ],
 )
 def test_herd_rules(changes: dict, message: str):
@@ -128,6 +132,13 @@ def test_zero_cows_does_not_count_as_having_cows():
     data = rules_data(categories=[HerdCategoryInput(animal_category_id=1, quantity=0)])
 
     check_herd_rules(data, CODES)
+
+
+def test_breeding_can_end_on_the_last_allowed_day():
+    check_herd_rules(
+        rules_data(breeding_start=date(2100, 12, 1), breeding_end=date(2100, 12, 31)),
+        CODES,
+    )
 
 
 # Rutas

@@ -7,9 +7,14 @@ from app.schemas.production_unit import PolygonGeoJSON
 from app.services.production_units import create_unit
 
 
-def rectangle(width_deg: float, height_deg: float) -> dict:
-    """Rectángulo en San Rafael, con la esquina suroeste en (-68,09, -34,58)."""
-    west, south = -68.09, -34.58
+def rectangle(
+    width_deg: float,
+    height_deg: float,
+    *,
+    west: float = -68.09,
+    south: float = -34.58,
+) -> dict:
+    """Rectángulo en San Rafael."""
     east, north = west + width_deg, south + height_deg
     return {
         "type": "Polygon",
@@ -83,13 +88,19 @@ def test_draw_unit_returns_its_area(api: TestClient, scenario: Scenario):
 
 
 def test_list_units_in_creation_order(api: TestClient, scenario: Scenario):
-    for name in ["Norte", "Sur"]:
-        api.post(units_url(scenario), json={"name": name, "polygon": SQUARE})
+    for name, polygon in [
+        ("Oeste", SQUARE),
+        ("Este", rectangle(0.01, 0.01, west=-68.08)),
+    ]:
+        response = api.post(
+            units_url(scenario), json={"name": name, "polygon": polygon}
+        )
+        assert response.status_code == 201
 
     response = api.get(units_url(scenario))
 
     assert response.status_code == 200
-    assert [unit["name"] for unit in response.json()] == ["Norte", "Sur"]
+    assert [unit["name"] for unit in response.json()] == ["Oeste", "Este"]
 
 
 def test_edit_unit_recalculates_area(api: TestClient, scenario: Scenario):
@@ -129,6 +140,61 @@ def test_edit_with_self_crossing_outline_is_rejected(
 
     assert response.status_code == 422
     assert api.get(units_url(scenario)).json()[0]["polygon"] == SQUARE
+
+
+@pytest.mark.parametrize("method", ["POST", "PUT"])
+@pytest.mark.parametrize(
+    ("west", "accepted"),
+    [
+        pytest.param(-68.09, False, id="identical"),
+        pytest.param(-68.085, False, id="overlap"),
+        pytest.param(-68.080002, False, id="over-tolerance"),
+        pytest.param(-68.0800005, True, id="under-tolerance"),
+        pytest.param(-68.08, True, id="shared-edge"),
+    ],
+)
+def test_sector_overlap_in_same_scenario(
+    api: TestClient, scenario: Scenario, method: str, west: float, accepted: bool
+):
+    path = units_url(scenario)
+    existing = api.post(path, json={"name": "El bajo", "polygon": SQUARE})
+    assert existing.status_code == 201
+    before = [existing.json()]
+    if method == "PUT":
+        original = rectangle(0.01, 0.01, west=-68.05)
+        edited = api.post(path, json={"name": "El alto", "polygon": original})
+        assert edited.status_code == 201
+        before.append(edited.json())
+        path = f"/production-units/{edited.json()['id']}"
+
+    # El borde mide unos 1.110 m. Las franjas finas tienen unos 51 y 204 m².
+    polygon = rectangle(0.01, 0.01, west=west)
+    response = api.request(method, path, json={"name": "El alto", "polygon": polygon})
+
+    if accepted:
+        assert response.status_code == (201 if method == "POST" else 200)
+        assert response.json()["polygon"]["coordinates"][0][0][0] == west
+    else:
+        assert response.status_code == 422
+        assert (
+            response.json()["detail"]
+            == "El contorno se superpone con el sector «El bajo»."
+        )
+        assert api.get(units_url(scenario)).json() == before
+
+
+def test_sectors_can_overlap_in_different_scenarios(
+    api: TestClient, session: Session, scenario: Scenario, user: User
+):
+    alternative = Scenario(user_id=user.id, name="Alternativo", is_main=False)
+    session.add(alternative)
+    session.flush()
+
+    for current in (scenario, alternative):
+        response = api.post(
+            units_url(current), json={"name": "Potrero", "polygon": SQUARE}
+        )
+        assert response.status_code == 201
 
 
 def test_open_ring_is_rejected():

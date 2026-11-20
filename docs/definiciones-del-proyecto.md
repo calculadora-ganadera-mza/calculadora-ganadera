@@ -48,7 +48,7 @@ Los datos no pertenecen a ninguna calculadora. Viven en cuatro niveles, y las ca
 - **Rodeo por unidad:** el productor puede repartir su hacienda entre varias unidades. Cada cálculo se hace sobre el rodeo de esa unidad, no sobre el total del establecimiento.
 - **Sector:** es la unidad mínima y no se subdivide. Cada parte del campo que el productor quiera calcular por separado se dibuja como un sector propio.
 - **Precipitación de la campaña:** es la lluvia de la campaña anterior, en mm. Es opcional al guardar, pero la Receptividad la necesita para calcular.
-- **Histórico:** un escenario acumula campañas. Las campañas anteriores no se modifican.
+- **Histórico:** un escenario acumula campañas. Todas se pueden editar, también las pasadas.
 - **Meses de la campaña:** de julio a junio. El mes de inicio es un parámetro. El productor no carga fechas: elige el año.
 - **Primera campaña:** se crea con el escenario. El productor elige el año: el actual o uno de los dos siguientes.
 - **Campañas nuevas:** desde Mi campo solo se crean campañas de años posteriores. Nacen sin datos y no repiten año.
@@ -59,6 +59,7 @@ Los datos no pertenecen a ninguna calculadora. Viven en cuatro niveles, y las ca
 ## 4. Campo y aguadas
 
 - **Campo:** el productor dibuja el polígono de cada sector sobre un mapa.
+- **Contorno de los sectores:** un contorno no puede cruzarse consigo mismo. Al crear o editar un sector, no puede ocupar superficie de otro sector del mismo escenario. Se permite compartir el borde, con una tolerancia técnica de superficie para pequeñas diferencias de trazado. Los sectores de escenarios distintos pueden superponerse.
 - **Aguadas:** se marcan como puntos dentro del sector que abastecen. Una aguada fuera del sector no cuenta, aunque su alcance llegue al sector: los animales están encerrados en el sector y no llegan al agua.
 - **Aguada compartida:** una aguada sobre el alambrado entre dos o más sectores puede abastecerlos a todos. Cada sector aprovecha la parte del alcance que cae dentro de él, y le tocan los litros en esa misma proporción. Por ejemplo, si el 70% del alcance cae en el sector 1, le toca el 70% del agua. El reparto se hace solo entre los sectores que comparten la aguada y sobre la parte del alcance que cae dentro de ellos.
 - **Alcance de una aguada:** 2,5 km. Es un parámetro y se puede cambiar.

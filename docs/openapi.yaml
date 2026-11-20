@@ -288,7 +288,11 @@ paths:
       tags: [production-units]
       operationId: createProductionUnit
       summary: Dibujar un sector.
-      description: En el MVP todos los sectores son de secano.
+      description: |
+        En el MVP todos los sectores son de secano. Si el contorno se superpone
+        con otro sector del mismo escenario por encima de la tolerancia técnica
+        de superficie, se devuelve 422 con el nombre del sector. Compartir el
+        borde está permitido.
       requestBody:
         required: true
         content:
@@ -314,7 +318,12 @@ paths:
       - $ref: "#/components/parameters/ProductionUnitId"
     put:
       tags: [production-units]
-      description: Da 422 si el nuevo contorno deja aguadas afuera; borrarlas primero.
+      description: |
+        Si el nuevo contorno se superpone con otro sector del mismo escenario
+        por encima de la tolerancia técnica de superficie, se devuelve 422 con
+        el nombre del sector. Compartir el borde está permitido. También se
+        devuelve 422 si el nuevo contorno deja aguadas afuera. En ese caso hay
+        que borrarlas primero.
       operationId: updateProductionUnit
       summary: Editar el nombre y el contorno de un sector.
       requestBody:
@@ -1370,6 +1379,7 @@ components:
           `breeding_start` y `breeding_end`.
         - Las fechas de entore se informan juntas (inicio y fin) o se omiten las
           dos, y el fin es posterior al inicio.
+        - El entore termina a más tardar el 2100-12-31.
         - No se aceptan la categoría `calf` ni categorías repetidas.
       required: [categories, range_condition]
       properties:
