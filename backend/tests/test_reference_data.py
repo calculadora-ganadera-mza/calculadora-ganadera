@@ -117,6 +117,59 @@ def test_parameter_value_must_be_positive(admin_api: TestClient, value: float):
     assert response.status_code == 422
 
 
+def stored_value(session: Session, key: str) -> float | None:
+    session.expire_all()
+    return session.scalar(select(Parameter.value).where(Parameter.key == key))
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("summer_start_month", 13),
+        ("summer_end_month", 12.5),
+        ("gestation_days", 283.5),
+        ("normal_weaning_age_months", 6.5),
+        ("heifer_first_breeding_age_months", 24.2),
+    ],
+)
+def test_values_that_would_break_the_calculation_are_rejected(
+    admin_api: TestClient, session: Session, key: str, value: float
+):
+    before = stored_value(session, key)
+
+    response = admin_api.patch(f"/parameters/{key}", json={"value": value})
+
+    assert response.status_code == 422
+    assert "los meses van de 1 a 12" in response.json()["detail"]
+    assert stored_value(session, key) == before
+
+
+def test_a_rejected_empty_value_does_not_change_the_stored_one(
+    admin_api: TestClient, session: Session
+):
+    key = "cow_equivalent_dm_intake_kg_year"
+    before = stored_value(session, key)
+
+    admin_api.patch(f"/parameters/{key}", json={"value": None})
+
+    assert stored_value(session, key) == before
+
+
+def test_a_repeated_name_does_not_change_the_category(
+    admin_api: TestClient, session: Session
+):
+    cow = category_id(session, "cow")
+    before = session.get(AnimalCategory, cow).name
+
+    admin_api.patch(
+        f"/animal-categories/{cow}", json={"name": "Toro", "cow_equivalent": 2}
+    )
+
+    session.expire_all()
+    category = session.get(AnimalCategory, cow)
+    assert (category.name, category.cow_equivalent) == (before, 1)
+
+
 def test_unknown_parameter_is_not_found(admin_api: TestClient):
     response = admin_api.patch("/parameters/no_existe", json={"value": 1})
 

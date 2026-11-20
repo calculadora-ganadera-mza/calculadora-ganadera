@@ -1,9 +1,11 @@
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import AnimalCategory, Parameter
 from app.schemas.animal_category import AnimalCategoryUpdate
+from app.services.carrying_capacity import check_calculation_parameters
 
 
 class ReferenceNotFoundError(LookupError):
@@ -42,10 +44,18 @@ def update_parameter(session: Session, key: str, value: float | None) -> Paramet
     parameter = session.scalar(select(Parameter).where(Parameter.key == key))
     if parameter is None:
         raise ReferenceNotFoundError("Parámetro no encontrado.")
-    parameter.value = value
     try:
+        # El cambio va dentro del savepoint: si algo falla, el valor vuelve atrás
         with session.begin_nested():
+            parameter.value = value
             session.flush()
+            try:
+                check_calculation_parameters(session)
+            except ValidationError as err:
+                raise InvalidReferenceValueError(
+                    "El valor no es válido para este parámetro: los meses van de "
+                    "1 a 12 y los días y las edades son números enteros."
+                ) from err
     except IntegrityError as err:
         if violated_constraint(err) != "ck_parameter_value_positive":
             raise
@@ -63,12 +73,15 @@ def update_animal_category(
     category = session.get(AnimalCategory, category_id)
     if category is None:
         raise ReferenceNotFoundError("Categoría no encontrada.")
-    for field, value in data.model_dump(exclude_unset=True).items():
+    changes = data.model_dump(exclude_unset=True)
+    for field, value in changes.items():
         if value is None:
             raise InvalidReferenceValueError(f"El campo {field} no puede quedar vacío.")
-        setattr(category, field, value)
     try:
+        # El cambio va dentro del savepoint: si la base lo rechaza, vuelve atrás
         with session.begin_nested():
+            for field, value in changes.items():
+                setattr(category, field, value)
             session.flush()
     except IntegrityError as err:
         if violated_constraint(err) != "uq_animal_category_name":
