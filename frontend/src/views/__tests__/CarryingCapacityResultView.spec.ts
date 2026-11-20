@@ -67,7 +67,6 @@ async function open() {
     history: createMemoryHistory(),
     routes: [
       { path: '/calc/:scenarioId/:unitId/:seasonId', component: CarryingCapacityResultView },
-      { path: '/calc/simulate', name: 'carrying-capacity-simulate', component: {} },
       { path: '/farm/:scenarioId/sectors/:unitId', name: 'sector', component: {} },
       { path: '/:other(.*)', component: {} },
     ],

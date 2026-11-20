@@ -68,15 +68,11 @@ def test_without_indices_calculates_and_warns(api, unit_id):
 
 def test_simulation_uses_the_supplied_rainfall(api, unit_id):
     add_water_point(api, unit_id)
-    data = {"categories": [], "range_condition": "good", "rainfall_mm": 600}
 
-    response = api.post(
-        f"/production-units/{unit_id}/carrying-capacity/simulate", json=data
-    )
+    response = calculate(api, unit_id, rainfall_mm=600)
 
     assert response.status_code == 200
     result = response.json()
-    assert result == calculate(api, unit_id, rainfall_mm=600).json()
     assert result["carrying_capacity_ha_per_cow_equivalent"] == pytest.approx(
         calculate(api, unit_id).json()["carrying_capacity_ha_per_cow_equivalent"] / 2
     )
