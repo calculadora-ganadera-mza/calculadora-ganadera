@@ -42,3 +42,25 @@ def test_zone_is_dropped_and_restored(alembic_config: Config, engine: Engine):
     assert columns["zone_id"]["nullable"]
     assert "zone" not in inspector.get_table_names()
     assert "zone_id" not in {c["name"] for c in inspector.get_columns("scenario")}
+
+
+def test_animal_category_names_are_restored_on_downgrade(
+    alembic_config: Config, engine: Engine
+):
+    names = text(
+        "SELECT code, name FROM animal_category WHERE code IN ('cow', 'heifer')"
+    )
+
+    command.downgrade(alembic_config, "8e26e3041f57")
+    try:
+        with engine.connect() as connection:
+            restored = dict(connection.execute(names).all())
+    finally:
+        command.upgrade(alembic_config, "head")
+
+    assert restored == {"cow": "Vaca con cría", "heifer": "Vaquillona de recría"}
+    with engine.connect() as connection:
+        assert dict(connection.execute(names).all()) == {
+            "cow": "Vaca",
+            "heifer": "Vaquillona",
+        }

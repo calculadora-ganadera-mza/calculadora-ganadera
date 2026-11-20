@@ -148,8 +148,10 @@ def test_list_animal_categories(api: TestClient):
     response = api.get("/animal-categories")
 
     assert response.status_code == 200
-    codes = [category["code"] for category in response.json()]
-    assert {"cow", "bull", "heifer", "calf", "steer"} <= set(codes)
+    names = {category["code"]: category["name"] for category in response.json()}
+    assert {"cow", "bull", "heifer", "calf", "steer"} <= names.keys()
+    assert names["cow"] == "Vaca"
+    assert names["heifer"] == "Vaquillona"
 
 
 def test_register_herd_and_list_it(api: TestClient, setup: dict):
