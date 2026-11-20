@@ -82,6 +82,7 @@ HERD_DOES_NOT_FIT = CalculationWarning(
 
 PASTURE_PARAMETERS = TypeAdapter(PastureParameters)
 WATER_PARAMETERS = TypeAdapter(WaterParameters)
+HERD_PARAMETERS = TypeAdapter(HerdParameters)
 # Parámetros del rodeo que salen de la tabla parameter; los toros pueden
 # venir del pedido.
 HERD_PARAMETER_KEYS = [field.name for field in fields(HerdParameters)]
@@ -264,9 +265,7 @@ def summer_litres(
     categories: dict[str, AnimalCategory],
 ) -> CategoryWater:
     """Litros por cabeza en verano, según el calendario del rodeo."""
-    water = WATER_PARAMETERS.validate_python(
-        get_parameters(session, WATER_PARAMETER_KEYS)
-    )
+    water = read_water_parameters(session)
     calendar = herd_calendar(breeding_start, early_weaning, parameters, water)
     summer = months_between(water.summer_start_month, water.summer_end_month)
     litres = CategoryWater(
@@ -282,7 +281,26 @@ def read_herd_parameters(
     values = get_parameters(session, HERD_PARAMETER_KEYS)
     if bulls_per_100_cows is not None:
         values["bulls_per_100_cows"] = bulls_per_100_cows
-    return TypeAdapter(HerdParameters).validate_python(values)
+    return HERD_PARAMETERS.validate_python(values)
+
+
+def read_water_parameters(session: Session) -> WaterParameters:
+    """Parámetros del calendario del agua, leídos de la tabla parameter."""
+    return WATER_PARAMETERS.validate_python(
+        get_parameters(session, WATER_PARAMETER_KEYS)
+    )
+
+
+def check_calculation_parameters(session: Session) -> None:
+    """Revisa que los parámetros de la tabla cumplan los tipos del motor.
+
+    Usa las mismas reglas que el cálculo (por ejemplo, meses de 1 a 12 y días
+    enteros), para que un valor que lo rompería se rechace al guardarlo.
+    Lanza ValidationError si alguno no las cumple.
+    """
+    read_pasture_parameters(session)
+    read_water_parameters(session)
+    read_herd_parameters(session, None)
 
 
 def herd_categories(session: Session) -> dict[str, AnimalCategory]:

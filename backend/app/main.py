@@ -6,6 +6,7 @@ from app.api import (
     health,
     herds,
     production_units,
+    reference_data,
     scenarios,
     water_points,
 )
@@ -19,3 +20,4 @@ app.include_router(scenarios.router)
 app.include_router(water_points.router)
 app.include_router(herds.router)
 app.include_router(carrying_capacity.router)
+app.include_router(reference_data.router)

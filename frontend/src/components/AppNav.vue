@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { logout } from '../api/auth'
+import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
 const accountMenu = ref<HTMLDetailsElement>()
@@ -55,7 +56,17 @@ const items = [
     label: 'Seguimiento',
     icon: 'M4 20V4M4 20h16M8 16l4-5 3 3 5-6',
   },
+  {
+    to: '/admin',
+    label: 'Administración',
+    icon: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19 12h2M3 12h2M12 3v2M12 19v2M17 7l1.5-1.5M5.5 18.5L7 17M17 17l1.5 1.5M5.5 5.5L7 7',
+    adminOnly: true,
+  },
 ]
+
+// Administración solo aparece para los administradores
+const auth = useAuthStore()
+const visibleItems = computed(() => items.filter((item) => !item.adminOnly || auth.isAdmin))
 </script>
 
 <template>
@@ -73,7 +84,7 @@ const items = [
       </div>
     </details>
     <RouterLink
-      v-for="item in items"
+      v-for="item in visibleItems"
       :key="item.to"
       :to="item.to"
       class="nav-link"

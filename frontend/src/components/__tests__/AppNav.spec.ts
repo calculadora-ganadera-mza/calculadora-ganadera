@@ -1,23 +1,42 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
+import { createPinia, setActivePinia } from 'pinia'
 
 import AppNav from '../AppNav.vue'
 import { routes } from '../../router'
+import { useAuthStore } from '../../stores/auth'
 
-async function mountAt(path: string) {
+async function mountAt(path: string, role: 'producer' | 'admin' = 'producer') {
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  useAuthStore().role = role
   const router = createRouter({ history: createMemoryHistory(), routes })
   await router.push(path)
   await router.isReady()
-  return mount(AppNav, { global: { plugins: [router] } })
+  return mount(AppNav, { global: { plugins: [router, pinia] } })
 }
 
-describe('AppNav', () => {
-  it('muestra las cuatro secciones', async () => {
-    const wrapper = await mountAt('/')
-    const labels = wrapper.findAll('.nav-link').map((link) => link.text())
+const labels = (wrapper: Awaited<ReturnType<typeof mountAt>>) =>
+  wrapper.findAll('.nav-link').map((link) => link.text())
 
-    expect(labels).toEqual(['Inicio', 'Mi campo', 'Calculadoras', 'Seguimiento'])
+describe('AppNav', () => {
+  it('muestra las cuatro secciones a un productor', async () => {
+    const wrapper = await mountAt('/')
+
+    expect(labels(wrapper)).toEqual(['Inicio', 'Mi campo', 'Calculadoras', 'Seguimiento'])
+  })
+
+  it('suma Administración para un administrador', async () => {
+    const wrapper = await mountAt('/', 'admin')
+
+    expect(labels(wrapper)).toEqual([
+      'Inicio',
+      'Mi campo',
+      'Calculadoras',
+      'Seguimiento',
+      'Administración',
+    ])
   })
 
   it('marca la sección actual', async () => {
