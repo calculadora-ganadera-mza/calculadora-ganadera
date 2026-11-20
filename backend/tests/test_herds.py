@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -117,6 +117,10 @@ def test_herd_without_cows_does_not_need_rates_or_breeding():
             {"breeding_start": date(2027, 1, 1), "breeding_end": date(2026, 12, 1)},
             "posterior",
         ),
+        (
+            {"breeding_start": date(2100, 12, 1), "breeding_end": date(2101, 1, 31)},
+            "2100",
+        ),
     ],
 )
 def test_herd_rules(changes: dict, message: str):
@@ -130,6 +134,13 @@ def test_zero_cows_does_not_count_as_having_cows():
     check_herd_rules(data, CODES)
 
 
+def test_breeding_can_end_on_the_last_allowed_day():
+    check_herd_rules(
+        rules_data(breeding_start=date(2100, 12, 1), breeding_end=date(2100, 12, 31)),
+        CODES,
+    )
+
+
 # Rutas
 
 
@@ -137,8 +148,10 @@ def test_list_animal_categories(api: TestClient):
     response = api.get("/animal-categories")
 
     assert response.status_code == 200
-    codes = [category["code"] for category in response.json()]
-    assert {"cow", "bull", "heifer", "calf", "steer"} <= set(codes)
+    names = {category["code"]: category["name"] for category in response.json()}
+    assert {"cow", "bull", "heifer", "calf", "steer"} <= names.keys()
+    assert names["cow"] == "Vaca"
+    assert names["heifer"] == "Vaquillona"
 
 
 def test_register_herd_and_list_it(api: TestClient, setup: dict):
@@ -158,6 +171,54 @@ def test_register_herd_and_list_it(api: TestClient, setup: dict):
 
     listed = api.get(f"/seasons/{season_id}/herds").json()
     assert [h["id"] for h in listed] == [herd["id"]]
+
+
+@pytest.mark.parametrize("method", ["POST", "PUT"])
+@pytest.mark.parametrize(
+    ("start_offset", "end_offset", "valid"),
+    [
+        pytest.param(1, -1, True, id="inside"),
+        pytest.param(0, -1, True, id="starts-on-first-day"),
+        pytest.param(1, 0, True, id="ends-on-last-day"),
+        pytest.param(-1, -1, False, id="starts-before-season"),
+        pytest.param(1, 1, False, id="ends-after-season"),
+    ],
+)
+def test_herd_breeding_period_in_season(
+    api: TestClient,
+    setup: dict,
+    method: str,
+    start_offset: int,
+    end_offset: int,
+    valid: bool,
+):
+    season = setup["season"]
+    season_path = f"/seasons/{season.id}/herds"
+    start = (season.start_date + timedelta(days=start_offset)).isoformat()
+    end = (season.end_date + timedelta(days=end_offset)).isoformat()
+    data = herd_json(setup, breeding_start=start, breeding_end=end)
+    path = season_path
+    before = []
+    if method == "PUT":
+        created = api.post(season_path, json=herd_json(setup))
+        assert created.status_code == 201
+        herd = created.json()
+        before = [herd]
+        path = f"/herds/{herd['id']}"
+        del data["production_unit_id"]
+
+    response = api.request(method, path, json=data)
+
+    if valid:
+        assert response.status_code == (201 if method == "POST" else 200)
+        assert response.json()["breeding_start"] == start
+        assert response.json()["breeding_end"] == end
+    else:
+        assert response.status_code == 422
+        assert response.json()["detail"] == (
+            "El inicio y el fin del entore tienen que estar dentro de la campaña."
+        )
+        assert api.get(season_path).json() == before
 
 
 def test_register_herd_twice_for_the_same_unit_is_a_conflict(

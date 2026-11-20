@@ -67,6 +67,7 @@ backend/
     models/         tablas (SQLAlchemy)
     schemas/        entrada y salida (Pydantic)
     services/       lógica que usa la base, separada de las rutas
+    commands/       comandos que se corren a mano, como dar el rol de administrador
     calculators/    motor de cálculo, funciones puras
     core/           configuración, seguridad, conexión
   alembic/
@@ -143,6 +144,7 @@ Traducción fija de los términos del dominio. El código usa la columna de la d
 
 - Levantar todo: `docker compose up`
 - Migraciones: `docker compose run --rm backend alembic upgrade head`
+- Primer administrador: `docker compose run --rm backend python -m app.commands.make_admin <correo>`
 - Pruebas: `docker compose run --rm backend pytest`
 - Formato: `ruff check . && ruff format .` dentro de `backend/`
 - Pruebas del frontend: `npm run test:unit` dentro de `frontend/`

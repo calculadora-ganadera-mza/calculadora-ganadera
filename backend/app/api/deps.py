@@ -8,6 +8,7 @@ from fastapi import Depends, HTTPException
 from app.core.db import SessionDep
 from app.core.jwt import get_current_user
 from app.models import Scenario, User
+from app.models.enums import Role
 from app.services.scenarios import get_user_scenario
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
@@ -24,3 +25,13 @@ def get_owned_scenario(
 
 
 OwnedScenario = Annotated[Scenario, Depends(get_owned_scenario)]
+
+
+def get_admin_user(user: CurrentUser) -> User:
+    """El usuario de la sesión, solo si es administrador; si no, 403."""
+    if user.role != Role.ADMIN:
+        raise HTTPException(403, "Acción reservada a administradores.")
+    return user
+
+
+AdminUser = Annotated[User, Depends(get_admin_user)]

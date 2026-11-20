@@ -143,14 +143,16 @@ describe('HerdForm', () => {
     expect(createHerd).not.toHaveBeenCalled()
   })
 
-  it('muestra el mensaje del backend', async () => {
-    vi.mocked(listHerds).mockResolvedValue([HERD])
-    vi.mocked(updateHerd).mockRejectedValue(new ApiError('Hay categorías de animales repetidas.'))
+  it.each(['crear', 'reemplazar'])('muestra el error de entore al %s', async (action) => {
+    const message = 'El inicio y el fin del entore tienen que estar dentro de la campaña.'
+    vi.mocked(listHerds).mockResolvedValue(action === 'crear' ? [] : [HERD])
+    vi.mocked(action === 'crear' ? createHerd : updateHerd).mockRejectedValue(new ApiError(message))
     const wrapper = await openForm()
+    if (action === 'crear') await wrapper.find('select').setValue('good')
 
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Hay categorías de animales repetidas.')
+    expect(wrapper.text()).toContain(message)
   })
 })

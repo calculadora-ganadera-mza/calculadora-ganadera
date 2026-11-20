@@ -1,3 +1,5 @@
+from datetime import date
+
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
@@ -9,11 +11,15 @@ from app.models import (
     Scenario,
     Season,
 )
-from app.schemas.herd import HerdData, HerdRead
+from app.schemas.herd import HerdCategoryInput, HerdData, HerdRead
 
 # Códigos fijos de las categorías que usan las reglas del rodeo
 COW = "cow"
 CALF = "calf"
+
+# Límite técnico: más allá, el calendario del rodeo se pasa del último año
+# que maneja Python
+LAST_BREEDING_DATE = date(2100, 12, 31)
 
 
 class InvalidHerdError(ValueError):
@@ -40,8 +46,16 @@ def check_herd_rules(data: HerdData, codes: dict[int, str]) -> None:
 
     if (data.breeding_start is None) != (data.breeding_end is None):
         raise InvalidHerdError("El entore se carga con inicio y fin, o sin ninguno.")
-    if data.breeding_start and data.breeding_end <= data.breeding_start:
-        raise InvalidHerdError("El fin del entore tiene que ser posterior al inicio.")
+    if data.breeding_start and data.breeding_end:
+        if data.breeding_end <= data.breeding_start:
+            raise InvalidHerdError(
+                "El fin del entore tiene que ser posterior al inicio."
+            )
+        if data.breeding_end > LAST_BREEDING_DATE:
+            raise InvalidHerdError(
+                f"El entore tiene que terminar a más tardar el "
+                f"{LAST_BREEDING_DATE:%d/%m/%Y}."
+            )
 
     has_cows = any(
         codes[item.animal_category_id] == COW and item.quantity > 0
@@ -63,8 +77,14 @@ def category_codes(session: Session) -> dict[int, str]:
     return dict(session.execute(select(AnimalCategory.id, AnimalCategory.code)).all())
 
 
-def list_animal_categories(session: Session) -> list[AnimalCategory]:
-    return list(session.scalars(select(AnimalCategory).order_by(AnimalCategory.id)))
+def check_breeding_in_season(data: HerdData, season: Season) -> None:
+    """Revisa que el entore caiga dentro de la campaña."""
+    if data.breeding_start is None or data.breeding_end is None:
+        return
+    if data.breeding_start < season.start_date or data.breeding_end > season.end_date:
+        raise InvalidHerdError(
+            "El inicio y el fin del entore tienen que estar dentro de la campaña."
+        )
 
 
 def get_user_herd(session: Session, user_id: int, herd_id: int) -> HerdSeason | None:
@@ -103,6 +123,7 @@ def create_herd(
 ) -> HerdSeason:
     """Registra el rodeo de un sector del mismo establecimiento que la campaña."""
     check_herd_rules(data, category_codes(session))
+    check_breeding_in_season(data, season)
     unit = session.get(ProductionUnit, production_unit_id)
     if unit is None or unit.scenario_id != season.scenario_id:
         raise UnitNotFoundError("Sector no encontrado.")
@@ -130,6 +151,8 @@ def create_herd(
 def update_herd(session: Session, herd: HerdSeason, data: HerdData) -> None:
     """Reemplaza los datos del rodeo."""
     check_herd_rules(data, category_codes(session))
+    season = session.get_one(Season, herd.season_id)
+    check_breeding_in_season(data, season)
     set_herd_data(session, herd, data)
 
 
@@ -155,7 +178,7 @@ def herd_read(session: Session, herd: HerdSeason) -> HerdRead:
         id=herd.id,
         season_id=herd.season_id,
         production_unit_id=herd.production_unit_id,
-        categories=[dict(row) for row in categories],
+        categories=[HerdCategoryInput(**row) for row in categories],
         range_condition=herd.range_condition,
         replacement_rate=herd.replacement_rate,
         weaning_rate=herd.weaning_rate,
