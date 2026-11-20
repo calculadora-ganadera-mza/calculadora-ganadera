@@ -13,7 +13,9 @@ from app.models import Parameter, Scenario, Season, User
 from app.schemas.scenario import ScenarioCreate
 from app.services.scenarios import (
     InvalidFirstSeasonYearError,
+    SeasonExistsError,
     create_scenario,
+    create_season,
     current_season_id,
     current_season_start_year,
     first_season_years,
@@ -294,6 +296,18 @@ def test_a_season_overlapping_after_changing_the_start_month_is_a_conflict(
     response = api.post(f"/scenarios/{scenario.id}/seasons", json={"start_year": 2027})
 
     assert response.status_code == 409
+
+
+def test_a_rejected_season_leaves_the_session_usable(session: Session, user: User):
+    # El error de la base queda dentro del savepoint: después se puede seguir
+    # usando la misma sesión, por ejemplo para crear otro año.
+    scenario, _ = create_scenario(session, user.id, "La Aguada", 2026, TODAY)
+
+    with pytest.raises(SeasonExistsError):
+        create_season(session, scenario.id, 2026)
+    season = create_season(session, scenario.id, 2027)
+
+    assert season.start_date == date(2027, 7, 1)
 
 
 def test_the_api_also_accepts_earlier_years(

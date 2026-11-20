@@ -1,8 +1,10 @@
 from datetime import date, timedelta
 
 from sqlalchemy import exists, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.db import violated_constraint
 from app.models import Scenario, Season
 from app.schemas.scenario import SeasonRead
 from app.services.parameters import select_parameter
@@ -160,21 +162,23 @@ def season_reads(seasons: list[Season], today: date) -> list[SeasonRead]:
 def create_season(session: Session, scenario_id: int, start_year: int) -> Season:
     """Crea una campaña sin datos para el año pedido, si el establecimiento no la tiene.
 
-    Cada pantalla decide qué años ofrece: Mi campo, solo los posteriores.
+    Cada pantalla decide qué años ofrece: Mi campo, solo los posteriores. Que
+    no se cruce en fechas con otra campaña lo decide la restricción
+    ex_season_no_overlap de la base, que vale aunque cambie el mes de inicio y
+    aunque lleguen dos pedidos al mismo tiempo.
     """
     start, end = season_dates(start_year, get_season_start_month(session))
-    # Se busca cualquier campaña que se cruce en fechas, no solo la del mismo
-    # inicio: el mes de inicio es un parámetro y el administrador lo puede cambiar.
-    exists = session.scalar(
-        select(Season.id).where(
-            Season.scenario_id == scenario_id,
-            Season.start_date <= end,
-            Season.end_date >= start,
-        )
-    )
-    if exists:
-        raise SeasonExistsError("El establecimiento ya tiene una campaña para ese año.")
     season = Season(scenario_id=scenario_id, start_date=start, end_date=end)
-    session.add(season)
-    session.flush()
+    try:
+        # El add y el flush van dentro del savepoint, para que el error quede
+        # aislado en él
+        with session.begin_nested():
+            session.add(season)
+            session.flush()
+    except IntegrityError as err:
+        if violated_constraint(err) != "ex_season_no_overlap":
+            raise
+        raise SeasonExistsError(
+            "El establecimiento ya tiene una campaña para ese año."
+        ) from err
     return season
