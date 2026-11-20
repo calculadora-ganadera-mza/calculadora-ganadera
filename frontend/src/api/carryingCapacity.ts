@@ -68,3 +68,19 @@ export async function calculateCarryingCapacity(
   if (!response.ok) throw await responseError(response)
   return response.json()
 }
+
+export async function simulateCarryingCapacity(
+  unitId: number,
+  data: CarryingCapacityInput,
+): Promise<CarryingCapacityResult> {
+  const response = await authenticatedFetch(
+    `/production-units/${unitId}/carrying-capacity/simulate`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    },
+  )
+  if (!response.ok) throw await responseError(response)
+  return response.json()
+}

@@ -41,6 +41,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: 'Calcular receptividad' },
   },
   {
+    path: '/calculators/carrying-capacity/simulate',
+    name: 'carrying-capacity-simulate',
+    component: () => import('../views/CarryingCapacitySimulationView.vue'),
+    meta: { title: 'Simular receptividad' },
+  },
+  {
     path: '/calculators/carrying-capacity/:scenarioId/:unitId/:seasonId',
     name: 'carrying-capacity-result',
     component: () => import('../views/CarryingCapacityResultView.vue'),

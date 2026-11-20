@@ -782,6 +782,41 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorOrValidation"
 
+  /production-units/{production_unit_id}/carrying-capacity/simulate:
+    parameters:
+      - $ref: "#/components/parameters/ProductionUnitId"
+    post:
+      tags: [carrying-capacity]
+      operationId: simulateCarryingCapacity
+      summary: Simular la receptividad y el rodeo.
+      description: |
+        Calcula con los valores que el productor edita a partir de los datos
+        de la campaña y con la superficie y las aguadas del sector. No guarda
+        el cálculo ni modifica la campaña.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CarryingCapacityInput"
+      responses:
+        '200':
+          description: Resultado de la simulación.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarryingCapacityResult"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
+        '422':
+          description: Datos inválidos, o el sector no tiene superficie aprovechable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorOrValidation"
+
   /production-units/{production_unit_id}/carrying-capacity-calculations:
     parameters:
       - $ref: "#/components/parameters/ProductionUnitId"

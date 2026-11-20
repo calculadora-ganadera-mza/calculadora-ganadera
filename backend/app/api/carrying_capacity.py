@@ -22,3 +22,18 @@ def calculate(
         raise HTTPException(404, str(err)) from err
     except (InvalidHerdError, NotCalculableError) as err:
         raise HTTPException(422, str(err)) from err
+
+
+@router.post("/production-units/{production_unit_id}/carrying-capacity/simulate")
+def calculate_simulation(
+    production_unit_id: int,
+    data: CarryingCapacityInput,
+    session: SessionDep,
+    user: CurrentUser,
+) -> CarryingCapacityResult:
+    try:
+        return service.calculate(session, user.id, production_unit_id, data)
+    except UnitNotFoundError as err:
+        raise HTTPException(404, str(err)) from err
+    except (InvalidHerdError, NotCalculableError) as err:
+        raise HTTPException(422, str(err)) from err
