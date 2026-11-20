@@ -180,6 +180,7 @@ describe('Resultado de receptividad', () => {
 
     expect(calculateCarryingCapacity).not.toHaveBeenCalled()
     expect(wrapper.find('[role="alert"]').text()).toContain('falta cargar la lluvia')
+    expect(wrapper.find('.simulate-link').exists()).toBe(false)
   })
 
   it('pide los datos de la campaña si el sector no tiene rodeo', async () => {
@@ -199,5 +200,6 @@ describe('Resultado de receptividad', () => {
 
     expect(wrapper.find('[role="alert"]').text()).toContain(detail)
     expect(wrapper.find('.kpis').exists()).toBe(false)
+    expect(wrapper.find('.simulate-link').exists()).toBe(false)
   })
 })

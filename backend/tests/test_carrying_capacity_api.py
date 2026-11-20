@@ -66,6 +66,18 @@ def test_without_indices_calculates_and_warns(api, unit_id):
     assert codes == ["missing_index", "water_not_evaluated"]
 
 
+def test_simulation_uses_the_supplied_rainfall(api, unit_id):
+    add_water_point(api, unit_id)
+
+    response = calculate(api, unit_id, rainfall_mm=600)
+
+    assert response.status_code == 200
+    result = response.json()
+    assert result["carrying_capacity_ha_per_cow_equivalent"] == pytest.approx(
+        calculate(api, unit_id).json()["carrying_capacity_ha_per_cow_equivalent"] / 2
+    )
+
+
 def test_uses_the_loaded_index(api, session, unit_id):
     add_water_point(api, unit_id)
     session.execute(
