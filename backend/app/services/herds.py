@@ -64,7 +64,7 @@ def category_codes(session: Session) -> dict[int, str]:
 
 
 def check_breeding_in_season(data: HerdData, season: Season) -> None:
-    """Revisa los límites de la campaña después de validar el período de entore."""
+    """Revisa que el entore caiga dentro de la campaña."""
     if data.breeding_start is None or data.breeding_end is None:
         return
     if data.breeding_start < season.start_date or data.breeding_end > season.end_date:
@@ -141,7 +141,7 @@ def create_herd(
 def update_herd(session: Session, herd: HerdSeason, data: HerdData) -> None:
     """Reemplaza los datos del rodeo."""
     check_herd_rules(data, category_codes(session))
-    season = session.scalars(select(Season).where(Season.id == herd.season_id)).one()
+    season = session.get_one(Season, herd.season_id)
     check_breeding_in_season(data, season)
     set_herd_data(session, herd, data)
 
