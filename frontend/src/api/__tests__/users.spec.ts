@@ -24,12 +24,28 @@ describe('loadRole', () => {
     expect(useAuthStore().isAdmin).toBe(true)
   })
 
-  it('si no puede leerlo, lo trata como productor', async () => {
+  it('si no puede leerlo, lo deja sin leer para reintentar', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
 
     await loadRole()
 
-    expect(useAuthStore().role).toBe('producer')
+    expect(useAuthStore().role).toBeNull()
+    expect(useAuthStore().isAdmin).toBe(false)
+  })
+
+  it('en el reintento, si ya puede leerlo, guarda el rol', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockResolvedValue(me('admin')),
+    )
+
+    await loadRole()
+    await loadRole()
+
+    expect(useAuthStore().isAdmin).toBe(true)
   })
 
   it('al cerrar la sesión el rol se borra', async () => {
