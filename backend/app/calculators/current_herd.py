@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 from app.calculators.recommended_herd import (
     HerdParameters,
+    exceeds_limit,
     replacement_calves,
     replacement_rate_for_calculation,
     round_half_up,
@@ -91,7 +92,8 @@ def scale_herd(
 ) -> ScaledHerd | None:
     """Mi rodeo ajustado: el rodeo cargado llevado al límite con sus proporciones.
 
-    Parte de la mayor cantidad entera de vacas cuyos EV entran en el límite.
+    Parte de las vacas que llenan el límite solas, redondeando hacia arriba para
+    que el error de punto flotante no deje afuera la última vaca.
     Las demás categorías cargadas se escalan en la misma proporción que las
     vacas, redondeando al entero más cercano, con al menos un toro si se
     cargaron toros. Las terneras de reposición salen de las vacas. Si el rodeo
@@ -103,7 +105,7 @@ def scale_herd(
     if loaded_cows <= 0:
         raise ValueError("Sin vacas no se ajusta el rodeo.")
 
-    cows = math.floor(limit_cow_equivalents / cow_equivalents[COW])
+    cows = math.ceil(limit_cow_equivalents / cow_equivalents[COW])
     while cows >= 1:
         # Producto entero antes de dividir: los casos de media cabeza
         # redondean exacto
@@ -120,7 +122,9 @@ def scale_herd(
             parameters=parameters,
         )
         total = herd_total(herd, cow_equivalents)
-        if total <= limit_cow_equivalents and (fits is None or fits(herd)):
+        if not exceeds_limit(total, limit_cow_equivalents) and (
+            fits is None or fits(herd)
+        ):
             return ScaledHerd(quantities=herd, cow_equivalents=total)
         cows -= 1
     return None

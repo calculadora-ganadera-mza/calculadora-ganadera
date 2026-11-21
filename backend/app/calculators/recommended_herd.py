@@ -55,6 +55,15 @@ def round_half_up(value: float) -> int:
     return math.floor(value + 0.5)
 
 
+def exceeds_limit(cow_equivalents: float, limit: float) -> bool:
+    """Si los EV superan el límite, sin contar el error de redondeo de punto flotante.
+
+    Un rodeo que entra justo en el límite por agua puede sumar 11,3 EV contra un
+    límite de 11,299999999999999.
+    """
+    return cow_equivalents > limit and not math.isclose(cow_equivalents, limit)
+
+
 def replacement_rate_for_calculation(
     replacement_rate: float, weaning_rate: float, female_share: float
 ) -> tuple[float, bool]:
@@ -183,7 +192,7 @@ def recommend_herd(
             weaned_males=weaned - weaned_females,
             weaned_females=weaned_females,
         )
-        if herd.cow_equivalents <= limit_cow_equivalents and (
+        if not exceeds_limit(herd.cow_equivalents, limit_cow_equivalents) and (
             fits is None or fits(herd)
         ):
             return herd

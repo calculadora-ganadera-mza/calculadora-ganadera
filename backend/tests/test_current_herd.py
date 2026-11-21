@@ -181,3 +181,31 @@ def test_current_herd_max_without_litres_is_the_max_herd():
     )
 
     assert result == 100
+
+
+def test_herd_that_fits_exactly_is_not_lost_to_rounding():
+    # Vaca de 0,98 EV y 70 l/día, sin reposición, con 70 l/día disponibles.
+    # El límite da 0,9799999999999999 en punto flotante: con floor la búsqueda
+    # arrancaría en 0 vacas, y la vaca de 0,98 EV parecería pasarse del límite.
+    equivalents = {"cow": 0.98, "calf": 0.25}
+    limit = current_herd_max(
+        max_cow_equivalents=100,
+        available_l_day=70,
+        herd={"cow": 1, "calf": 0},
+        summer_l_day={"cow": 70, "calf": 0},
+        cow_equivalents=equivalents,
+    )
+
+    herd = scale_herd(
+        loaded={"cow": 1},
+        limit_cow_equivalents=limit,
+        replacement_rate=0,
+        weaning_rate=0.75,
+        parameters=PARAMETERS,
+        cow_equivalents=equivalents,
+    )
+
+    # El caso existe solo si el redondeo deja el límite por debajo de 0,98
+    assert limit < 0.98
+    assert herd is not None
+    assert herd.quantities == {"cow": 1, "calf": 0}

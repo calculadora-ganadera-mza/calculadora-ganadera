@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 
 from app.calculators.recommended_herd import (
@@ -143,3 +145,20 @@ def test_extra_condition_lowers_cows():
     assert with_condition is not None
     assert without_condition.cows == 7
     assert with_condition.cows == 6
+
+
+def test_herd_that_fits_exactly_is_not_lost_to_rounding():
+    # 10 toros cada 100 vacas y sin reposición: 10 vacas y 1 toro suman
+    # 10 × 1 + 1 × 1,3 = 11,3 EV. Si el límite por agua sale de 765 l/día para
+    # ese mismo rodeo, en punto flotante da 11,299999999999999 en vez de 11,3.
+    herd = recommend_herd(
+        limit_cow_equivalents=11.299999999999999,
+        replacement_rate=0,
+        weaning_rate=0.5,
+        early_weaning=False,
+        parameters=replace(PARAMETERS, bulls_per_100_cows=10),
+        equivalents=EQUIVALENTS,
+    )
+
+    assert herd is not None
+    assert (herd.cows, herd.bulls) == (10, 1)
