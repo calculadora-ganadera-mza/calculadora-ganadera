@@ -2,8 +2,8 @@ import { authenticatedFetch } from './auth'
 import { responseError } from './errors'
 import type { HerdData } from './herds'
 
-// Tipos según docs/openapi.yaml. El rodeo ajustado, el termómetro y la necesidad
-// de agua por estación se suman en las tareas que los calculan.
+// Tipos según docs/openapi.yaml. El termómetro y la necesidad de agua por estación se suman en
+// las tareas que los calculan.
 
 export interface CarryingCapacityInput extends HerdData {
   rainfall_mm: number
@@ -21,6 +21,21 @@ export interface RecommendedHerd {
   cow_equivalents: number
   categories: HerdQuantity[]
   weaned_calves: { males: number; females: number }
+}
+
+export interface ScaledHerdQuantity {
+  animal_category_id: number
+  name: string
+  // Cabezas del rodeo actual y de Mi rodeo ajustado
+  current_quantity: number
+  quantity: number
+}
+
+export interface ScaledHerd {
+  cow_equivalents: number
+  // Rodeo máximo con la composición del rodeo actual: hasta donde se ajustó
+  max_cow_equivalents: number
+  categories: ScaledHerdQuantity[]
 }
 
 export type LimitedBy = 'pasture' | 'water'
@@ -52,6 +67,8 @@ export interface CarryingCapacityResult {
   max_herd: MaxHerd
   // null si no hay vacas o si no entra ni una vaca con su toro
   recommended_herd: RecommendedHerd | null
+  // null si no hay vacas o si no entra ni una vaca con su parte de los demás animales
+  scaled_herd: ScaledHerd | null
   warnings: CalculationWarning[]
 }
 

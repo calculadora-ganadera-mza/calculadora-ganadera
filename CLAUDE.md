@@ -137,6 +137,8 @@ Traducción fija de los términos del dominio. El código usa la columna de la d
 | qué lo limita: pasto / agua | `limited_by`: `pasture` / `water` |
 | rodeo recomendado | `recommended_herd` |
 | Mi rodeo ajustado | `scaled_herd` |
+| rodeo actual | `current_herd` |
+| rodeo máximo con la composición del rodeo actual | `current_herd_max` |
 | terneros destetados | `weaned_calves` |
 | termómetro de carga: por debajo / dentro / por encima | `load_thermometer`: `below` / `within` / `above` |
 

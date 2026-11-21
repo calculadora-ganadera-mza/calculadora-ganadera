@@ -7,10 +7,18 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.calculators.carrying_capacity import PastureParameters, calculate_pasture_limit
+from app.calculators.current_herd import (
+    ScaledHerd,
+    current_herd_max,
+    herd_total,
+    herd_with_calves,
+    scale_herd,
+)
 from app.calculators.recommended_herd import (
     CategoryEquivalents,
     HerdParameters,
     RecommendedHerd,
+    annual_equivalents,
     cow_equivalents_per_cow,
     recommend_herd,
     replacement_rate_for_calculation,
@@ -36,6 +44,8 @@ from app.schemas.carrying_capacity import (
     HerdQuantity,
     MaxHerdRead,
     RecommendedHerdRead,
+    ScaledHerdQuantity,
+    ScaledHerdRead,
     WarningCode,
     WaterRead,
     WeanedCalves,
@@ -53,7 +63,7 @@ MISSING_INDEX = CalculationWarning(
 PARTIAL_WATER_DATA = CalculationWarning(
     code=WarningCode.PARTIAL_WATER_DATA,
     message=(
-        "Algunas aguadas no tienen litros cargados: el agua se calculó solo"
+        "Algunas aguadas no tienen litros cargados: el agua se calculó solo "
         "con las que los tienen."
     ),
 )
@@ -93,11 +103,15 @@ HERD_CODES = ["cow", "bull", "calf", "heifer"]
 
 @dataclass(frozen=True)
 class HerdResults:
-    """Lo que depende del rodeo: el agua, el rodeo máximo y el recomendado."""
+    """Lo que depende del rodeo.
+
+    El agua, el rodeo máximo, el rodeo recomendado y Mi rodeo ajustado.
+    """
 
     water: WaterRead
     max_herd: MaxHerdRead
     recommended_herd: RecommendedHerdRead | None
+    scaled_herd: ScaledHerdRead | None
     warnings: list[CalculationWarning]
 
 
@@ -130,7 +144,7 @@ def calculate(
     pasture_limit = pasture.pasture_limit_cow_equivalents
     water = available_water(session, unit_id)
     if has_cows(data, codes):
-        herd = herd_results(session, data, pasture_limit, water)
+        herd = herd_results(session, data, codes, pasture_limit, water)
     else:
         herd = results_without_cows(pasture_limit, water)
     warnings = [MISSING_INDEX] if pasture.missing_index else []
@@ -144,6 +158,7 @@ def calculate(
         water=herd.water,
         max_herd=herd.max_herd,
         recommended_herd=herd.recommended_herd,
+        scaled_herd=herd.scaled_herd,
         warnings=warnings + herd.warnings,
     )
 
@@ -156,7 +171,7 @@ def has_cows(data: CarryingCapacityInput, codes: dict[int, str]) -> bool:
 
 
 def results_without_cows(pasture_limit: float, water: AvailableWater) -> HerdResults:
-    """Sin vacas no hay composición: el agua no se evalúa y el rode máximo es
+    """Sin vacas no hay composición: el agua no se evalúa y el rodeo máximo es
     el límite por pasto."""
     return HerdResults(
         water=WaterRead(
@@ -170,6 +185,7 @@ def results_without_cows(pasture_limit: float, water: AvailableWater) -> HerdRes
             categories=[],
         ),
         recommended_herd=None,
+        scaled_herd=None,
         warnings=[WATER_WITHOUT_COWS],
     )
 
@@ -177,10 +193,12 @@ def results_without_cows(pasture_limit: float, water: AvailableWater) -> HerdRes
 def herd_results(
     session: Session,
     data: CarryingCapacityInput,
+    codes: dict[int, str],
     pasture_limit: float,
     water: AvailableWater,
 ) -> HerdResults:
-    """Límite por agua, rodeo máximo y rodeo recomendado de un rodeo de vacas.
+    """Límite por agua, rodeo máximo, rodeo recomendado y Mi rodeo ajustado de
+    un rodeo de vacas.
 
     Las reglas del rodeo garantizan que, si hay vacas, vienen la reposición,
     el destete y el inicio del entore.
@@ -241,6 +259,40 @@ def herd_results(
     spread = spread_cow_equivalents(
         max_cow_equivalents, rate, data.early_weaning, parameters, equivalents
     )
+
+    calf_ev, _ = annual_equivalents(data.early_weaning, parameters, equivalents)
+    equivalents_per_head, litres_per_head = per_head_values(
+        categories, calf_ev, summer.calf
+    )
+    loaded = {codes[item.animal_category_id]: item.quantity for item in data.categories}
+    current = herd_with_calves(
+        loaded,
+        replacement_rate=data.replacement_rate,
+        weaning_rate=data.weaning_rate,
+        parameters=parameters,
+    )
+    current_max = current_herd_max(
+        max_cow_equivalents=max_cow_equivalents,
+        available_l_day=refill,
+        herd=current,
+        summer_l_day=litres_per_head,
+        cow_equivalents=equivalents_per_head,
+    )
+    scaled = scale_herd(
+        loaded=loaded,
+        limit_cow_equivalents=current_max,
+        replacement_rate=data.replacement_rate,
+        weaning_rate=data.weaning_rate,
+        parameters=parameters,
+        cow_equivalents=equivalents_per_head,
+        # Al redondear, Mi rodeo ajustado tampoco puede pasarse del agua de
+        # verano.
+        fits=(
+            None
+            if refill is None
+            else lambda candidate: herd_total(candidate, litres_per_head) <= refill
+        ),
+    )
     return HerdResults(
         water=WaterRead(
             evaluated=limit is not None,
@@ -253,6 +305,11 @@ def herd_results(
             categories=herd_quantities(spread, categories),
         ),
         recommended_herd=None if herd is None else recommended_read(herd, categories),
+        scaled_herd=(
+            None
+            if scaled is None
+            else scaled_read(scaled, current, current_max, categories)
+        ),
         warnings=warnings,
     )
 
@@ -304,22 +361,20 @@ def check_calculation_parameters(session: Session) -> None:
 
 
 def herd_categories(session: Session) -> dict[str, AnimalCategory]:
-    """Categorías del rodeo recomendado, por código."""
-    rows = session.scalars(
-        select(AnimalCategory).where(AnimalCategory.code.in_(HERD_CODES))
-    )
+    """Todas las categorías de animales por código, en el orden de la tabla."""
+    rows = session.scalars(select(AnimalCategory).order_by(AnimalCategory.id))
     return {category.code: category for category in rows}
 
 
 def herd_quantities(
-    quantitites: Mapping[str, float], categories: dict[str, AnimalCategory]
+    quantities: Mapping[str, float], categories: dict[str, AnimalCategory]
 ) -> list[HerdQuantity]:
     """Cabezas por código de categoría, en el formato y el orden de la API."""
     return [
         HerdQuantity(
             animal_category_id=categories[code].id,
             name=categories[code].name,
-            quantity=quantitites[code],
+            quantity=quantities[code],
         )
         for code in HERD_CODES
     ]
@@ -341,4 +396,44 @@ def recommended_read(
         weaned_calves=WeanedCalves(
             males=herd.weaned_males, females=herd.weaned_females
         ),
+    )
+
+
+def per_head_values(
+    categories: dict[str, AnimalCategory], calf_ev: float, calf_l_day: float
+) -> tuple[dict[str, float], dict[str, float]]:
+    """EV y litros de verano por cabeza, por código de categoría.
+
+    Los animales cargados van con los valores de su categoría; las terneras de
+    reposición, con su EV anual y sus litros según el calendario.
+    """
+    equivalents = {
+        code: category.cow_equivalent for code, category in categories.items()
+    }
+    litres = {
+        code: category.summer_water_l_day for code, category in categories.items()
+    }
+    return equivalents | {"calf": calf_ev}, litres | {"calf": calf_l_day}
+
+
+def scaled_read(
+    scaled: ScaledHerd,
+    current: Mapping[str, int],
+    max_cow_equivalents: float,
+    categories: dict[str, AnimalCategory],
+) -> ScaledHerdRead:
+    """Mi rodeo ajustado en el formato de la API, junto al rodeo actual."""
+    return ScaledHerdRead(
+        cow_equivalents=scaled.cow_equivalents,
+        max_cow_equivalents=max_cow_equivalents,
+        categories=[
+            ScaledHerdQuantity(
+                animal_category_id=category.id,
+                name=category.name,
+                current_quantity=current[code],
+                quantity=scaled.quantities[code],
+            )
+            for code, category in categories.items()
+            if code in current
+        ],
     )

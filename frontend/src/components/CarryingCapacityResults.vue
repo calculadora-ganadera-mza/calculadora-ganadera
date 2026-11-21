@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { CarryingCapacityResult, LimitedBy } from '@/api/carryingCapacity'
 import RecommendedHerd from './RecommendedHerd.vue'
+import ScaledHerd from './ScaledHerd.vue'
 
 const props = defineProps<{ result: CarryingCapacityResult; rainfallMm: number }>()
 
@@ -98,6 +99,10 @@ const integer = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 })
     </div>
   </section>
   <RecommendedHerd :herd="result.recommended_herd" :warnings="result.warnings" />
+  <ScaledHerd
+    :herd="result.scaled_herd"
+    :max-herd-cow-equivalents="result.max_herd.cow_equivalents"
+  />
 </template>
 
 <style scoped>
