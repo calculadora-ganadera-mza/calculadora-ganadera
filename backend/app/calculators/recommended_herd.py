@@ -66,6 +66,22 @@ def replacement_rate_for_calculation(
     return min(replacement_rate, females_per_cow), replacement_rate > females_per_cow
 
 
+def weaned_calves(
+    cows: int, weaning_rate: float, female_share: float
+) -> tuple[int, int]:
+    """Terneros destetados de cows vacas y cuántas son hembras, en enteros."""
+    weaned = round_half_up(cows * weaning_rate)
+    return weaned, round_half_up(weaned * female_share)
+
+
+def replacement_calves(cows: int, rate: float, weaned_females: int) -> int:
+    """Terneras de reposición de cows vacas, sin superar las hembras destetadas.
+
+    rate es la reposición que devuelve replacement_rate_for_calculation.
+    """
+    return min(round_half_up(cows * rate), weaned_females)
+
+
 def annual_equivalents(
     early_weaning: bool, parameters: HerdParameters, equivalents: CategoryEquivalents
 ) -> tuple[float, float]:
@@ -149,10 +165,11 @@ def recommend_herd(
 
     cows = round_half_up(limit_cow_equivalents / per_cow)
     while cows >= 1:
-        weaned = round_half_up(cows * weaning_rate)
-        weaned_females = round_half_up(weaned * parameters.weaned_calf_female_share)
+        weaned, weaned_females = weaned_calves(
+            cows, weaning_rate, parameters.weaned_calf_female_share
+        )
         bulls = max(1, round_half_up(cows * parameters.bulls_per_cow))
-        replacement = min(round_half_up(cows * rate), weaned_females)
+        replacement = replacement_calves(cows, rate, weaned_females)
         herd = RecommendedHerd(
             cows=cows,
             bulls=bulls,
