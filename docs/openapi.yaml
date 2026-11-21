@@ -1545,6 +1545,21 @@ components:
         quantity:
           type: number
 
+    ScaledHerdQuantity:
+      type: object
+      required: [animal_category_id, name, current_quantity, quantity]
+      properties:
+        animal_category_id:
+          type: integer
+        name:
+          type: string
+        current_quantity:
+          type: integer
+          description: Cabezas del rodeo actual.
+        quantity:
+          type: integer
+          description: Cabezas de Mi rodeo ajustado.
+
     LimitedBy:
       type: string
       description: Factor que define el rodeo máximo.
@@ -1668,19 +1683,30 @@ components:
                       type: integer
         scaled_herd:
           description: |
-            Rodeo cargado, aumentado o reducido hasta alcanzar el rodeo máximo, en
-            cantidades enteras. Es `null` si no se cargaron animales.
+            Rodeo cargado, agrandado o achicado hasta el rodeo máximo con la
+            composición del rodeo actual, en cantidades enteras. Incluye las
+            terneras de reposición que se calculan a partir de las vacas. Es
+            `null` si no hay vacas o si ese rodeo máximo no alcanza para una vaca
+            con su parte de los demás animales.
           oneOf:
             - type: "null"
             - type: object
-              required: [cow_equivalents, categories]
+              required: [cow_equivalents, max_cow_equivalents, categories]
               properties:
                 cow_equivalents:
                   type: number
+                  description: EV de Mi rodeo ajustado.
+                max_cow_equivalents:
+                  type: number
+                  description: |
+                    Rodeo máximo con la composición del rodeo actual, en EV, sin
+                    redondear: el menor entre el rodeo máximo y el límite por agua
+                    calculado con el rodeo actual. Es el valor hasta el que se
+                    ajustó.
                 categories:
                   type: array
                   items:
-                    $ref: "#/components/schemas/HerdQuantity"
+                    $ref: "#/components/schemas/ScaledHerdQuantity"
         load_thermometer:
           type: object
           required: [status, current_cow_equivalents, max_cow_equivalents]
@@ -1688,13 +1714,18 @@ components:
             status:
               type: string
               enum: [below, within, above]
-              description: Posición del rodeo actual respecto del rodeo máximo.
+              description: |
+                Posición del rodeo actual respecto del rodeo máximo con la
+                composición del rodeo actual.
             current_cow_equivalents:
               type: number
               description: Rodeo cargado más las terneras de reposición, en EV.
             max_cow_equivalents:
               type: number
-              description: Rodeo máximo, en EV.
+              description: |
+                Rodeo máximo con la composición del rodeo actual, en EV. Coincide
+                con `scaled_herd.max_cow_equivalents` cuando `scaled_herd` no es
+                `null`.
         warnings:
           type: array
           items:

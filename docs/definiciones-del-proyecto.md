@@ -1,6 +1,6 @@
 # Definiciones del proyecto
 
-Calculadora ganadera · actualizado al 14 de noviembre de 2026
+Calculadora ganadera · actualizado al 21 de noviembre de 2026
 
 Este documento reúne las decisiones vigentes del proyecto. Es la referencia del equipo: si otro documento lo contradice, vale este.
 
@@ -94,8 +94,9 @@ Son cuatro, independientes entre sí, y se pueden usar en cualquier orden. Ningu
 - **Sin dato de agua:** si solo algunas aguadas tienen litros, se calcula con esas y la aplicación avisa. Si ninguna tiene litros, o el sector no tiene vacas, se usa solo el límite por pasto y se aclara que el agua no se evaluó.
 - **Rodeo máximo:** el menor entre el límite por pasto y el límite por agua. Se informa cuál de los dos limita.
 - **Rodeo recomendado:** es el resultado principal. El rodeo máximo repartido según la composición, en cantidades enteras redondeadas al número más cercano, con al menos un toro. Si el rodeo entero se pasa del rodeo máximo o de los litros de verano, se bajan vacas hasta que entre. Si no entra una vaca con su toro, no se muestra y la aplicación avisa. Si el sector no tiene vacas, no se arma.
-- **Mi rodeo ajustado:** el rodeo cargado, agrandado o achicado hasta el rodeo máximo, con sus mismas proporciones. Se toma la mayor cantidad entera de vacas que entra. Al menos un toro solo si se cargaron toros.
-- **Termómetro de carga:** compara el rodeo actual con el rodeo máximo, sin redondear. El rodeo actual suma los animales cargados y las terneras de reposición que calcula la aplicación. Tiene tres estados: por debajo, dentro o por encima de la capacidad. El límite entre "por debajo" y "dentro" es un parámetro.
+- **Rodeo máximo con la composición del rodeo actual:** el menor entre el rodeo máximo y el límite por agua calculado con los litros de verano por EV del rodeo actual, es decir, los animales cargados más las terneras de reposición. Corrige el caso en que el rodeo cargado necesita más agua por EV que la composición, que con el rodeo máximo se pasaría del agua. Nunca supera el rodeo máximo, aunque el rodeo cargado necesite menos agua por EV. Si el agua no se evaluó, es el rodeo máximo.
+- **Mi rodeo ajustado:** el rodeo cargado, agrandado o achicado hasta el rodeo máximo con la composición del rodeo actual, con sus mismas proporciones. Se toma la mayor cantidad entera de vacas que entra en esos EV y en los litros de verano. Al menos un toro solo si se cargaron toros. Muestra hasta cuántos EV se ajustó y aclara cuando queda por debajo del rodeo máximo porque el rodeo cargado necesita más agua por EV que la composición.
+- **Termómetro de carga:** compara el rodeo actual con el rodeo máximo con la composición del rodeo actual, sin redondear. El rodeo actual suma los animales cargados y las terneras de reposición que calcula la aplicación. Tiene tres estados: por debajo, dentro o por encima de la capacidad. El límite entre "por debajo" y "dentro" es un parámetro.
 - **Necesidad de agua:** litros por día que necesita el límite por pasto, con la composición del rodeo, en verano y en invierno, frente a lo que reponen las aguadas.
 
 ### Proyección del estado del rodeo
