@@ -42,6 +42,7 @@ const result: CarryingCapacityResult = {
   water: { evaluated: true, limit_cow_equivalents: 60.7, refill_l_day: 4200 },
   max_herd: { cow_equivalents: 60.7, limited_by: 'water', categories: [] },
   recommended_herd: null,
+  scaled_herd: null,
   warnings: [],
 }
 

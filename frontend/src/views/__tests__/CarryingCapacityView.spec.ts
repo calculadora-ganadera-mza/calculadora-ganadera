@@ -134,6 +134,7 @@ describe('Elegir qué calcular', () => {
           water: { evaluated: false, limit_cow_equivalents: null, refill_l_day: null },
           max_herd: { cow_equivalents: 4, limited_by: 'pasture', categories: [] },
           recommended_herd: null,
+          scaled_herd: null,
           warnings: [],
         }),
       )
