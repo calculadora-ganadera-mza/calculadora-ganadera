@@ -46,11 +46,28 @@ class RecommendedHerdRead(BaseModel):
     weaned_calves: WeanedCalves
 
 
+class ScaledHerdQuantity(BaseModel):
+    animal_category_id: int
+    name: str
+    # Cabezas del rodeo actual y de Mi rodeo ajustado
+    current_quantity: int
+    quantity: int
+
+
+class ScaledHerdRead(BaseModel):
+    """Mi rodeo ajustado, en cantidades enteras."""
+
+    cow_equivalents: float
+    # Rodeo máximo con la composición del rodeo actual: hasta donde se ajustó
+    max_cow_equivalents: float
+    categories: list[ScaledHerdQuantity]
+
+
 class CarryingCapacityResult(BaseModel):
     """Resultado del cálculo.
 
-    El contrato pide además scaled_herd y load_thermometer: se agregan en las
-     issues que los calculan (#16 y #17).
+    El contrato pide además load_thermometer: se agrega en la issue que lo
+    calcula (#17).
     """
 
     area_ha: float
@@ -61,6 +78,9 @@ class CarryingCapacityResult(BaseModel):
     max_herd: MaxHerdRead
     # None si no hay vacas o si no entra ni una vaca con su toro
     recommended_herd: RecommendedHerdRead | None
+    # None si no hay vacas o si no entra ni una vaca con su parte de los demás
+    # animales
+    scaled_herd: ScaledHerdRead | None
     warnings: list[CalculationWarning]
 
 
