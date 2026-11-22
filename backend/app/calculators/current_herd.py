@@ -6,7 +6,6 @@ Los rodeos son cabezas por código de categoría.
 import math
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from enum import StrEnum
 
 from app.calculators.recommended_herd import (
     HerdParameters,
@@ -17,17 +16,12 @@ from app.calculators.recommended_herd import (
     weaned_calves,
 )
 from app.calculators.water import water_limit
+from app.models.enums import LoadStatus
 
 # Códigos fijos de las categorías con reglas propias
 COW = "cow"
 BULL = "bull"
 CALF = "calf"
-
-
-class LoadStatus(StrEnum):
-    BELOW = "below"
-    WITHIN = "within"
-    ABOVE = "above"
 
 
 def load_status(

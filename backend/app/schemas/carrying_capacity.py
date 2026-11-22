@@ -2,8 +2,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from app.calculators.current_herd import LoadStatus
-from app.models.enums import LimitedBy
+from app.models.enums import LimitedBy, LoadStatus
 from app.schemas.herd import HerdData
 
 

@@ -29,3 +29,9 @@ class RangeCondition(StrEnum):
 class LimitedBy(StrEnum):
     PASTURE = "pasture"
     WATER = "water"
+
+
+class LoadStatus(StrEnum):
+    BELOW = "below"
+    WITHIN = "within"
+    ABOVE = "above"

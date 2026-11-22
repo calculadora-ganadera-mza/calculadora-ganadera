@@ -36,6 +36,7 @@ from app.calculators.water import (
     months_between,
     season_litres,
     water_limit,
+    water_need,
 )
 from app.models import AnimalCategory
 from app.models.enums import LimitedBy
@@ -250,7 +251,6 @@ def herd_results(
     )
     summer_l_day = litres_per_cow(summer, rate, parameters)
     winter_l_day = litres_per_cow(winter, rate, parameters)
-    pasture_cows = pasture_limit / composition_ev
     refill = water.refill_l_day
     limit = None
     if refill is None:
@@ -323,8 +323,16 @@ def herd_results(
             evaluated=limit is not None,
             limit_cow_equivalents=limit,
             refill_l_day=refill,
-            summer_need_l_day=pasture_cows * summer_l_day,
-            winter_need_l_day=pasture_cows * winter_l_day,
+            summer_need_l_day=water_need(
+                limit_cow_equivalents=pasture_limit,
+                composition_l_day=summer_l_day,
+                composition_cow_equivalents=composition_ev,
+            ),
+            winter_need_l_day=water_need(
+                limit_cow_equivalents=pasture_limit,
+                composition_l_day=winter_l_day,
+                composition_cow_equivalents=composition_ev,
+            ),
         ),
         max_herd=MaxHerdRead(
             cow_equivalents=max_cow_equivalents,

@@ -14,6 +14,7 @@ from app.calculators.water import (
     season_litres,
     stage_months,
     water_limit,
+    water_need,
 )
 from app.models.enums import LimitedBy
 
@@ -90,6 +91,21 @@ def test_water_limit():
     )
 
     assert limit == pytest.approx(124.85)
+
+
+@pytest.mark.parametrize(
+    ("composition_l_day", "expected"), [(86.425, 8642.5), (45.35, 4535)]
+)
+def test_water_need(composition_l_day, expected):
+    # 124,85 EV ÷ 1,2485 EV por vaca = 100 vacas con su parte del rodeo.
+    # En verano necesitan 100 × 86,425 L/día y en invierno 100 × 45,35 L/día.
+    need = water_need(
+        limit_cow_equivalents=124.85,
+        composition_l_day=composition_l_day,
+        composition_cow_equivalents=1.2485,
+    )
+
+    assert need == pytest.approx(expected)
 
 
 def test_herd_litres():

@@ -148,6 +148,16 @@ def water_limit(
     return available_l_day * composition_cow_equivalents / composition_l_day
 
 
+def water_need(
+    *,
+    limit_cow_equivalents: float,
+    composition_l_day: float,
+    composition_cow_equivalents: float,
+) -> float:
+    """Litros por día que necesita el rodeo al alcanzar el límite en EV."""
+    return limit_cow_equivalents * composition_l_day / composition_cow_equivalents
+
+
 def max_herd(
     pasture_limit: float, water_limit: float | None
 ) -> tuple[float, LimitedBy]:
