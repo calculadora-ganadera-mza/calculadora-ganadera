@@ -25,7 +25,13 @@ HERD = HerdParameters(
     early_weaning_age_months=3,
     heifer_first_breeding_age_months=24,
 )
-WATER = WaterParameters(gestation_days=283, summer_start_month=12, summer_end_month=2)
+WATER = WaterParameters(
+    gestation_days=283,
+    summer_start_month=12,
+    summer_end_month=2,
+    winter_start_month=6,
+    winter_end_month=8,
+)
 SUMMER = months_between(12, 2)
 # Agua en verano de la tabla de categorías
 SUMMER_LITRES = CategoryWater(cow=70, bull=65, calf=25, heifer=42.5)

@@ -39,10 +39,22 @@ const result: CarryingCapacityResult = {
   usable_area_ha: 981.8,
   carrying_capacity_ha_per_cow_equivalent: 15.1,
   pasture_limit_cow_equivalents: 65.02,
-  water: { evaluated: true, limit_cow_equivalents: 60.7, refill_l_day: 4200 },
+  water: {
+    evaluated: true,
+    limit_cow_equivalents: 60.7,
+    refill_l_day: 4200,
+    summer_need_l_day: 4500,
+    winter_need_l_day: 2400,
+  },
   max_herd: { cow_equivalents: 60.7, limited_by: 'water', categories: [] },
   recommended_herd: null,
   scaled_herd: null,
+  load_thermometer: {
+    status: 'above',
+    current_cow_equivalents: 98.4,
+    max_cow_equivalents: 59.2,
+    below_cow_equivalents: 53.28,
+  },
   warnings: [],
 }
 
@@ -115,6 +127,40 @@ describe('Resultado de receptividad', () => {
     expect(wrapper.find('.tag.warn').text()).toBe('Falta un índice')
   })
 
+  it.each([
+    ['below', 40, 'Por debajo'],
+    ['within', 59.19, 'Dentro'],
+    ['above', 59.21, 'Por encima'],
+  ] as const)('muestra el estado %s y los EV comparados', async (status, current, label) => {
+    vi.mocked(calculateCarryingCapacity).mockResolvedValue({
+      ...result,
+      load_thermometer: { ...result.load_thermometer, status, current_cow_equivalents: current },
+    })
+
+    const wrapper = await open()
+    const load = wrapper.get('.load')
+
+    expect(load.get('.status').text()).toBe(`${label} de la capacidad`)
+    expect(load.get('.current-key').text()).toBe(
+      `Rodeo actual ${current === 40 ? '40,0' : '59,2'} EV`,
+    )
+    expect(load.get('.limit-key').text()).toBe('Límite de mi rodeo 59,2 EV')
+  })
+
+  it('muestra el agua de verano e invierno junto a la reposición', async () => {
+    const wrapper = await open()
+
+    expect(
+      wrapper
+        .findAll('.water-need dl div')
+        .map((item) => [item.get('dt').text(), item.get('dd').text()]),
+    ).toEqual([
+      ['Verano', '4.500 L/día'],
+      ['Invierno', '2.400 L/día'],
+      ['Reposición de las aguadas', '4.200 L/día'],
+    ])
+  })
+
   it('explica cada término con un tooltip asociado a su botón', async () => {
     const wrapper = await open()
     const buttons = wrapper.findAll('.term button')
@@ -148,7 +194,7 @@ describe('Resultado de receptividad', () => {
     const message = 'Ninguna aguada tiene litros cargados: no se evaluó el agua.'
     vi.mocked(calculateCarryingCapacity).mockResolvedValue({
       ...result,
-      water: { evaluated: false, limit_cow_equivalents: null, refill_l_day: null },
+      water: { ...result.water, evaluated: false, limit_cow_equivalents: null, refill_l_day: null },
       max_herd: { cow_equivalents: 65.02, limited_by: 'pasture', categories: [] },
       warnings: [{ code: 'water_not_evaluated', message }],
     })
@@ -158,6 +204,11 @@ describe('Resultado de receptividad', () => {
 
     expect(water.get('.value').text()).toBe('Sin evaluar')
     expect(water.get('.sub').text()).toBe(message)
+    expect(wrapper.findAll('.water-need dd').map((value) => value.text())).toEqual([
+      '4.500 L/día',
+      '2.400 L/día',
+      'Sin datos',
+    ])
   })
 
   it('marca el límite por agua cuando alguna aguada no tiene litros', async () => {

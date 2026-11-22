@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CarryingCapacityResult, LimitedBy } from '@/api/carryingCapacity'
+import LoadThermometer from './LoadThermometer.vue'
 import RecommendedHerd from './RecommendedHerd.vue'
 import ScaledHerd from './ScaledHerd.vue'
 
@@ -21,6 +22,10 @@ const oneDecimal = new Intl.NumberFormat('es-AR', {
 })
 
 const integer = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 })
+
+function litresPerDay(value: number | null, unavailable: string) {
+  return value === null ? unavailable : `${integer.format(value)} L/día`
+}
 </script>
 
 <template>
@@ -98,11 +103,32 @@ const integer = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 })
       </p>
     </div>
   </section>
-  <RecommendedHerd :herd="result.recommended_herd" :warnings="result.warnings" />
-  <ScaledHerd
-    :herd="result.scaled_herd"
-    :max-herd-cow-equivalents="result.max_herd.cow_equivalents"
-  />
+  <LoadThermometer :load="result.load_thermometer" />
+  <section class="water-need" aria-labelledby="water-need-heading">
+    <h2 id="water-need-heading">Agua necesaria para el límite por pasto</h2>
+    <dl>
+      <div>
+        <dt>Verano</dt>
+        <dd>{{ litresPerDay(result.water.summer_need_l_day, 'Sin estimación') }}</dd>
+      </div>
+      <div>
+        <dt>Invierno</dt>
+        <dd>{{ litresPerDay(result.water.winter_need_l_day, 'Sin estimación') }}</dd>
+      </div>
+      <div>
+        <dt>Reposición de las aguadas</dt>
+        <dd>{{ litresPerDay(result.water.refill_l_day, 'Sin datos') }}</dd>
+      </div>
+    </dl>
+  </section>
+  <div class="herds">
+    <RecommendedHerd :herd="result.recommended_herd" :warnings="result.warnings" />
+    <ScaledHerd
+      :herd="result.scaled_herd"
+      :current-cow-equivalents="result.load_thermometer.current_cow_equivalents"
+      :max-herd-cow-equivalents="result.max_herd.cow_equivalents"
+    />
+  </div>
 </template>
 
 <style scoped>
@@ -203,6 +229,38 @@ const integer = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 })
   background: var(--color-warning-soft);
   color: var(--color-warning);
 }
+.water-need {
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+.water-need h2 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+.water-need dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.water-need dt {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+.water-need dd {
+  margin: 2px 0 0;
+  font-weight: 600;
+}
+.herds {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 16px;
+}
 @media (max-width: 900px) {
   .kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -218,7 +276,8 @@ const integer = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 })
   }
 }
 @media (max-width: 700px) {
-  .kpis {
+  .kpis,
+  .herds {
     grid-template-columns: minmax(0, 1fr);
   }
   .kpi + .kpi {

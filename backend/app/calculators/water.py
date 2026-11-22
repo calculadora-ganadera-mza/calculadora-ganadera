@@ -27,6 +27,8 @@ class WaterParameters:
     gestation_days: int
     summer_start_month: Month
     summer_end_month: Month
+    winter_start_month: Month
+    winter_end_month: Month
 
 
 @dataclass(frozen=True)

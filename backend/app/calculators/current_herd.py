@@ -6,6 +6,7 @@ Los rodeos son cabezas por código de categoría.
 import math
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from enum import StrEnum
 
 from app.calculators.recommended_herd import (
     HerdParameters,
@@ -21,6 +22,25 @@ from app.calculators.water import water_limit
 COW = "cow"
 BULL = "bull"
 CALF = "calf"
+
+
+class LoadStatus(StrEnum):
+    BELOW = "below"
+    WITHIN = "within"
+    ABOVE = "above"
+
+
+def load_status(
+    current_cow_equivalents: float,
+    max_cow_equivalents: float,
+    below_cow_equivalents: float,
+) -> LoadStatus:
+    """Ubica la carga respecto de los límites en EV, sin redondear."""
+    if current_cow_equivalents > max_cow_equivalents:
+        return LoadStatus.ABOVE
+    if current_cow_equivalents < below_cow_equivalents:
+        return LoadStatus.BELOW
+    return LoadStatus.WITHIN
 
 
 @dataclass(frozen=True)

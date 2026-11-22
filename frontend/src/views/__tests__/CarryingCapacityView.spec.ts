@@ -124,17 +124,33 @@ describe('Elegir qué calcular', () => {
         breeding_end: '2026-01-31',
       },
     ])
-    const resultResponse = (capacity: number) =>
+    const resultResponse = (capacity: number, simulated = false) =>
       new Response(
         JSON.stringify({
           area_ha: 100,
           carrying_capacity_ha_per_cow_equivalent: capacity,
           usable_area_ha: 60,
-          pasture_limit_cow_equivalents: 4,
-          water: { evaluated: false, limit_cow_equivalents: null, refill_l_day: null },
-          max_herd: { cow_equivalents: 4, limited_by: 'pasture', categories: [] },
+          pasture_limit_cow_equivalents: simulated ? 26 : 20,
+          water: {
+            evaluated: false,
+            limit_cow_equivalents: null,
+            refill_l_day: null,
+            summer_need_l_day: simulated ? 1800 : 1400,
+            winter_need_l_day: simulated ? 950 : 750,
+          },
+          max_herd: {
+            cow_equivalents: simulated ? 26 : 20,
+            limited_by: 'pasture',
+            categories: [],
+          },
           recommended_herd: null,
           scaled_herd: null,
+          load_thermometer: {
+            status: simulated ? 'within' : 'above',
+            current_cow_equivalents: simulated ? 25.5 : 21,
+            max_cow_equivalents: simulated ? 26 : 20,
+            below_cow_equivalents: simulated ? 23.4 : 18,
+          },
           warnings: [],
         }),
       )
@@ -145,7 +161,7 @@ describe('Elegir qué calcular', () => {
     const fetchMock = vi
       .fn()
       .mockReturnValueOnce(calculation)
-      .mockImplementation(() => resultResponse(12.9))
+      .mockImplementation(() => resultResponse(12.9, true))
     vi.stubGlobal('fetch', fetchMock)
     const { router, wrapper } = await open('/calc?scenario=7&unit=2&season=11')
     expect(wrapper.find('.simulate-button').exists()).toBe(false)
@@ -208,6 +224,8 @@ describe('Elegir qué calcular', () => {
     expect(wrapper.findAll('.kpis')).toHaveLength(1)
     expect(wrapper.get('.kpi .value').text()).toBe('12,9 ha/EV')
     expect(wrapper.get('.kpi .sub').text()).toContain('350.5 mm de lluvia')
+    expect(wrapper.get('.load .status').text()).toBe('Dentro de la capacidad')
+    expect(wrapper.get('.water-need').text()).toContain('1.800 L/día')
 
     const restoreButton = wrapper.get('.simulation-notice button')
     expect(restoreButton.text()).toBe('Volver a mis datos')
@@ -217,6 +235,8 @@ describe('Elegir qué calcular', () => {
     expect(wrapper.find('form').exists()).toBe(false)
     expect(wrapper.get('.kpi .value').text()).toBe('15,1 ha/EV')
     expect(wrapper.get('.kpi .sub').text()).toContain('300 mm de lluvia')
+    expect(wrapper.get('.load .status').text()).toBe('Por encima de la capacidad')
+    expect(wrapper.get('.water-need').text()).toContain('1.400 L/día')
     expect(fetchMock).toHaveBeenCalledTimes(2)
 
     await wrapper.get('header .simulate-button').trigger('click')

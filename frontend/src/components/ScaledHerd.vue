@@ -3,6 +3,7 @@ import type { ScaledHerd } from '@/api/carryingCapacity'
 
 defineProps<{
   herd: ScaledHerd | null
+  currentCowEquivalents: number
   // Rodeo máximo del resultado, para aclarar si el ajuste queda por debajo
   maxHerdCowEquivalents: number
 }>()
@@ -37,7 +38,7 @@ const oneDecimal = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 })
       <tfoot>
         <tr>
           <th scope="row">Total</th>
-          <td></td>
+          <td>{{ oneDecimal.format(currentCowEquivalents) }} EV</td>
           <td>{{ oneDecimal.format(herd.cow_equivalents) }} EV</td>
         </tr>
       </tfoot>
@@ -51,8 +52,6 @@ const oneDecimal = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 })
 
 <style scoped>
 .scaled {
-  max-width: 720px;
-  margin-top: 16px;
   padding: 20px 24px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -82,7 +81,6 @@ h2 {
 
 table {
   width: 100%;
-  max-width: 360px;
   border-collapse: collapse;
   font-variant-numeric: tabular-nums;
 }
