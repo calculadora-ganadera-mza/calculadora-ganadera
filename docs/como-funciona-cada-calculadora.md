@@ -46,7 +46,7 @@ Común a las cuatro:
 10. **Litros por EV en invierno:** litros por día que necesita en invierno la composición por vaca, sumando cada categoría por cabeza, ÷ los EV de esa composición. Las terneras y las vaquillonas cuentan solo si están en el campo en algún mes del invierno.
 11. **Litros por EV en verano:** litros por día que necesita en verano la composición por vaca, sumando cada categoría por cabeza, ÷ los EV de esa composición. Las terneras y las vaquillonas cuentan solo si están en el campo en algún mes del verano.
 12. **Litros disponibles:** los litros por día de las aguadas del sector, más la parte que le toca de cada aguada compartida. La parte es la misma proporción del alcance que cae en el sector, calculada solo entre los sectores que comparten la aguada.
-13. **Límite por agua (EV):** litros disponibles ÷ litros por EV en invierno, o verano.
+13. **Límite por agua (EV):** litros disponibles ÷ litros por EV en verano. Los litros por EV en invierno se usan para informar la demanda del límite por pasto en el paso 20.
 14. **Rodeo máximo (EV):** el menor entre el límite por pasto y el límite por agua. Se informa cuál de los dos limita.
 15. **Rodeo recomendado:** el rodeo máximo repartido según la composición por vaca, en cantidades enteras redondeadas al número más cercano, con al menos un toro. Si el rodeo entero supera el rodeo máximo o los litros disponibles en verano, se baja una vaca por vez hasta que entre. Se informan también los terneros destetados, machos y hembras.
 16. **Rodeo actual (EV):** las cantidades cargadas, convertidas con sus equivalencias, más las terneras de reposición que se calculan a partir de las vacas, con su valor anual.

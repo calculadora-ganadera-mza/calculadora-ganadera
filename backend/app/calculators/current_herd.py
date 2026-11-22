@@ -35,10 +35,10 @@ def load_status(
     max_cow_equivalents: float,
     below_cow_equivalents: float,
 ) -> LoadStatus:
-    """Ubica la carga respecto de los límites en EV, sin redondear."""
-    if current_cow_equivalents > max_cow_equivalents:
+    """Ubica la carga en EV con la tolerancia de punto flotante del ajuste."""
+    if exceeds_limit(current_cow_equivalents, max_cow_equivalents):
         return LoadStatus.ABOVE
-    if current_cow_equivalents < below_cow_equivalents:
+    if exceeds_limit(below_cow_equivalents, current_cow_equivalents):
         return LoadStatus.BELOW
     return LoadStatus.WITHIN
 

@@ -33,6 +33,28 @@ def test_load_status_uses_unrounded_boundaries(current, expected):
     assert load_status(current, 100, 90) == expected
 
 
+@pytest.mark.parametrize(
+    ("refill_l_day", "expected"), [(70, "within"), (69.9999, "above")]
+)
+def test_load_status_at_the_water_limit(refill_l_day, expected):
+    herd = {"cow": 1}
+    equivalents = {"cow": 0.98}
+    current = herd_total(herd, equivalents)
+    limit = current_herd_max(
+        max_cow_equivalents=10,
+        available_l_day=refill_l_day,
+        herd=herd,
+        summer_l_day={"cow": 70},
+        cow_equivalents=equivalents,
+    )
+
+    assert load_status(current, limit, limit * 0.9) == expected
+
+
+def test_load_status_at_the_computed_lower_boundary():
+    assert load_status(0.09, 0.1, 0.1 * 0.9) == "within"
+
+
 def scale(loaded, limit, *, replacement=0.2, weaning=0.75, fits=None):
     return scale_herd(
         loaded=loaded,
