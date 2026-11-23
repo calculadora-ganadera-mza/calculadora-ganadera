@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises } from '@vue/test-utils'
+import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { listScenarios, listSeasons } from '@/api/scenarios'
 import { listProductionUnits } from '@/api/productionUnits'
 import { listScenarioWaterPoints } from '@/api/waterPoints'
-import { createSeason } from '@/api/seasons'
+import { createSeason, updateSeasonRainfall } from '@/api/seasons'
 import { NORTH, SCENARIO, SOUTH, WELL, openAt, season } from './farmFixtures'
 
 vi.mock('@/api/scenarios', () => ({ listScenarios: vi.fn(), listSeasons: vi.fn() }))
@@ -22,15 +22,20 @@ beforeEach(() => {
   vi.mocked(listScenarioWaterPoints).mockResolvedValue([WELL, { ...WELL, id: 11 }])
 })
 
+// Elige una campaña en el selector y espera a que cambie la dirección
+async function choose(wrapper: VueWrapper, seasonId: number) {
+  await wrapper.get('#season-select').setValue(String(seasonId))
+  await flushPromises()
+}
+
 describe('Pantalla del escenario', () => {
-  it('muestra el resumen, la campaña actual, las otras y la tabla de sectores', async () => {
+  it('muestra el resumen, la campaña actual y la tabla de sectores', async () => {
     const { wrapper } = await openAt('/farm/7')
 
     expect(wrapper.get('h1').text()).toBe('La Aguada')
     expect(wrapper.get('.summary').text()).toBe('Sectores 2 · Superficie 150 ha')
     expect(wrapper.get('.campaign h2').text()).toBe('Campaña 2026/27 actual')
     expect(wrapper.find('#rainfall-12').exists()).toBe(true)
-    expect(wrapper.get('.past-seasons').text()).toContain('Campaña 2025/26')
     const rows = wrapper.findAll('tbody tr').map((row) => row.findAll('td').map((c) => c.text()))
     expect(rows).toEqual([
       ['Potrero Norte', '100 ha', '60 ha', '2'],
@@ -42,16 +47,48 @@ describe('Pantalla del escenario', () => {
     expect(map.props('readOnly')).toBe(true)
   })
 
-  it('abre el sector tocado en el mapa', async () => {
-    const { wrapper, router } = await openAt('/farm/7')
-    wrapper.getComponent({ name: 'UnitsMap' }).vm.$emit('selectUnit', 2)
-    await flushPromises()
-    expect(router.currentRoute.value.path).toBe('/farm/7/sectors/2')
+  it('lista las campañas de la más nueva a la más vieja y arranca en la actual', async () => {
+    const { wrapper } = await openAt('/farm/7')
+
+    const select = wrapper.get<HTMLSelectElement>('#season-select')
+    expect(select.findAll('option').map((option) => option.text())).toEqual([
+      '2026/27 (actual)',
+      '2025/26',
+    ])
+    expect(select.element.value).toBe('12')
   })
 
-  it('crea una campaña desde la ventana y vuelve a cargar las campañas', async () => {
+  it('al elegir otra campaña la muestra y la pasa a los sectores', async () => {
+    const { wrapper, router } = await openAt('/farm/7')
+    await choose(wrapper, 11)
+
+    expect(router.currentRoute.value.fullPath).toBe('/farm/7?season=11')
+    expect(wrapper.get('.campaign h2').text()).toBe('Campaña 2025/26')
+    expect(wrapper.find('#rainfall-11').exists()).toBe(true)
+    expect(wrapper.get('tbody a').attributes('href')).toBe('/farm/7/sectors/1?season=11')
+    const draw = wrapper.findAll('a').find((a) => a.text() === 'Dibujar sector')!
+    expect(draw.attributes('href')).toBe('/farm/7/sectors/new?season=11')
+  })
+
+  it('toma la campaña de la dirección y, si no es del escenario, usa la actual', async () => {
+    const chosen = await openAt('/farm/7?season=11')
+    expect(chosen.wrapper.get('.campaign h2').text()).toBe('Campaña 2025/26')
+    expect(chosen.wrapper.get<HTMLSelectElement>('#season-select').element.value).toBe('11')
+
+    const unknown = await openAt('/farm/7?season=99')
+    expect(unknown.wrapper.get('.campaign h2').text()).toBe('Campaña 2026/27 actual')
+  })
+
+  it('abre el sector tocado en el mapa con la campaña elegida', async () => {
+    const { wrapper, router } = await openAt('/farm/7?season=11')
+    wrapper.getComponent({ name: 'UnitsMap' }).vm.$emit('selectUnit', 2)
+    await flushPromises()
+    expect(router.currentRoute.value.fullPath).toBe('/farm/7/sectors/2?season=11')
+  })
+
+  it('crea una campaña desde la ventana y la deja elegida', async () => {
     vi.mocked(createSeason).mockResolvedValue(season(13, 2027))
-    const { wrapper } = await openAt('/farm/7')
+    const { wrapper, router } = await openAt('/farm/7')
 
     const open = wrapper.findAll('button').find((b) => b.text() === 'Nueva campaña')!
     await open.trigger('click')
@@ -67,7 +104,22 @@ describe('Pantalla del escenario', () => {
 
     expect(createSeason).toHaveBeenCalledWith(7, 2027)
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
-    expect(wrapper.get('.past-seasons').text()).toContain('Campaña 2027/28')
+    expect(router.currentRoute.value.query.season).toBe('13')
+    expect(wrapper.get('.campaign h2').text()).toBe('Campaña 2027/28')
+  })
+
+  it('al volver a una campaña muestra la lluvia que se guardó en ella', async () => {
+    vi.mocked(updateSeasonRainfall).mockResolvedValue({ ...season(11, 2025), rainfall_mm: 250 })
+    const { wrapper } = await openAt('/farm/7?season=11')
+
+    await wrapper.get('#rainfall-11').setValue(250)
+    await wrapper.get('.campaign form').trigger('submit')
+    await flushPromises()
+    await choose(wrapper, 12)
+    await choose(wrapper, 11)
+
+    expect(updateSeasonRainfall).toHaveBeenCalledWith(11, 250)
+    expect(wrapper.get<HTMLInputElement>('#rainfall-11').element.value).toBe('250')
   })
 
   it('Cancelar cierra la ventana sin crear la campaña', async () => {
