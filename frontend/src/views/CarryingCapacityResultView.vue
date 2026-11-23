@@ -131,7 +131,11 @@ onMounted(load)
           {{ scenario.name }} · {{ unit.name }} · campaña
           {{ seasonLabel(season.start_date, season.end_date) }} ·
           <RouterLink
-            :to="{ name: 'sector', params: { scenarioId: scenario.id, unitId: unit.id } }"
+            :to="{
+              name: 'sector',
+              params: { scenarioId: scenario.id, unitId: unit.id },
+              query: { season: season.id },
+            }"
           >
             ver sector
           </RouterLink>
@@ -157,7 +161,13 @@ onMounted(load)
     </p>
     <p v-else-if="missing === 'herd' && scenario && unit" class="missing" role="alert">
       Para calcular falta cargar los datos de la campaña del sector.
-      <RouterLink :to="{ name: 'sector', params: { scenarioId: scenario.id, unitId: unit.id } }">
+      <RouterLink
+        :to="{
+          name: 'sector',
+          params: { scenarioId: scenario.id, unitId: unit.id },
+          query: { season: season?.id },
+        }"
+      >
         Cargarlos en el sector
       </RouterLink>
     </p>
