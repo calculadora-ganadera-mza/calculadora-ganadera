@@ -89,7 +89,8 @@ const visibleItems = computed(() => items.filter((item) => !item.adminOnly || au
       :to="item.to"
       class="nav-link"
       :class="{
-        'section-active': item.to === '/farm' && router.currentRoute.value.name === 'sector',
+        'section-active':
+          item.to === '/farm' && router.currentRoute.value.path.startsWith('/farm/'),
       }"
     >
       <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">

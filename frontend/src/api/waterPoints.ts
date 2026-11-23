@@ -11,6 +11,10 @@ export interface WaterPoint extends WaterPointInput {
   neighbor_unit_ids: number[]
   shared_coverage_geometry?: ProductionUnit['usable_geometry']
 }
+// Aguada con el sector al que pertenece, como la devuelve la lista del escenario
+export interface ScenarioWaterPoint extends WaterPoint {
+  production_unit_id: number
+}
 export async function waterRequest<T>(
   path: string,
   method = 'GET',
@@ -31,6 +35,10 @@ export async function waterRequest<T>(
     )
   }
   return response.status === 204 ? (undefined as T) : response.json()
+}
+
+export function listScenarioWaterPoints(scenarioId: number): Promise<ScenarioWaterPoint[]> {
+  return waterRequest(`/scenarios/${scenarioId}/water-points`)
 }
 
 export async function confirmSharing(point: WaterPoint): Promise<WaterPoint> {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { ApiError } from '@/api/errors'
 import {
   createHerd,
@@ -14,8 +14,9 @@ import HerdDataForm from './HerdDataForm.vue'
 
 const props = defineProps<{ seasonId: number; unitId: number }>()
 
-const open = ref(false)
-const loading = ref(false)
+const loading = ref(true)
+// La carga falló: no se muestra el formulario y se puede reintentar
+const loadError = ref('')
 const saving = ref(false)
 const error = ref('')
 const saved = ref(false)
@@ -24,11 +25,10 @@ const categories = ref<AnimalCategory[]>([])
 const herdId = ref<number>()
 const initialHerd = ref<Herd>()
 
-async function toggle() {
-  open.value = !open.value
-  if (!open.value || loading.value || categories.value.length > 0) return
+// El formulario se muestra abierto: la pantalla del sector tiene un solo rodeo
+async function load() {
   loading.value = true
-  error.value = ''
+  loadError.value = ''
   try {
     const [loadedCategories, herds] = await Promise.all([
       listAnimalCategories(),
@@ -38,7 +38,7 @@ async function toggle() {
     initialHerd.value = herds.find((herd) => herd.production_unit_id === props.unitId)
     herdId.value = initialHerd.value?.id
   } catch {
-    error.value = 'No se pudieron cargar los datos del sector.'
+    loadError.value = 'No se pudieron cargar los datos del rodeo.'
   } finally {
     loading.value = false
   }
@@ -64,24 +64,24 @@ async function save(data: HerdData) {
     saving.value = false
   }
 }
+
+onMounted(load)
 </script>
 
 <template>
   <div class="herd">
-    <button type="button" :aria-expanded="open" @click="toggle">
-      {{ open ? 'Ocultar animales y datos' : 'Animales y datos de la campaña' }}
-    </button>
-
-    <p v-if="open && loading">Cargando…</p>
-
+    <p v-if="loading">Cargando…</p>
+    <div v-else-if="loadError" role="alert">
+      <p class="error">{{ loadError }}</p>
+      <button type="button" class="btn" @click="load">Reintentar</button>
+    </div>
     <HerdDataForm
-      v-if="!loading && (open || categories.length > 0)"
-      v-show="open"
+      v-else
       :categories="categories"
       :id-prefix="unitId"
       :initial="initialHerd"
       :busy="saving"
-      :action="saving ? 'Guardando…' : 'Guardar'"
+      :action="saving ? 'Guardando…' : 'Guardar rodeo'"
       :error="error"
       @attempt="clearStatus"
       @submit="save"
@@ -94,12 +94,26 @@ async function save(data: HerdData) {
 </template>
 
 <style scoped>
-.herd {
-  flex-basis: 100%;
-}
-
 .saved {
   margin: 0;
   color: var(--color-success);
+}
+
+/* Botón principal, como lo hace la calculadora con el mismo formulario */
+.herd :deep(button[type='submit']) {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--color-primary);
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: var(--color-surface);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.herd :deep(button[type='submit']:disabled) {
+  opacity: 0.6;
+  cursor: default;
 }
 </style>

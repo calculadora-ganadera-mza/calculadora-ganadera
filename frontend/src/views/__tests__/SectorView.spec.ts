@@ -1,161 +1,231 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
-import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
-import ScenarioUnits from '@/components/ScenarioUnits.vue'
-import SectorView from '../SectorView.vue'
+import { flushPromises, type VueWrapper } from '@vue/test-utils'
+import { ApiError } from '@/api/errors'
 import { listScenarios, listSeasons } from '@/api/scenarios'
-import { deleteProductionUnit, listProductionUnits } from '@/api/productionUnits'
-import { waterRequest } from '@/api/waterPoints'
+import {
+  deleteProductionUnit,
+  listProductionUnits,
+  updateProductionUnit,
+} from '@/api/productionUnits'
+import { listScenarioWaterPoints, waterRequest } from '@/api/waterPoints'
+import { NORTH, SCENARIO, SOUTH, WELL, openAt, season } from './farmFixtures'
 
 vi.mock('@/api/scenarios', () => ({ listScenarios: vi.fn(), listSeasons: vi.fn() }))
 vi.mock('@/api/productionUnits', async (original) => ({
   ...(await original<typeof import('@/api/productionUnits')>()),
   listProductionUnits: vi.fn(),
+  updateProductionUnit: vi.fn(),
   deleteProductionUnit: vi.fn(),
 }))
 vi.mock('@/api/waterPoints', () => ({
+  listScenarioWaterPoints: vi.fn(),
   waterRequest: vi.fn(),
-  confirmSharing: vi.fn(),
 }))
 
-const first = {
-  id: 1,
-  name: 'Sector Norte',
-  area_ha: 100,
-  usable_area_ha: 60,
-  polygon: { type: 'Polygon' as const, coordinates: [] },
+const polygon = { type: 'Polygon' as const, coordinates: [[[-68, -34]]] as [number, number][][] }
+
+function button(wrapper: VueWrapper, text: string) {
+  return wrapper.findAll('button').find((item) => item.text() === text)!
 }
-const second = { ...first, id: 2, name: 'Sector Sur' }
 
 beforeEach(() => {
   vi.resetAllMocks()
-  vi.mocked(listScenarios).mockResolvedValue([{ id: 7, name: 'Mi establecimiento', is_main: true }])
-  vi.mocked(listSeasons).mockResolvedValue([
-    {
-      id: 12,
-      start_year: 2026,
-      start_date: '2026-07-01',
-      end_date: '2027-06-30',
-      rainfall_mm: null,
-      is_current: true,
-    },
-  ])
-  vi.mocked(listProductionUnits).mockResolvedValue([first, second])
-  vi.mocked(waterRequest).mockResolvedValue([])
+  vi.mocked(listScenarios).mockResolvedValue([SCENARIO])
+  vi.mocked(listProductionUnits).mockResolvedValue([NORTH, SOUTH])
+  vi.mocked(listSeasons).mockResolvedValue([season(12, 2026, true)])
+  vi.mocked(listScenarioWaterPoints).mockResolvedValue([WELL])
 })
 
-async function open(path: string) {
-  const router = createRouter({
-    history: createMemoryHistory(),
-    routes: [
-      { path: '/farm', component: ScenarioUnits, props: { scenarioId: 7, overview: true } },
-      { path: '/farm/:scenarioId/sectors/:unitId', name: 'sector', component: SectorView },
-      { path: '/calculators/carrying-capacity', name: 'carrying-capacity', component: {} },
-    ],
-  })
-  await router.push(path)
-  const wrapper = mount(RouterView, {
-    global: { plugins: [router], stubs: { UnitsMap: true, WaterPoints: true, HerdForm: true } },
-  })
-  await flushPromises()
-  return { router, wrapper }
-}
+describe('Pantalla del sector', () => {
+  it('muestra el título, la campaña, las tarjetas, el mapa y el rodeo', async () => {
+    const { wrapper } = await openAt('/farm/7/sectors/1')
 
-describe('Navegación de sectores', () => {
-  it('muestra solo nombres enlazados y abre la administración del sector elegido', async () => {
-    const { wrapper, router } = await open('/farm')
-    const links = wrapper.findAll('.sector-links a')
-    expect(links).toHaveLength(2)
-    expect(links[1]!.text()).toBe('Sector Sur›')
-    expect(wrapper.findComponent({ name: 'WaterPoints' }).exists()).toBe(false)
-    expect(wrapper.findComponent({ name: 'HerdForm' }).exists()).toBe(false)
-    expect(wrapper.text()).not.toContain('Editar contorno')
-    await links[1]!.trigger('click')
-    await flushPromises()
-    expect(router.currentRoute.value.path).toBe('/farm/7/sectors/2')
-    expect(wrapper.find('h1').text()).toBe('Sector Sur')
-    const map = wrapper.findComponent({ name: 'UnitsMap' })
-    expect(map.props('units')).toEqual([second])
-    expect(map.props('referenceUnits')).toEqual([first])
-    expect(wrapper.findAll('.unit-list > li')).toHaveLength(1)
-    expect(wrapper.findComponent({ name: 'WaterPoints' }).props('unitId')).toBe(2)
-    expect(wrapper.findComponent({ name: 'HerdForm' }).props()).toEqual({ seasonId: 12, unitId: 2 })
+    expect(wrapper.get('h1').text()).toBe('Potrero Norte')
+    expect(wrapper.text()).toContain('Campaña 2026/27')
+    const cards = wrapper.get('.cards').text()
+    expect(cards).toContain('100 ha')
+    expect(cards).toContain('60 ha')
+    expect(cards).toContain('60 % del total')
+    expect(cards).toContain('4.200 L/día')
+    const map = wrapper.getComponent({ name: 'UnitsMap' })
+    expect(map.props('units')).toEqual([NORTH])
+    expect(map.props('referenceUnits')).toEqual([SOUTH])
+    expect(map.props('waterPoints')).toEqual([WELL])
+    expect(wrapper.getComponent({ name: 'HerdForm' }).props()).toEqual({ seasonId: 12, unitId: 1 })
+    const links = wrapper.findAll('.breadcrumb a').map((a) => a.attributes('href'))
+    expect(links).toEqual(['/farm', '/farm/7'])
   })
 
-  it('muestra como referencia solo las aguadas vecinas compartidas con el sector abierto', async () => {
-    const point = {
-      id: 10,
-      production_unit_id: 1,
-      name: 'Aguada del Norte',
-      shared: true,
-      neighbor_unit_ids: [2],
-      location: { type: 'Point', coordinates: [-68, -34] },
-      refill_l_day: null,
-    }
-    const own = { ...point, id: 11, production_unit_id: 2, name: 'Propia' }
-    vi.mocked(waterRequest).mockResolvedValue([
-      point,
-      own,
-      { ...point, id: 12, shared: false },
-      { ...point, id: 13, neighbor_unit_ids: [] },
-    ])
-    const { wrapper } = await open('/farm/7/sectors/2')
-    const map = wrapper.findComponent({ name: 'UnitsMap' })
-    expect(map.props('sharedWaterPoints')).toEqual([point])
-    expect(map.props('waterPoints')).toEqual([own])
-    expect(wrapper.findComponent({ name: 'WaterPoints' }).props('savedPoints')).toEqual([own])
-  })
-
-  it('abre el sector al tocar su polígono en Mi campo', async () => {
-    const { wrapper, router } = await open('/farm')
-    wrapper.findComponent({ name: 'UnitsMap' }).vm.$emit('selectUnit', 2)
-    await flushPromises()
-    expect(router.currentRoute.value.path).toBe('/farm/7/sectors/2')
-    expect(wrapper.find('h1').text()).toBe('Sector Sur')
-  })
-
-  it('admite URL directa y recarga al navegar a otro sector', async () => {
-    const { wrapper, router } = await open('/farm/7/sectors/2')
-    expect(wrapper.find('h1').text()).toBe('Sector Sur')
-    await router.push('/farm/7/sectors/1')
-    await flushPromises()
-    expect(wrapper.find('h1').text()).toBe('Sector Norte')
-    expect(wrapper.findComponent({ name: 'WaterPoints' }).props('unitId')).toBe(1)
-  })
-
-  it('lleva a calcular con el escenario, el sector y la campaña ya elegidos', async () => {
-    const { wrapper } = await open('/farm/7/sectors/2')
-    expect(wrapper.find('.calculate').attributes('href')).toBe(
-      '/calculators/carrying-capacity?scenario=7&unit=2&season=12',
+  it('lleva a calcular con el escenario, el sector y la campaña', async () => {
+    const { wrapper } = await openAt('/farm/7/sectors/1')
+    const link = wrapper.findAll('a').find((a) => a.text() === 'Calcular')!
+    expect(link.attributes('href')).toBe(
+      '/calculators/carrying-capacity?scenario=7&unit=1&season=12',
     )
   })
 
-  it('informa que un sector no pertenece al escenario sin mostrar administración', async () => {
-    const { wrapper } = await open('/farm/7/sectors/99')
-    expect(wrapper.text()).toContain('No se encontró este sector')
-    expect(wrapper.findComponent({ name: 'WaterPoints' }).exists()).toBe(false)
+  it('avisa si el sector no tiene aguadas o si alguna no tiene los litros', async () => {
+    vi.mocked(listScenarioWaterPoints).mockResolvedValueOnce([])
+    const empty = await openAt('/farm/7/sectors/1')
+    expect(empty.wrapper.get('.cards').text()).toContain('El sector no tiene aguadas.')
+
+    vi.mocked(listScenarioWaterPoints).mockResolvedValueOnce([
+      WELL,
+      { ...WELL, id: 11, refill_l_day: null },
+    ])
+    const some = await openAt('/farm/7/sectors/1')
+    expect(some.wrapper.get('.cards').text()).toContain(
+      'Falta cargar los litros de 1 de las 2 aguadas.',
+    )
+
+    vi.mocked(listScenarioWaterPoints).mockResolvedValueOnce([{ ...WELL, refill_l_day: null }])
+    const single = await openAt('/farm/7/sectors/1')
+    expect(single.wrapper.get('.cards').text()).toContain('Falta cargar los litros de la aguada.')
   })
 
-  it('permite reintentar si falla la carga del establecimiento', async () => {
-    vi.mocked(listScenarios).mockRejectedValueOnce(new Error('Sin red'))
-    const { wrapper } = await open('/farm/7/sectors/2')
-    expect(wrapper.find('[role="alert"]').text()).toContain('No se pudo cargar el sector')
-    await wrapper.find('button').trigger('click')
+  it('muestra las aguadas propias y como referencia las compartidas por vecinos', async () => {
+    const neighbor = {
+      ...WELL,
+      id: 20,
+      production_unit_id: 2,
+      shared: true,
+      neighbor_unit_ids: [1],
+    }
+    const lost = { ...WELL, id: 12, name: 'Vieja', shared: true, neighbor_unit_ids: [] }
+    vi.mocked(listScenarioWaterPoints).mockResolvedValue([WELL, lost, neighbor])
+    const { wrapper } = await openAt('/farm/7/sectors/1')
+
+    const map = wrapper.getComponent({ name: 'UnitsMap' })
+    expect(map.props('waterPoints')).toEqual([WELL, lost])
+    expect(map.props('sharedWaterPoints')).toEqual([neighbor])
+    const rows = wrapper.findAll('tbody tr')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]!.text()).toContain('4.200 L/día')
+    expect(rows[1]!.text()).toContain('ya no está en el límite con otro sector')
+    expect(rows[0]!.get('a').attributes('href')).toBe('/farm/7/sectors/1/water-points/10')
+  })
+
+  it('cambia el nombre desde la ventana sin tocar el contorno', async () => {
+    vi.mocked(updateProductionUnit).mockResolvedValue({ ...NORTH, name: 'Potrero Este' })
+    const { wrapper } = await openAt('/farm/7/sectors/1')
+
+    await button(wrapper, 'Editar').trigger('click')
+    await wrapper.get('#unit-new-name').setValue('Potrero Este')
+    vi.mocked(listProductionUnits).mockResolvedValue([{ ...NORTH, name: 'Potrero Este' }, SOUTH])
+    await wrapper.get('[role="dialog"] form').trigger('submit')
     await flushPromises()
-    expect(wrapper.find('h1').text()).toBe('Sector Sur')
+
+    expect(updateProductionUnit).toHaveBeenCalledWith(1, {
+      name: 'Potrero Este',
+      polygon: NORTH.polygon,
+    })
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(wrapper.get('h1').text()).toBe('Potrero Este')
   })
 
-  it('vuelve al campo después de eliminar el sector administrado', async () => {
-    const { wrapper, router } = await open('/farm/7/sectors/2')
+  it('bloquea el resto de la pantalla mientras se edita el contorno', async () => {
+    vi.mocked(updateProductionUnit).mockResolvedValue(NORTH)
+    const { wrapper } = await openAt('/farm/7/sectors/1')
+
+    await button(wrapper, 'Editar contorno').trigger('click')
+    const map = wrapper.getComponent({ name: 'UnitsMap' })
+    expect(map.props('editingId')).toBe(1)
+    for (const part of ['.breadcrumb', '.heading', '.cards', '.rest']) {
+      expect(wrapper.get(part).attributes('inert')).toBeDefined()
+    }
+
+    map.vm.$emit('reshape', polygon)
+    await button(wrapper, 'Guardar contorno').trigger('click')
+    await flushPromises()
+
+    expect(updateProductionUnit).toHaveBeenCalledWith(1, { name: 'Potrero Norte', polygon })
+    expect(map.props('editingId')).toBeNull()
+    expect(wrapper.get('.breadcrumb').attributes('inert')).toBeUndefined()
+    expect(wrapper.get('.rest').attributes('inert')).toBeUndefined()
+  })
+
+  it('si el servidor rechaza el contorno, muestra el motivo y sigue editando', async () => {
+    vi.mocked(updateProductionUnit).mockRejectedValue(
+      new ApiError('El contorno se superpone con el sector «Potrero Sur».'),
+    )
+    const { wrapper } = await openAt('/farm/7/sectors/1')
+
+    await button(wrapper, 'Editar contorno').trigger('click')
+    wrapper.getComponent({ name: 'UnitsMap' }).vm.$emit('reshape', polygon)
+    await button(wrapper, 'Guardar contorno').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[role="alert"]').text()).toContain('se superpone con el sector')
+    expect(wrapper.getComponent({ name: 'UnitsMap' }).props('editingId')).toBe(1)
+  })
+
+  it('cancelar la edición del contorno no guarda nada', async () => {
+    const { wrapper } = await openAt('/farm/7/sectors/1')
+    await button(wrapper, 'Editar contorno').trigger('click')
+    wrapper.getComponent({ name: 'UnitsMap' }).vm.$emit('reshape', polygon)
+    await button(wrapper, 'Cancelar').trigger('click')
+
+    expect(updateProductionUnit).not.toHaveBeenCalled()
+    expect(wrapper.getComponent({ name: 'UnitsMap' }).props('editingId')).toBeNull()
+  })
+
+  it('elimina una aguada y vuelve a cargar el sector', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(true)
+    vi.mocked(waterRequest).mockResolvedValue(undefined)
+    const { wrapper } = await openAt('/farm/7/sectors/1')
+
+    vi.mocked(listScenarioWaterPoints).mockResolvedValue([])
+    await wrapper.get('tbody .danger').trigger('click')
+    await flushPromises()
+
+    expect(waterRequest).toHaveBeenCalledWith('/water-points/10', 'DELETE')
+    expect(wrapper.find('tbody').exists()).toBe(false)
+  })
+
+  it('elimina el sector y vuelve al escenario', async () => {
     vi.spyOn(window, 'confirm').mockReturnValueOnce(true)
     vi.mocked(deleteProductionUnit).mockResolvedValue()
-    vi.mocked(listProductionUnits).mockResolvedValue([first])
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text() === 'Eliminar')!
-      .trigger('click')
+    const { wrapper, router } = await openAt('/farm/7/sectors/1')
+
+    await button(wrapper, 'Eliminar sector').trigger('click')
     await flushPromises()
-    expect(deleteProductionUnit).toHaveBeenCalledWith(2)
-    expect(router.currentRoute.value.path).toBe('/farm')
+
+    expect(deleteProductionUnit).toHaveBeenCalledWith(1)
+    expect(router.currentRoute.value.path).toBe('/farm/7')
+  })
+
+  it('no elimina el sector si no se confirma', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(false)
+    const { wrapper, router } = await openAt('/farm/7/sectors/1')
+
+    await button(wrapper, 'Eliminar sector').trigger('click')
+    await flushPromises()
+
+    expect(deleteProductionUnit).not.toHaveBeenCalled()
+    expect(router.currentRoute.value.path).toBe('/farm/7/sectors/1')
+  })
+
+  it('avisa si el sector no es del escenario, sin ofrecer reintentar', async () => {
+    const { wrapper } = await openAt('/farm/7/sectors/99')
+    expect(wrapper.get('[role="alert"]').text()).toContain('No se encontró este sector')
+    expect(wrapper.text()).not.toContain('Reintentar')
+    expect(wrapper.findComponent({ name: 'HerdForm' }).exists()).toBe(false)
+  })
+
+  it('si falla la carga, deja reintentar', async () => {
+    vi.mocked(listScenarios).mockRejectedValueOnce(new Error('Sin red'))
+    const { wrapper } = await openAt('/farm/7/sectors/1')
+    expect(wrapper.get('[role="alert"]').text()).toContain('No se pudo cargar el sector')
+
+    await button(wrapper, 'Reintentar').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('h1').text()).toBe('Potrero Norte')
+  })
+
+  it('carga otro sector al cambiar la dirección', async () => {
+    const { wrapper, router } = await openAt('/farm/7/sectors/1')
+    await router.push('/farm/7/sectors/2')
+    await flushPromises()
+    expect(wrapper.get('h1').text()).toBe('Potrero Sur')
   })
 })

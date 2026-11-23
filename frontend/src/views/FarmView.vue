@@ -1,56 +1,53 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { RouterLink, useRouter } from 'vue-router'
+import AppModal from '@/components/AppModal.vue'
 import ScenarioForm from '@/components/ScenarioForm.vue'
-import ScenarioUnits from '@/components/ScenarioUnits.vue'
-import SeasonRainfall from '@/components/SeasonRainfall.vue'
-import AddSeason from '@/components/AddSeason.vue'
 import { listScenarios, listSeasons, type Scenario, type Season } from '@/api/scenarios'
-import { formatDate, seasonLabel } from '@/utils/season'
+import { listProductionUnits } from '@/api/productionUnits'
+import { hectares } from '@/utils/farm'
+import { seasonName } from '@/utils/season'
 
-interface ScenarioWithSeasons extends Scenario {
-  seasons: Season[]
-  // La campaña que se abre: la que contiene la fecha de hoy o la más cercana
-  current?: Season
+interface ScenarioRow extends Scenario {
+  unitCount: number
+  areaHa: number
+  lastSeason?: Season
 }
 
-const scenarios = ref<ScenarioWithSeasons[]>([])
+const router = useRouter()
+const rows = ref<ScenarioRow[]>([])
 const loading = ref(true)
 const loadError = ref('')
+const creating = ref(false)
 
-async function withSeasons(scenario: Scenario): Promise<ScenarioWithSeasons> {
-  const seasons = await listSeasons(scenario.id)
-  return { ...scenario, seasons, current: seasons.find((season) => season.is_current) }
+async function toRow(scenario: Scenario): Promise<ScenarioRow> {
+  const [units, seasons] = await Promise.all([
+    listProductionUnits(scenario.id),
+    listSeasons(scenario.id),
+  ])
+  return {
+    ...scenario,
+    unitCount: units.length,
+    areaHa: units.reduce((total, unit) => total + unit.area_ha, 0),
+    // El servidor las devuelve ordenadas por año
+    lastSeason: seasons[seasons.length - 1],
+  }
 }
 
 async function load() {
   loading.value = true
   loadError.value = ''
   try {
-    scenarios.value = await Promise.all((await listScenarios()).map(withSeasons))
+    rows.value = await Promise.all((await listScenarios()).map(toRow))
   } catch {
-    loadError.value = 'No se pudieron cargar tus establecimientos.'
+    loadError.value = 'No se pudieron cargar tus escenarios.'
   } finally {
     loading.value = false
   }
 }
 
-async function onCreated(scenario: Scenario) {
-  try {
-    scenarios.value = [...scenarios.value, await withSeasons(scenario)]
-  } catch {
-    // El establecimiento ya se guardó: se recarga la lista completa
-    await load()
-  }
-}
-
-// Recarga las campañas del establecimiento: la actual puede cambiar
-async function onSeasonCreated(scenario: ScenarioWithSeasons) {
-  const index = scenarios.value.indexOf(scenario)
-  try {
-    scenarios.value[index] = await withSeasons(scenario)
-  } catch {
-    await load()
-  }
+function onCreated(scenario: Scenario) {
+  void router.push({ name: 'scenario', params: { scenarioId: scenario.id } })
 }
 
 onMounted(load)
@@ -58,58 +55,58 @@ onMounted(load)
 
 <template>
   <section class="farm-page">
-    <h1 v-if="loading || loadError || !scenarios.length">Mi campo</h1>
+    <h1>Mi campo</h1>
     <p v-if="loading">Cargando…</p>
-    <div v-else-if="loadError" class="load-error" role="alert">
-      <p>{{ loadError }}</p>
-      <button type="button" @click="load">Reintentar</button>
+    <div v-else-if="loadError" role="alert">
+      <p class="error">{{ loadError }}</p>
+      <button type="button" class="btn" @click="load">Reintentar</button>
     </div>
-    <template v-else-if="scenarios.length > 0">
-      <article v-for="scenario in scenarios" :key="scenario.id" class="scenario">
-        <h1>{{ scenario.name }}</h1>
-        <p class="subtitle">Administrá los sectores y la campaña de tu establecimiento.</p>
-        <section v-if="scenario.current" class="campaign" aria-label="Campaña actual">
-          <div class="campaign-dates">
-            <h2>
-              Campaña {{ scenario.current.start_date.slice(0, 4) }}/{{
-                scenario.current.end_date.slice(2, 4)
-              }}
-              <span class="current">actual</span>
-            </h2>
-            <p>
-              Del {{ formatDate(scenario.current.start_date) }} al
-              {{ formatDate(scenario.current.end_date) }}
-            </p>
-          </div>
-          <SeasonRainfall
-            :key="scenario.current.id"
-            :season-id="scenario.current.id"
-            :rainfall-mm="scenario.current.rainfall_mm"
-          />
-        </section>
-        <AddSeason
-          :scenario-id="scenario.id"
-          :seasons="scenario.seasons"
-          @created="onSeasonCreated(scenario)"
-        />
-        <details v-if="scenario.seasons.some((season) => !season.is_current)" class="past-seasons">
-          <summary>Otras campañas</summary>
-          <ul>
-            <li
-              v-for="season in scenario.seasons.filter((item) => !item.is_current)"
-              :key="season.id"
-            >
-              Campaña {{ seasonLabel(season.start_date, season.end_date) }}
-            </li>
-          </ul>
-        </details>
-        <ScenarioUnits :scenario-id="scenario.id" overview />
-      </article>
+    <template v-else-if="rows.length">
+      <h2>Escenarios</h2>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Escenario</th>
+              <th class="number">Sectores</th>
+              <th class="number">Superficie</th>
+              <th>Última campaña</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in rows" :key="row.id">
+              <td>
+                <RouterLink :to="{ name: 'scenario', params: { scenarioId: row.id } }">
+                  {{ row.name }}
+                </RouterLink>
+              </td>
+              <td class="number">{{ row.unitCount }}</td>
+              <td class="number">{{ hectares(row.areaHa) }} ha</td>
+              <td>
+                {{
+                  row.lastSeason
+                    ? seasonName(row.lastSeason.start_date, row.lastSeason.end_date)
+                    : '—'
+                }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </template>
-    <template v-else>
-      <p>Registrá tu establecimiento para empezar a cargar sus sectores y campañas.</p>
-      <ScenarioForm @created="onCreated" />
-    </template>
+    <div v-else class="empty panel">
+      <p>Creá un escenario para empezar a cargar sus sectores y campañas.</p>
+      <button type="button" class="btn btn-primary" @click="creating = true">
+        Nuevo escenario
+      </button>
+    </div>
+    <AppModal v-if="creating" title="Nuevo escenario" @close="creating = false">
+      <ScenarioForm @created="onCreated">
+        <template #actions>
+          <button type="button" class="btn" @click="creating = false">Cancelar</button>
+        </template>
+      </ScenarioForm>
+    </AppModal>
   </section>
 </template>
 
@@ -117,71 +114,25 @@ onMounted(load)
 .farm-page {
   max-width: 1100px;
 }
-.scenario + .scenario {
-  margin-top: 32px;
-}
+
 h1 {
   font-size: 1.6rem;
   letter-spacing: -0.025em;
+  margin-bottom: 20px;
 }
-.subtitle {
-  margin-bottom: 18px;
-  color: var(--color-text-muted);
-  font-size: 0.9rem;
-}
-.campaign {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 24px;
-  margin-bottom: 16px;
-  padding: 18px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 11px;
-}
-.campaign h2 {
-  margin: 0;
+
+h2 {
+  margin: 0 0 10px;
   font-size: 0.95rem;
 }
-.campaign-dates p {
-  margin: 8px 0 0;
-  color: var(--color-text-muted);
-  font-size: 0.8rem;
+
+.empty {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
 }
-.campaign :deep(.rainfall) {
-  margin-top: 0;
-}
-.current {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-  font-size: 0.75rem;
-  font-weight: 400;
-}
-.past-seasons {
-  margin: 16px 0;
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-}
-.load-error button {
-  padding: 6px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--color-text);
-  font: inherit;
-  cursor: pointer;
-}
-@media (max-width: 700px) {
-  .campaign {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 16px;
-  }
+
+.empty p {
+  margin: 0;
 }
 </style>

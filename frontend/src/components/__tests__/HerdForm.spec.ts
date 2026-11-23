@@ -42,9 +42,9 @@ const HERD: Herd = {
   breeding_end: '2027-01-31',
 }
 
+// El formulario se abre solo al montarse
 async function openForm() {
   const wrapper = mount(HerdForm, { props: { seasonId: 5, unitId: 3 } })
-  await wrapper.find('button').trigger('click')
   await flushPromises()
   return wrapper
 }
@@ -59,6 +59,28 @@ beforeEach(() => {
 })
 
 describe('HerdForm', () => {
+  it('muestra el formulario abierto, sin botón para desplegarlo', async () => {
+    const wrapper = await openForm()
+
+    expect(listHerds).toHaveBeenCalledWith(5)
+    expect(wrapper.find('form').exists()).toBe(true)
+    expect(wrapper.findAll('button').map((b) => b.text())).toEqual(['Guardar rodeo'])
+  })
+
+  it('si no pudo cargar, avisa y deja reintentar', async () => {
+    vi.mocked(listAnimalCategories).mockRejectedValueOnce(new Error('Sin red'))
+    const wrapper = await openForm()
+
+    expect(wrapper.find('form').exists()).toBe(false)
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      'No se pudieron cargar los datos del rodeo.',
+    )
+    await wrapper.get('[role="alert"] button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('form').exists()).toBe(true)
+  })
+
   it('no ofrece terneros y aclara qué son vacas y vaquillonas', async () => {
     const wrapper = await openForm()
     const labels = wrapper

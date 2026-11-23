@@ -32,7 +32,7 @@ async function submit() {
   formError.value = ''
   const trimmed = name.value.trim()
   if (!trimmed) {
-    nameError.value = 'Ingresá el nombre del establecimiento.'
+    nameError.value = 'Ingresá el nombre del escenario.'
     return
   }
   if (year.value === null) return
@@ -44,9 +44,7 @@ async function submit() {
   } catch (err) {
     // Si el backend explica por qué no se pudo, se muestra su mensaje
     formError.value =
-      err instanceof ApiError
-        ? err.message
-        : 'No se pudo registrar el establecimiento. Probá de nuevo.'
+      err instanceof ApiError ? err.message : 'No se pudo crear el escenario. Probá de nuevo.'
   } finally {
     saving.value = false
   }
@@ -56,7 +54,7 @@ async function submit() {
 <template>
   <form class="scenario-form" novalidate @submit.prevent="submit">
     <div class="field">
-      <label for="scenario-name">Nombre del establecimiento</label>
+      <label for="scenario-name">Nombre del escenario</label>
       <input id="scenario-name" v-model="name" type="text" maxlength="100" autocomplete="off" />
       <p v-if="nameError" class="error">{{ nameError }}</p>
     </div>
@@ -72,9 +70,13 @@ async function submit() {
 
     <p v-if="formError" class="error" role="alert">{{ formError }}</p>
 
-    <button type="submit" :disabled="saving || options.length === 0">
-      {{ saving ? 'Guardando…' : 'Registrar establecimiento' }}
-    </button>
+    <div class="actions">
+      <button type="submit" :disabled="saving || options.length === 0">
+        {{ saving ? 'Guardando…' : 'Crear escenario' }}
+      </button>
+      <!-- Otros botones de quien usa el formulario, como «Cancelar» en una ventana -->
+      <slot name="actions" />
+    </div>
   </form>
 </template>
 
@@ -112,8 +114,13 @@ select {
   font-size: 0.9rem;
 }
 
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 button {
-  align-self: flex-start;
   padding: 10px 18px;
   border: none;
   border-radius: 8px;

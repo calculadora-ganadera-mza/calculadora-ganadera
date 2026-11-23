@@ -39,6 +39,8 @@ async function add() {
     <button type="button" :disabled="saving" @click="add">
       {{ saving ? 'Agregando…' : `Agregar campaña ${label}` }}
     </button>
+    <!-- Otros botones de quien usa el componente, como «Cancelar» en una ventana -->
+    <slot name="actions" />
     <p class="hint">Nace sin datos. Las campañas anteriores no cambian.</p>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
   </div>

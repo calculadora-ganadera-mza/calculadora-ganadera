@@ -46,7 +46,7 @@ describe('ScenarioForm', () => {
     await wrapper.find('input').setValue('   ')
     await wrapper.find('form').trigger('submit')
 
-    expect(wrapper.text()).toContain('Ingresá el nombre del establecimiento.')
+    expect(wrapper.text()).toContain('Ingresá el nombre del escenario.')
     expect(createScenario).not.toHaveBeenCalled()
   })
 
@@ -75,7 +75,7 @@ describe('ScenarioForm', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('No se pudo registrar el establecimiento.')
+    expect(wrapper.text()).toContain('No se pudo crear el escenario.')
     expect(wrapper.emitted('created')).toBeUndefined()
   })
 
