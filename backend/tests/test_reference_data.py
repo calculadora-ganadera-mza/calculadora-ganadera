@@ -127,6 +127,9 @@ def stored_value(session: Session, key: str) -> float | None:
     [
         ("summer_start_month", 13),
         ("summer_end_month", 12.5),
+        ("winter_start_month", 13),
+        ("winter_end_month", 8.5),
+        ("load_thermometer_below_threshold", 1.1),
         ("gestation_days", 283.5),
         ("normal_weaning_age_months", 6.5),
         ("heifer_first_breeding_age_months", 24.2),

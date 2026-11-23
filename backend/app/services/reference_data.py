@@ -49,7 +49,8 @@ def update_parameter(session: Session, key: str, value: float | None) -> Paramet
             except ValidationError as err:
                 raise InvalidReferenceValueError(
                     "El valor no es válido para este parámetro: los meses van de "
-                    "1 a 12 y los días y las edades son números enteros."
+                    "1 a 12, los días y las edades son números enteros y el umbral "
+                    "de carga es una fracción mayor que 0 y menor o igual a 1."
                 ) from err
     except IntegrityError as err:
         if violated_constraint(err) != "ck_parameter_value_positive":

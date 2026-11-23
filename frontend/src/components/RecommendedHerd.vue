@@ -55,8 +55,6 @@ const herdWarnings = computed(() =>
 
 <style scoped>
 .recommended {
-  max-width: 720px;
-  margin-top: 16px;
   padding: 20px 24px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -70,7 +68,6 @@ h2 {
 
 table {
   width: 100%;
-  max-width: 360px;
   border-collapse: collapse;
   font-variant-numeric: tabular-nums;
 }

@@ -15,7 +15,9 @@ const HERD = {
 
 describe('ScaledHerd', () => {
   it('muestra el rodeo actual, el ajustado y el total en EV', () => {
-    const wrapper = mount(ScaledHerd, { props: { herd: HERD, maxHerdCowEquivalents: 4.2 } })
+    const wrapper = mount(ScaledHerd, {
+      props: { herd: HERD, currentCowEquivalents: 10.5, maxHerdCowEquivalents: 4.2 },
+    })
     const rows = wrapper
       .findAll('tbody tr')
       .map((row) => row.findAll('th, td').map((cell) => cell.text()))
@@ -24,19 +26,23 @@ describe('ScaledHerd', () => {
       ['Vaca con cría', '10', '3'],
       ['Ternero de destete', '2', '1'],
     ])
-    expect(wrapper.find('tfoot').text()).toContain('3,3 EV')
+    expect(wrapper.findAll('tfoot td').map((cell) => cell.text())).toEqual(['10,5 EV', '3,3 EV'])
     expect(wrapper.text()).toContain('Ajustado hasta 4,2 EV')
     expect(wrapper.find('.note').exists()).toBe(false)
   })
 
   it('aclara cuando el agua lo deja por debajo del rodeo máximo', () => {
-    const wrapper = mount(ScaledHerd, { props: { herd: HERD, maxHerdCowEquivalents: 4.334 } })
+    const wrapper = mount(ScaledHerd, {
+      props: { herd: HERD, currentCowEquivalents: 10.5, maxHerdCowEquivalents: 4.334 },
+    })
 
     expect(wrapper.find('.note').text()).toContain('Queda por debajo del rodeo máximo')
   })
 
   it('sin rodeo ajustado no muestra nada', () => {
-    const wrapper = mount(ScaledHerd, { props: { herd: null, maxHerdCowEquivalents: 4.2 } })
+    const wrapper = mount(ScaledHerd, {
+      props: { herd: null, currentCowEquivalents: 10.5, maxHerdCowEquivalents: 4.2 },
+    })
 
     expect(wrapper.find('section').exists()).toBe(false)
   })

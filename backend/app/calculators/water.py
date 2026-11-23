@@ -27,6 +27,8 @@ class WaterParameters:
     gestation_days: int
     summer_start_month: Month
     summer_end_month: Month
+    winter_start_month: Month
+    winter_end_month: Month
 
 
 @dataclass(frozen=True)
@@ -144,6 +146,16 @@ def water_limit(
     """Límite por agua en EV: litros disponibles dividido por
     los litros por EV en verano."""
     return available_l_day * composition_cow_equivalents / composition_l_day
+
+
+def water_need(
+    *,
+    limit_cow_equivalents: float,
+    composition_l_day: float,
+    composition_cow_equivalents: float,
+) -> float:
+    """Litros por día que necesita el rodeo al alcanzar el límite en EV."""
+    return limit_cow_equivalents * composition_l_day / composition_cow_equivalents
 
 
 def max_herd(

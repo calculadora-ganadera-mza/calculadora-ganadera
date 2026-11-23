@@ -14,6 +14,7 @@ from app.calculators.water import (
     season_litres,
     stage_months,
     water_limit,
+    water_need,
 )
 from app.models.enums import LimitedBy
 
@@ -25,7 +26,13 @@ HERD = HerdParameters(
     early_weaning_age_months=3,
     heifer_first_breeding_age_months=24,
 )
-WATER = WaterParameters(gestation_days=283, summer_start_month=12, summer_end_month=2)
+WATER = WaterParameters(
+    gestation_days=283,
+    summer_start_month=12,
+    summer_end_month=2,
+    winter_start_month=6,
+    winter_end_month=8,
+)
 SUMMER = months_between(12, 2)
 # Agua en verano de la tabla de categorías
 SUMMER_LITRES = CategoryWater(cow=70, bull=65, calf=25, heifer=42.5)
@@ -84,6 +91,21 @@ def test_water_limit():
     )
 
     assert limit == pytest.approx(124.85)
+
+
+@pytest.mark.parametrize(
+    ("composition_l_day", "expected"), [(86.425, 8642.5), (45.35, 4535)]
+)
+def test_water_need(composition_l_day, expected):
+    # 124,85 EV ÷ 1,2485 EV por vaca = 100 vacas con su parte del rodeo.
+    # En verano necesitan 100 × 86,425 L/día y en invierno 100 × 45,35 L/día.
+    need = water_need(
+        limit_cow_equivalents=124.85,
+        composition_l_day=composition_l_day,
+        composition_cow_equivalents=1.2485,
+    )
+
+    assert need == pytest.approx(expected)
 
 
 def test_herd_litres():

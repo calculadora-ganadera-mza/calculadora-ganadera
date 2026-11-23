@@ -4,6 +4,7 @@ from app.calculators.current_herd import (
     current_herd_max,
     herd_total,
     herd_with_calves,
+    load_status,
     scale_herd,
 )
 from app.calculators.recommended_herd import HerdParameters
@@ -22,6 +23,36 @@ EQUIVALENTS = {"cow": 1, "bull": 1.3, "heifer": 0.7, "steer": 0.8, "calf": 0.25}
 # Agua en verano de la tabla de categorías. Con entore el 1/1 las terneras de
 # reposición están en el campo de abril a octubre: en verano valen 0.
 SUMMER_LITRES = {"cow": 70, "bull": 65, "heifer": 42.5, "steer": 42.5, "calf": 0}
+
+
+@pytest.mark.parametrize(
+    ("current", "expected"),
+    [(89.999, "below"), (90, "within"), (100, "within"), (100.001, "above")],
+)
+def test_load_status_uses_unrounded_boundaries(current, expected):
+    assert load_status(current, 100, 90) == expected
+
+
+@pytest.mark.parametrize(
+    ("refill_l_day", "expected"), [(70, "within"), (69.9999, "above")]
+)
+def test_load_status_at_the_water_limit(refill_l_day, expected):
+    herd = {"cow": 1}
+    equivalents = {"cow": 0.98}
+    current = herd_total(herd, equivalents)
+    limit = current_herd_max(
+        max_cow_equivalents=10,
+        available_l_day=refill_l_day,
+        herd=herd,
+        summer_l_day={"cow": 70},
+        cow_equivalents=equivalents,
+    )
+
+    assert load_status(current, limit, limit * 0.9) == expected
+
+
+def test_load_status_at_the_computed_lower_boundary():
+    assert load_status(0.09, 0.1, 0.1 * 0.9) == "within"
 
 
 def scale(loaded, limit, *, replacement=0.2, weaning=0.75, fits=None):

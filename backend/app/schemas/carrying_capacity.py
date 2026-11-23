@@ -2,7 +2,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from app.models.enums import LimitedBy
+from app.models.enums import LimitedBy, LoadStatus
 from app.schemas.herd import HerdData
 
 
@@ -63,12 +63,15 @@ class ScaledHerdRead(BaseModel):
     categories: list[ScaledHerdQuantity]
 
 
-class CarryingCapacityResult(BaseModel):
-    """Resultado del cálculo.
+class LoadThermometerRead(BaseModel):
+    status: LoadStatus
+    current_cow_equivalents: float
+    max_cow_equivalents: float
+    below_cow_equivalents: float
 
-    El contrato pide además load_thermometer: se agrega en la issue que lo
-    calcula (#17).
-    """
+
+class CarryingCapacityResult(BaseModel):
+    """Resultado del cálculo."""
 
     area_ha: float
     usable_area_ha: float
@@ -81,20 +84,20 @@ class CarryingCapacityResult(BaseModel):
     # None si no hay vacas o si no entra ni una vaca con su parte de los demás
     # animales
     scaled_herd: ScaledHerdRead | None
+    load_thermometer: LoadThermometerRead
     warnings: list[CalculationWarning]
 
 
 class WaterRead(BaseModel):
-    """Límite por agua.
-    El contrato pide además summer_need_l_day y winter_need_l_day: se agregan
-    en la issue #17.
-    """
+    """Límite por agua y demanda del rodeo que permite el pasto."""
 
     evaluated: bool
     # None si no se evaluó
     limit_cow_equivalents: float | None
     # None si ninguna aguada que cuenta para el sector tiene litros cargados
     refill_l_day: float | None
+    summer_need_l_day: float | None
+    winter_need_l_day: float | None
 
 
 class MaxHerdRead(BaseModel):

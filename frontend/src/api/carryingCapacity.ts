@@ -2,8 +2,7 @@ import { authenticatedFetch } from './auth'
 import { responseError } from './errors'
 import type { HerdData } from './herds'
 
-// Tipos según docs/openapi.yaml. El termómetro y la necesidad de agua por estación se suman en
-// las tareas que los calculan.
+// Tipos según docs/openapi.yaml.
 
 export interface CarryingCapacityInput extends HerdData {
   rainfall_mm: number
@@ -42,9 +41,20 @@ export type LimitedBy = 'pasture' | 'water'
 
 // Si se evaluó, el límite y los litros siempre llegan. Si no se evaluó (sin
 // litros cargados o sin vacas), no hay límite, pero puede haber litros.
-export type WaterResult =
+export type WaterResult = (
   | { evaluated: true; limit_cow_equivalents: number; refill_l_day: number }
   | { evaluated: false; limit_cow_equivalents: null; refill_l_day: number | null }
+) & {
+  summer_need_l_day: number | null
+  winter_need_l_day: number | null
+}
+
+export interface LoadThermometer {
+  status: 'below' | 'within' | 'above'
+  current_cow_equivalents: number
+  max_cow_equivalents: number
+  below_cow_equivalents: number
+}
 
 // Rodeo máximo sin redondear. Sus categorías quedan vacías si no hay vacas.
 export interface MaxHerd {
@@ -69,6 +79,7 @@ export interface CarryingCapacityResult {
   recommended_herd: RecommendedHerd | null
   // null si no hay vacas o si no entra ni una vaca con su parte de los demás animales
   scaled_herd: ScaledHerd | null
+  load_thermometer: LoadThermometer
   warnings: CalculationWarning[]
 }
 

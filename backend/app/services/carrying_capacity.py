@@ -1,8 +1,9 @@
 from collections.abc import Mapping
 from dataclasses import dataclass, fields
 from datetime import date
+from typing import Annotated
 
-from pydantic import TypeAdapter
+from pydantic import Field, TypeAdapter
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -12,6 +13,7 @@ from app.calculators.current_herd import (
     current_herd_max,
     herd_total,
     herd_with_calves,
+    load_status,
     scale_herd,
 )
 from app.calculators.recommended_herd import (
@@ -34,6 +36,7 @@ from app.calculators.water import (
     months_between,
     season_litres,
     water_limit,
+    water_need,
 )
 from app.models import AnimalCategory
 from app.models.enums import LimitedBy
@@ -42,6 +45,7 @@ from app.schemas.carrying_capacity import (
     CarryingCapacityInput,
     CarryingCapacityResult,
     HerdQuantity,
+    LoadThermometerRead,
     MaxHerdRead,
     RecommendedHerdRead,
     ScaledHerdQuantity,
@@ -50,7 +54,7 @@ from app.schemas.carrying_capacity import (
     WaterRead,
     WeanedCalves,
 )
-from app.services.herds import UnitNotFoundError, category_codes, check_herd_rules
+from app.services.herds import UnitNotFoundError, check_herd_rules
 from app.services.parameters import get_parameters
 from app.services.production_units import get_user_unit, read_unit
 from app.services.water_points import AvailableWater, available_water
@@ -93,6 +97,8 @@ HERD_DOES_NOT_FIT = CalculationWarning(
 PASTURE_PARAMETERS = TypeAdapter(PastureParameters)
 WATER_PARAMETERS = TypeAdapter(WaterParameters)
 HERD_PARAMETERS = TypeAdapter(HerdParameters)
+LOAD_THRESHOLD = TypeAdapter(Annotated[float, Field(gt=0, le=1)])
+LOAD_THRESHOLD_KEY = "load_thermometer_below_threshold"
 # Parámetros del rodeo que salen de la tabla parameter; los toros pueden
 # venir del pedido.
 HERD_PARAMETER_KEYS = [field.name for field in fields(HerdParameters)]
@@ -112,6 +118,8 @@ class HerdResults:
     max_herd: MaxHerdRead
     recommended_herd: RecommendedHerdRead | None
     scaled_herd: ScaledHerdRead | None
+    current_cow_equivalents: float
+    current_herd_max: float
     warnings: list[CalculationWarning]
 
 
@@ -130,8 +138,9 @@ def calculate(
     """Calcula con los datos recibidos y la superficie del sector, sin guardar."""
     if get_user_unit(session, user_id, unit_id) is None:
         raise UnitNotFoundError("Sector no encontrado.")
-    codes = category_codes(session)
-    check_herd_rules(data, category_codes(session))
+    categories = herd_categories(session)
+    codes = {category.id: code for code, category in categories.items()}
+    check_herd_rules(data, codes)
     unit = read_unit(session, unit_id)
     pasture = calculate_pasture_limit(
         rainfall_mm=data.rainfall_mm,
@@ -143,10 +152,17 @@ def calculate(
     )
     pasture_limit = pasture.pasture_limit_cow_equivalents
     water = available_water(session, unit_id)
-    if has_cows(data, codes):
-        herd = herd_results(session, data, codes, pasture_limit, water)
+    loaded = {codes[item.animal_category_id]: item.quantity for item in data.categories}
+    if loaded.get("cow", 0) > 0:
+        herd = herd_results(session, data, loaded, categories, pasture_limit, water)
     else:
-        herd = results_without_cows(pasture_limit, water)
+        equivalents = {
+            code: category.cow_equivalent for code, category in categories.items()
+        }
+        herd = results_without_cows(
+            pasture_limit, water, herd_total(loaded, equivalents)
+        )
+    below = herd.current_herd_max * read_load_threshold(session)
     warnings = [MISSING_INDEX] if pasture.missing_index else []
     return CarryingCapacityResult(
         area_ha=unit["area_ha"],
@@ -159,18 +175,21 @@ def calculate(
         max_herd=herd.max_herd,
         recommended_herd=herd.recommended_herd,
         scaled_herd=herd.scaled_herd,
+        load_thermometer=LoadThermometerRead(
+            status=load_status(
+                herd.current_cow_equivalents, herd.current_herd_max, below
+            ),
+            current_cow_equivalents=herd.current_cow_equivalents,
+            max_cow_equivalents=herd.current_herd_max,
+            below_cow_equivalents=below,
+        ),
         warnings=warnings + herd.warnings,
     )
 
 
-def has_cows(data: CarryingCapacityInput, codes: dict[int, str]) -> bool:
-    return any(
-        codes[item.animal_category_id] == "cow" and item.quantity > 0
-        for item in data.categories
-    )
-
-
-def results_without_cows(pasture_limit: float, water: AvailableWater) -> HerdResults:
+def results_without_cows(
+    pasture_limit: float, water: AvailableWater, current_cow_equivalents: float
+) -> HerdResults:
     """Sin vacas no hay composición: el agua no se evalúa y el rodeo máximo es
     el límite por pasto."""
     return HerdResults(
@@ -178,6 +197,8 @@ def results_without_cows(pasture_limit: float, water: AvailableWater) -> HerdRes
             evaluated=False,
             limit_cow_equivalents=None,
             refill_l_day=water.refill_l_day,
+            summer_need_l_day=None,
+            winter_need_l_day=None,
         ),
         max_herd=MaxHerdRead(
             cow_equivalents=pasture_limit,
@@ -186,6 +207,8 @@ def results_without_cows(pasture_limit: float, water: AvailableWater) -> HerdRes
         ),
         recommended_herd=None,
         scaled_herd=None,
+        current_cow_equivalents=current_cow_equivalents,
+        current_herd_max=pasture_limit,
         warnings=[WATER_WITHOUT_COWS],
     )
 
@@ -193,7 +216,8 @@ def results_without_cows(pasture_limit: float, water: AvailableWater) -> HerdRes
 def herd_results(
     session: Session,
     data: CarryingCapacityInput,
-    codes: dict[int, str],
+    loaded: dict[str, int],
+    categories: dict[str, AnimalCategory],
     pasture_limit: float,
     water: AvailableWater,
 ) -> HerdResults:
@@ -211,7 +235,6 @@ def herd_results(
         # check_herd_rules lo impide: llegar acá es un error de programación
         raise RuntimeError("Rodeo con vacas sin reposición, destete o entore.")
     parameters = read_herd_parameters(session, data.bulls_per_100_cows)
-    categories = herd_categories(session)
     equivalents = CategoryEquivalents(
         **{code: categories[code].cow_equivalent for code in HERD_CODES}
     )
@@ -220,9 +243,14 @@ def herd_results(
     )
     warnings = [REPLACEMENT_EXCEEDS_FEMALES] if exceeds else []
 
-    summer = summer_litres(
+    summer, winter = seasonal_litres(
         session, data.breeding_start, data.early_weaning, parameters, categories
     )
+    composition_ev = cow_equivalents_per_cow(
+        rate, data.early_weaning, parameters, equivalents
+    )
+    summer_l_day = litres_per_cow(summer, rate, parameters)
+    winter_l_day = litres_per_cow(winter, rate, parameters)
     refill = water.refill_l_day
     limit = None
     if refill is None:
@@ -232,10 +260,8 @@ def herd_results(
             warnings.append(PARTIAL_WATER_DATA)
         limit = water_limit(
             available_l_day=refill,
-            composition_l_day=litres_per_cow(summer, rate, parameters),
-            composition_cow_equivalents=cow_equivalents_per_cow(
-                rate, data.early_weaning, parameters, equivalents
-            ),
+            composition_l_day=summer_l_day,
+            composition_cow_equivalents=composition_ev,
         )
     max_cow_equivalents, limited_by = max_herd(pasture_limit, limit)
 
@@ -264,7 +290,6 @@ def herd_results(
     equivalents_per_head, litres_per_head = per_head_values(
         categories, calf_ev, summer.calf
     )
-    loaded = {codes[item.animal_category_id]: item.quantity for item in data.categories}
     current = herd_with_calves(
         loaded,
         replacement_rate=data.replacement_rate,
@@ -298,6 +323,16 @@ def herd_results(
             evaluated=limit is not None,
             limit_cow_equivalents=limit,
             refill_l_day=refill,
+            summer_need_l_day=water_need(
+                limit_cow_equivalents=pasture_limit,
+                composition_l_day=summer_l_day,
+                composition_cow_equivalents=composition_ev,
+            ),
+            winter_need_l_day=water_need(
+                limit_cow_equivalents=pasture_limit,
+                composition_l_day=winter_l_day,
+                composition_cow_equivalents=composition_ev,
+            ),
         ),
         max_herd=MaxHerdRead(
             cow_equivalents=max_cow_equivalents,
@@ -310,25 +345,40 @@ def herd_results(
             if scaled is None
             else scaled_read(scaled, current, current_max, categories)
         ),
+        current_cow_equivalents=herd_total(current, equivalents_per_head),
+        current_herd_max=current_max,
         warnings=warnings,
     )
 
 
-def summer_litres(
+def seasonal_litres(
     session: Session,
     breeding_start: date,
     early_weaning: bool,
     parameters: HerdParameters,
     categories: dict[str, AnimalCategory],
-) -> CategoryWater:
-    """Litros por cabeza en verano, según el calendario del rodeo."""
+) -> tuple[CategoryWater, CategoryWater]:
+    """Litros por cabeza en verano e invierno, según el calendario del rodeo."""
     water = read_water_parameters(session)
     calendar = herd_calendar(breeding_start, early_weaning, parameters, water)
     summer = months_between(water.summer_start_month, water.summer_end_month)
-    litres = CategoryWater(
-        **{code: categories[code].summer_water_l_day for code in HERD_CODES}
+    winter = months_between(water.winter_start_month, water.winter_end_month)
+    return (
+        season_litres(
+            CategoryWater(
+                **{code: categories[code].summer_water_l_day for code in HERD_CODES}
+            ),
+            calendar,
+            summer,
+        ),
+        season_litres(
+            CategoryWater(
+                **{code: categories[code].winter_water_l_day for code in HERD_CODES}
+            ),
+            calendar,
+            winter,
+        ),
     )
-    return season_litres(litres, calendar, summer)
 
 
 def read_herd_parameters(
@@ -348,6 +398,11 @@ def read_water_parameters(session: Session) -> WaterParameters:
     )
 
 
+def read_load_threshold(session: Session) -> float:
+    values = get_parameters(session, [LOAD_THRESHOLD_KEY])
+    return LOAD_THRESHOLD.validate_python(values[LOAD_THRESHOLD_KEY])
+
+
 def check_calculation_parameters(session: Session) -> None:
     """Revisa que los parámetros de la tabla cumplan los tipos del motor.
 
@@ -358,6 +413,7 @@ def check_calculation_parameters(session: Session) -> None:
     read_pasture_parameters(session)
     read_water_parameters(session)
     read_herd_parameters(session, None)
+    read_load_threshold(session)
 
 
 def herd_categories(session: Session) -> dict[str, AnimalCategory]:

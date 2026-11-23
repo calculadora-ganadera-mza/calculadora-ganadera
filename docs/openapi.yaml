@@ -1640,10 +1640,10 @@ components:
                 Es `null` si ninguna tiene litros cargados.
             summer_need_l_day:
               type: [number, "null"]
-              description: Litros por día que requiere el límite por pasto en verano.
+              description: Litros por día que requiere el límite por pasto en verano. Es `null` sin vacas.
             winter_need_l_day:
               type: [number, "null"]
-              description: Litros por día que requiere el límite por pasto en invierno.
+              description: Litros por día que requiere el límite por pasto en invierno. Es `null` sin vacas.
         max_herd:
           type: object
           required: [cow_equivalents, limited_by, categories]
@@ -1709,7 +1709,7 @@ components:
                     $ref: "#/components/schemas/ScaledHerdQuantity"
         load_thermometer:
           type: object
-          required: [status, current_cow_equivalents, max_cow_equivalents]
+          required: [status, current_cow_equivalents, max_cow_equivalents, below_cow_equivalents]
           properties:
             status:
               type: string
@@ -1726,6 +1726,9 @@ components:
                 Rodeo máximo con la composición del rodeo actual, en EV. Coincide
                 con `scaled_herd.max_cow_equivalents` cuando `scaled_herd` no es
                 `null`.
+            below_cow_equivalents:
+              type: number
+              description: Umbral, en EV, a partir del cual el rodeo está dentro de la capacidad.
         warnings:
           type: array
           items:
