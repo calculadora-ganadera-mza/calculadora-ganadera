@@ -3,7 +3,7 @@ import { mount, type VueWrapper } from '@vue/test-utils'
 import L from 'leaflet'
 
 import UnitsMap from '../UnitsMap.vue'
-import type { Position, ProductionUnit } from '@/api/productionUnits'
+import type { PolygonGeoJSON, Position, ProductionUnit } from '@/api/productionUnits'
 
 // Sector rectangular entre dos esquinas [longitud, latitud]
 function unitBetween(id: number, [west, south]: Position, [east, north]: Position): ProductionUnit {
@@ -87,6 +87,35 @@ describe('encuadre y modo de la pantalla', () => {
 
     const bounds = spy.fitBounds.mock.lastCall![0] as L.LatLngBounds
     expect(bounds.getEast()).toBeCloseTo(-68.2)
+  })
+
+  it('al dibujar, las esquinas se pegan al borde de un sector vecino', () => {
+    // El vecino termina en la longitud -68.4; dos esquinas se marcan a unos 70 m de sus
+    // esquinas del este, del lado de afuera
+    const neighbor = unitBetween(1, [-68.5, -34.6], [-68.4, -34.5])
+    wrapper = mount(UnitsMap, {
+      props: { units: [], referenceUnits: [neighbor], draft: null, editingId: null },
+    })
+    const map = spy.create.mock.results[0]!.value as L.Map
+    map.setView([-34.55, -68.4], 14)
+    map.pm.enableDraw('Polygon')
+    const corners = [
+      L.latLng(-34.5995, -68.3995),
+      L.latLng(-34.6, -68.35),
+      L.latLng(-34.5, -68.35),
+      L.latLng(-34.5005, -68.3995),
+      // Cerrar: tocar de nuevo la primera esquina
+      L.latLng(-34.5995, -68.3995),
+    ]
+    for (const latlng of corners) {
+      map.fire('mousemove', { latlng })
+      map.fire('click', { latlng })
+    }
+
+    const drawn = wrapper.emitted('draw')![0]![0] as PolygonGeoJSON
+    const ring = drawn.coordinates[0]!
+    expect(ring[0]![0]).toBeCloseTo(-68.4, 6)
+    expect(ring[3]![0]).toBeCloseTo(-68.4, 6)
   })
 })
 

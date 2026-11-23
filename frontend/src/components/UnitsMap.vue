@@ -99,6 +99,8 @@ function showReferenceUnits() {
       },
       interactive: false,
       pmIgnore: true,
+      // Los vecinos no se editan, pero las esquinas se pegan a sus bordes
+      snapIgnore: false,
     } as L.GeoJSONOptions).addTo(referenceLayer)
   }
 }
