@@ -1,4 +1,5 @@
 // Ayudas de las pantallas de Mi campo
+import type { LocationQuery, LocationQueryRaw } from 'vue-router'
 
 // Número de la dirección (escenario, sector o aguada); null si no es un id válido
 export function routeId(value: unknown): number | null {
@@ -9,4 +10,9 @@ export function routeId(value: unknown): number | null {
 // 1234.56 → "1.234,6"
 export function hectares(value: number): string {
   return value.toLocaleString('es-AR', { maximumFractionDigits: 1 })
+}
+
+// Parte de la dirección que se pasan las pantallas de Mi campo: la campaña elegida
+export function keepSeason(query: LocationQuery): LocationQueryRaw {
+  return { season: query.season }
 }

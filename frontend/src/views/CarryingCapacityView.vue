@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { listProductionUnits, type ProductionUnit } from '@/api/productionUnits'
 import { listScenarios, listSeasons, type Scenario, type Season } from '@/api/scenarios'
-import { seasonLabel } from '@/utils/season'
+import { pickSeason, seasonLabel } from '@/utils/season'
 
 const route = useRoute()
 const router = useRouter()
@@ -38,10 +38,7 @@ async function loadScenario(preselectedUnit?: number, preselectedSeason?: number
       listProductionUnits(scenarioId.value),
     ])
     unitId.value = units.value.find((unit) => unit.id === preselectedUnit)?.id
-    seasonId.value = (
-      seasons.value.find((season) => season.id === preselectedSeason) ??
-      seasons.value.find((season) => season.is_current)
-    )?.id
+    seasonId.value = pickSeason(seasons.value, preselectedSeason)?.id
   } catch {
     error.value = 'No se pudieron cargar los sectores y las campañas.'
   } finally {

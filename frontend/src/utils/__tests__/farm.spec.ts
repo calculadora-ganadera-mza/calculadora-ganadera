@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hectares, routeId } from '../farm'
+import { hectares, keepSeason, routeId } from '../farm'
 
 describe('routeId', () => {
   it('acepta solo enteros positivos', () => {
@@ -14,5 +14,12 @@ describe('hectares', () => {
   it('usa el formato argentino con un decimal como máximo', () => {
     expect(hectares(4614.27)).toBe('4.614,3')
     expect(hectares(150)).toBe('150')
+  })
+})
+
+describe('keepSeason', () => {
+  it('pasa solo la campaña de la dirección', () => {
+    expect(keepSeason({ season: '12', scenario: '7' })).toEqual({ season: '12' })
+    expect(keepSeason({}).season).toBeUndefined()
   })
 })
