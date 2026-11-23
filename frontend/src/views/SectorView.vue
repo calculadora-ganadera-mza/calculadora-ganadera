@@ -14,8 +14,8 @@ import {
 } from '@/api/productionUnits'
 import { listSeasons, type Season } from '@/api/scenarios'
 import { waterRequest, type WaterPoint } from '@/api/waterPoints'
-import { hectares, routeId } from '@/utils/farm'
-import { seasonName } from '@/utils/season'
+import { hectares, keepSeason, routeId } from '@/utils/farm'
+import { pickSeason, seasonName } from '@/utils/season'
 
 const route = useRoute()
 const router = useRouter()
@@ -86,7 +86,7 @@ async function load(refresh = false) {
     else if (!loaded.units.some((item) => item.id === unitId.value))
       missing.value = 'No se encontró este sector en el escenario.'
     data.value = loaded ?? undefined
-    season.value = seasons.find((item) => item.is_current)
+    season.value = pickSeason(seasons, route.query.season)
   } catch {
     if (version === loadVersion) error.value = 'No se pudo cargar el sector. Intentá de nuevo.'
   } finally {
@@ -183,14 +183,18 @@ async function removeUnit() {
   actionError.value = ''
   try {
     await deleteProductionUnit(current.id)
-    await router.push({ name: 'scenario', params: { scenarioId: data.value.scenario.id } })
+    await router.push({
+      name: 'scenario',
+      params: { scenarioId: data.value.scenario.id },
+      query: keepSeason(route.query),
+    })
   } catch (err) {
     actionError.value = err instanceof ApiError ? err.message : 'No se pudo eliminar el sector.'
   }
 }
 
 watch(
-  () => [route.params.scenarioId, route.params.unitId],
+  () => [route.params.scenarioId, route.params.unitId, route.query.season],
   () => {
     cancelShape()
     void load()
@@ -207,7 +211,11 @@ watch(
       :steps="[
         {
           label: data?.scenario.name ?? 'Escenario',
-          to: { name: 'scenario', params: { scenarioId: route.params.scenarioId } },
+          to: {
+            name: 'scenario',
+            params: { scenarioId: route.params.scenarioId },
+            query: keepSeason(route.query),
+          },
         },
         { label: unit?.name ?? 'Sector' },
       ]"
@@ -225,8 +233,18 @@ watch(
             <h1>{{ unit.name }}</h1>
             <button type="button" class="text-button" @click="openRename">Editar</button>
           </div>
-          <p v-if="season" class="hint">
-            Campaña {{ seasonName(season.start_date, season.end_date) }}
+          <p v-if="season" class="hint season-meta">
+            <span>Campaña {{ seasonName(season.start_date, season.end_date) }}</span>
+            <RouterLink
+              class="text-button"
+              :to="{
+                name: 'scenario',
+                params: { scenarioId: data.scenario.id },
+                query: keepSeason(route.query),
+              }"
+            >
+              Cambiar campaña
+            </RouterLink>
           </p>
         </div>
         <div class="actions">
@@ -301,6 +319,7 @@ watch(
             :to="{
               name: 'new-water-point',
               params: { scenarioId: data.scenario.id, unitId: unit.id },
+              query: keepSeason(route.query),
             }"
           >
             Ubicar aguada
@@ -342,6 +361,7 @@ watch(
                         unitId: unit.id,
                         waterPointId: point.id,
                       },
+                      query: keepSeason(route.query),
                     }"
                   >
                     Editar
@@ -406,6 +426,13 @@ watch(
   display: flex;
   align-items: baseline;
   gap: 10px;
+}
+
+.season-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 16px;
 }
 
 h1 {

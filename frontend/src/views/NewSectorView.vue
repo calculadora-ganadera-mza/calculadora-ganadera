@@ -10,7 +10,7 @@ import {
   type PolygonGeoJSON,
   type ProductionUnit,
 } from '@/api/productionUnits'
-import { routeId } from '@/utils/farm'
+import { keepSeason, routeId } from '@/utils/farm'
 
 // El sector nuevo todavía no existe: el mapa solo muestra los vecinos
 const NO_UNITS: ProductionUnit[] = []
@@ -69,7 +69,11 @@ async function save() {
   try {
     const scenarioId = data.value.scenario.id
     const unit = await createProductionUnit(scenarioId, { name: trimmed, polygon: draft.value })
-    await router.push({ name: 'sector', params: { scenarioId, unitId: unit.id } })
+    await router.push({
+      name: 'sector',
+      params: { scenarioId, unitId: unit.id },
+      query: keepSeason(route.query),
+    })
   } catch (err) {
     saveError.value = err instanceof ApiError ? err.message : 'No se pudo guardar el sector.'
   } finally {
@@ -86,7 +90,11 @@ watch(() => route.params.scenarioId, load, { immediate: true })
       :steps="[
         {
           label: data?.scenario.name ?? 'Escenario',
-          to: { name: 'scenario', params: { scenarioId: route.params.scenarioId } },
+          to: {
+            name: 'scenario',
+            params: { scenarioId: route.params.scenarioId },
+            query: keepSeason(route.query),
+          },
         },
         { label: 'Nuevo sector' },
       ]"
@@ -123,7 +131,11 @@ watch(() => route.params.scenarioId, load, { immediate: true })
           </button>
           <RouterLink
             class="text-button"
-            :to="{ name: 'scenario', params: { scenarioId: data.scenario.id } }"
+            :to="{
+              name: 'scenario',
+              params: { scenarioId: data.scenario.id },
+              query: keepSeason(route.query),
+            }"
           >
             Cancelar
           </RouterLink>
