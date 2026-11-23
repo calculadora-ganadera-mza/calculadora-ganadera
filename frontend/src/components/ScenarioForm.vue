@@ -70,9 +70,13 @@ async function submit() {
 
     <p v-if="formError" class="error" role="alert">{{ formError }}</p>
 
-    <button type="submit" :disabled="saving || options.length === 0">
-      {{ saving ? 'Guardando…' : 'Crear escenario' }}
-    </button>
+    <div class="actions">
+      <button type="submit" :disabled="saving || options.length === 0">
+        {{ saving ? 'Guardando…' : 'Crear escenario' }}
+      </button>
+      <!-- Otros botones de quien usa el formulario, como «Cancelar» en una ventana -->
+      <slot name="actions" />
+    </div>
   </form>
 </template>
 
@@ -110,8 +114,13 @@ select {
   font-size: 0.9rem;
 }
 
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 button {
-  align-self: flex-start;
   padding: 10px 18px;
   border: none;
   border-radius: 8px;

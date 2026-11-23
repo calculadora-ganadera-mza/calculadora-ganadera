@@ -70,6 +70,21 @@ describe('Pantalla del escenario', () => {
     expect(wrapper.get('.past-seasons').text()).toContain('Campaña 2027/28')
   })
 
+  it('Cancelar cierra la ventana sin crear la campaña', async () => {
+    const { wrapper } = await openAt('/farm/7')
+
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Nueva campaña')!
+      .trigger('click')
+    const buttons = wrapper.get('[role="dialog"] .add-season').findAll('button')
+    expect(buttons.map((b) => b.text())).toEqual(['Agregar campaña 2027/28', 'Cancelar'])
+    await buttons[1]!.trigger('click')
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(createSeason).not.toHaveBeenCalled()
+  })
+
   it('lleva a dibujar un sector', async () => {
     const { wrapper } = await openAt('/farm/7')
     const link = wrapper.findAll('a').find((a) => a.text() === 'Dibujar sector')!

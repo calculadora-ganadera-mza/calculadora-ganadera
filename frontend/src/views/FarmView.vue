@@ -101,7 +101,11 @@ onMounted(load)
       </button>
     </div>
     <AppModal v-if="creating" title="Nuevo escenario" @close="creating = false">
-      <ScenarioForm @created="onCreated" />
+      <ScenarioForm @created="onCreated">
+        <template #actions>
+          <button type="button" class="btn" @click="creating = false">Cancelar</button>
+        </template>
+      </ScenarioForm>
     </AppModal>
   </section>
 </template>

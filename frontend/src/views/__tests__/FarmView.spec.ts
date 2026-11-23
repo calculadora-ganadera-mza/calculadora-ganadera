@@ -60,6 +60,20 @@ describe('Mi campo', () => {
     expect(router.currentRoute.value.path).toBe('/farm/7')
   })
 
+  it('Cancelar cierra la ventana sin crear el escenario', async () => {
+    vi.mocked(listScenarios).mockResolvedValueOnce([])
+    const { wrapper } = await openAt('/farm')
+
+    await wrapper.get('.empty button').trigger('click')
+    await flushPromises()
+    const buttons = wrapper.get('[role="dialog"]').findAll('form button')
+    expect(buttons.map((b) => b.text())).toEqual(['Crear escenario', 'Cancelar'])
+    await buttons[1]!.trigger('click')
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(createScenario).not.toHaveBeenCalled()
+  })
+
   it('avisa si no pudo cargar y deja reintentar', async () => {
     vi.mocked(listScenarios).mockRejectedValueOnce(new Error('Error 500'))
     const { wrapper } = await openAt('/farm')

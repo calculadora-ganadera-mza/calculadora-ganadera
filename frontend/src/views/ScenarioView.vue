@@ -183,7 +183,11 @@ watch(() => route.params.scenarioId, load, { immediate: true })
       <p v-else class="hint">Todavía no hay sectores. Dibujá el primero.</p>
 
       <AppModal v-if="addingSeason" title="Nueva campaña" @close="addingSeason = false">
-        <AddSeason :scenario-id="data.scenario.id" :seasons="seasons" @created="onSeasonCreated" />
+        <AddSeason :scenario-id="data.scenario.id" :seasons="seasons" @created="onSeasonCreated">
+          <template #actions>
+            <button type="button" class="btn" @click="addingSeason = false">Cancelar</button>
+          </template>
+        </AddSeason>
       </AppModal>
     </template>
   </section>
