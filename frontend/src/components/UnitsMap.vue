@@ -34,15 +34,11 @@ const emit = defineEmits<{
   reshape: [polygon: PolygonGeoJSON]
 }>()
 
-function focusUnit(id: number) {
-  const unit = props.units.find((u) => u.id === id)
-  if (unit && map)
-    map.fitBounds(toLayer(unit.polygon).getBounds(), { padding: [35, 35], maxZoom: 14 })
+// Encuadra los sectores, por ejemplo después de cambiar un contorno
+function fitUnits() {
+  if (map && unitsLayer.getLayers().length > 0) map.fitBounds(unitsLayer.getBounds())
 }
-function cancelDraw() {
-  map?.pm.disableDraw()
-}
-defineExpose({ focusUnit, cancelDraw })
+defineExpose({ fitUnits })
 watch(
   () => props.waterMode,
   (active) => {
@@ -277,8 +273,13 @@ onMounted(() => {
   showUnits()
   showWater()
   showDraft()
-  if (props.units.length > 0) map.fitBounds(unitsLayer.getBounds())
+  // Al dibujar un sector nuevo solo hay vecinos: la vista se centra en ellos
+  if (props.units.length > 0) fitUnits()
+  else if (referenceLayer.getLayers().length > 0) map.fitBounds(referenceLayer.getBounds())
   else map.setView(MENDOZA_CENTER, MENDOZA_ZOOM)
+  // La pantalla de ubicar aguada abre el mapa ya listo para marcar el punto
+  if (props.waterMode && props.editingWaterId == null)
+    map.pm.enableDraw('Marker', { snappable: true, snapDistance: 20 })
 })
 
 onBeforeUnmount(() => map?.remove())

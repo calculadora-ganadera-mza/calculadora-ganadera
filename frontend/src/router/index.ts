@@ -24,10 +24,34 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: 'Mi campo' },
   },
   {
+    path: '/farm/:scenarioId',
+    name: 'scenario',
+    component: () => import('../views/ScenarioView.vue'),
+    meta: { title: 'Escenario' },
+  },
+  {
+    path: '/farm/:scenarioId/sectors/new',
+    name: 'new-sector',
+    component: () => import('../views/NewSectorView.vue'),
+    meta: { title: 'Dibujar sector' },
+  },
+  {
     path: '/farm/:scenarioId/sectors/:unitId',
     name: 'sector',
     component: () => import('../views/SectorView.vue'),
-    meta: { title: 'Administrar sector' },
+    meta: { title: 'Sector' },
+  },
+  {
+    path: '/farm/:scenarioId/sectors/:unitId/water-points/new',
+    name: 'new-water-point',
+    component: () => import('../views/WaterPointView.vue'),
+    meta: { title: 'Ubicar aguada' },
+  },
+  {
+    path: '/farm/:scenarioId/sectors/:unitId/water-points/:waterPointId',
+    name: 'water-point',
+    component: () => import('../views/WaterPointView.vue'),
+    meta: { title: 'Editar aguada' },
   },
   {
     path: '/calculators',
