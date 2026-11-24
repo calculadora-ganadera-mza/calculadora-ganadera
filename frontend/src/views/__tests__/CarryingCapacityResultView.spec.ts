@@ -80,6 +80,7 @@ async function open() {
     history: createMemoryHistory(),
     routes: [
       { path: '/calc/:scenarioId/:unitId/:seasonId', component: CarryingCapacityResultView },
+      { path: '/farm/:scenarioId', name: 'scenario', component: {} },
       { path: '/farm/:scenarioId/sectors/:unitId', name: 'sector', component: {} },
       { path: '/:other(.*)', component: {} },
     ],
@@ -233,6 +234,7 @@ describe('Resultado de receptividad', () => {
     const wrapper = await open()
 
     expect(calculateCarryingCapacity).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="alert"] a').attributes('href')).toBe('/farm/7?season=12')
     expect(wrapper.find('[role="alert"]').text()).toContain('falta cargar la lluvia')
     expect(wrapper.find('.simulate-link').exists()).toBe(false)
   })
