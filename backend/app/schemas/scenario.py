@@ -1,7 +1,7 @@
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 # Nombre sin espacios al principio ni al final, de 1 a 100 caracteres
 ScenarioName = Annotated[
@@ -12,6 +12,23 @@ ScenarioName = Annotated[
 class ScenarioCreate(BaseModel):
     name: ScenarioName
     first_season_start_year: int
+
+
+class ScenarioUpdate(BaseModel):
+    """Cambios en un establecimiento: renombrarlo o marcarlo como principal."""
+
+    name: ScenarioName | None = None
+    is_main: Literal[True] | None = None
+
+    @model_validator(mode="after")
+    def validate_fields(self) -> ScenarioUpdate:
+        if not self.model_fields_set:
+            raise ValueError("Hay que enviar al menos un campo.")
+        if "name" in self.model_fields_set and self.name is None:
+            raise ValueError("El nombre no puede quedar vacío.")
+        if "is_main" in self.model_fields_set and self.is_main is None:
+            raise ValueError("Solo se admite marcar como principal.")
+        return self
 
 
 class ScenarioRead(BaseModel):
