@@ -1,4 +1,4 @@
-"""Rodeo recomendado: cuántos animales de cada categoría entran en el límite."""
+"""Rodeo de cría máximo: cuántos animales de cada categoría entran en el límite."""
 
 import math
 from collections.abc import Callable
@@ -40,7 +40,9 @@ class CategoryEquivalents:
 
 
 @dataclass(frozen=True)
-class RecommendedHerd:
+class MaxBreedingHerd:
+    """Rodeo de cría máximo en cabezas enteras, con sus EV y sus destetados."""
+
     cows: int
     bulls: int
     replacement_calves: int
@@ -126,30 +128,7 @@ def cow_equivalents_per_cow(
     )
 
 
-def spread_cow_equivalents(
-    cow_equivalents: float,
-    rate: float,
-    early_weaning: bool,
-    parameters: HerdParameters,
-    equivalents: CategoryEquivalents,
-) -> dict[str, float]:
-    """Reparte los EV según la composición por vaca, sin redondear.
-
-    Devuelve las cabezas por código de categoría.
-    """
-    cows = cow_equivalents / cow_equivalents_per_cow(
-        rate, early_weaning, parameters, equivalents
-    )
-    replacement = cows * rate
-    return {
-        "cow": cows,
-        "bull": cows * parameters.bulls_per_cow,
-        "calf": replacement,
-        "heifer": replacement,
-    }
-
-
-def recommend_herd(
+def calculate_max_breeding_herd(
     *,
     limit_cow_equivalents: float,
     replacement_rate: float,
@@ -157,9 +136,9 @@ def recommend_herd(
     early_weaning: bool,
     parameters: HerdParameters,
     equivalents: CategoryEquivalents,
-    fits: Callable[[RecommendedHerd], bool] | None = None,
-) -> RecommendedHerd | None:
-    """Rodeo en cantidades enteras que no supera el límite.
+    fits: Callable[[MaxBreedingHerd], bool] | None = None,
+) -> MaxBreedingHerd | None:
+    """Rodeo de cría máximo: el rodeo en cantidades enteras que no supera el límite.
 
     Reparte el límite según la composición de una vaca con sus toros, terneras
     y vaquillonas. Si al redondear se pasa del límite o no cumple fits (por
@@ -179,7 +158,7 @@ def recommend_herd(
         )
         bulls = max(1, round_half_up(cows * parameters.bulls_per_cow))
         replacement = replacement_calves(cows, rate, weaned_females)
-        herd = RecommendedHerd(
+        herd = MaxBreedingHerd(
             cows=cows,
             bulls=bulls,
             replacement_calves=replacement,

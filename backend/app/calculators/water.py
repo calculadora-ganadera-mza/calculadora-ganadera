@@ -6,10 +6,10 @@ from typing import Annotated
 
 from pydantic import Field
 
-from app.calculators.recommended_herd import (
+from app.calculators.max_breeding_herd import (
     MONTHS_PER_YEAR,
     HerdParameters,
-    RecommendedHerd,
+    MaxBreedingHerd,
 )
 from app.models.enums import LimitedBy
 
@@ -116,18 +116,7 @@ def season_litres(
     )
 
 
-def litres_per_cow(
-    litres: CategoryWater, rate: float, parameters: HerdParameters
-) -> float:
-    """Litros por día de una vaca con su parte de toros, terneras y vaquillonas."""
-    return (
-        litres.cow
-        + parameters.bulls_per_cow * litres.bull
-        + rate * (litres.calf + litres.heifer)
-    )
-
-
-def herd_litres(herd: RecommendedHerd, litres: CategoryWater) -> float:
+def herd_litres(herd: MaxBreedingHerd, litres: CategoryWater) -> float:
     """Litros por día que necesita un rodeo en cantidades enteras."""
     return (
         herd.cows * litres.cow
@@ -140,22 +129,23 @@ def herd_litres(herd: RecommendedHerd, litres: CategoryWater) -> float:
 def water_limit(
     *,
     available_l_day: float,
-    composition_l_day: float,
-    composition_cow_equivalents: float,
+    herd_l_day: float,
+    herd_cow_equivalents: float,
 ) -> float:
-    """Límite por agua en EV: litros disponibles dividido por
-    los litros por EV en verano."""
-    return available_l_day * composition_cow_equivalents / composition_l_day
+    """Límite por agua en EV: los litros disponibles dividido por los litros por
+    EV del rodeo actual (herd_l_day sobre herd_cow_equivalents)."""
+    return available_l_day * herd_cow_equivalents / herd_l_day
 
 
 def water_need(
     *,
     limit_cow_equivalents: float,
-    composition_l_day: float,
-    composition_cow_equivalents: float,
+    herd_l_day: float,
+    herd_cow_equivalents: float,
 ) -> float:
-    """Litros por día que necesita el rodeo al alcanzar el límite en EV."""
-    return limit_cow_equivalents * composition_l_day / composition_cow_equivalents
+    """Litros por día que necesitan limit_cow_equivalents EV con los litros por EV
+    del rodeo actual. Sirve para el verano y para el invierno."""
+    return limit_cow_equivalents * herd_l_day / herd_cow_equivalents
 
 
 def max_herd(

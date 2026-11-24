@@ -1,14 +1,15 @@
+from dataclasses import asdict
 from datetime import date
 
 import pytest
 
-from app.calculators.recommended_herd import HerdParameters, RecommendedHerd
+from app.calculators.current_herd import herd_total
+from app.calculators.max_breeding_herd import HerdParameters, MaxBreedingHerd
 from app.calculators.water import (
     CategoryWater,
     WaterParameters,
     herd_calendar,
     herd_litres,
-    litres_per_cow,
     max_herd,
     months_between,
     season_litres,
@@ -69,47 +70,52 @@ def test_stage_ends_the_day_the_age_is_reached():
     assert stage_months(date(2027, 8, 1), 6, 12) == {2, 3, 4, 5, 6, 7}
 
 
-# Ejemplo de la issue: 100 vacas, 4,5 toros, 20 terneras y 20 vaquillonas.
-# 7.000 + 292,5 + 500 + 850 = 8.642,5 con terneras; sin ellas, 8.142,5.
+# El ejemplo de 100 vacas, 4,5 toros, 20 terneras y 20 vaquillonas, al doble
+# para que los toros sean enteros.
+# 14.000 + 585 + 1.000 + 1.700 = 17.285 con terneras; sin ellas, 16.285.
 @pytest.mark.parametrize(
     ("breeding_start", "litres"),
-    [(date(2026, 11, 1), 8642.5), (date(2027, 1, 1), 8142.5)],
+    [(date(2026, 11, 1), 17285), (date(2027, 1, 1), 16285)],
 )
 def test_issue_example_summer_litres(breeding_start, litres):
     calendar = herd_calendar(breeding_start, False, HERD, WATER)
     summer = season_litres(SUMMER_LITRES, calendar, SUMMER)
+    herd = {"cow": 200, "bull": 9, "calf": 40, "heifer": 40}
 
-    assert 100 * litres_per_cow(summer, 0.2, HERD) == pytest.approx(litres)
+    assert herd_total(herd, asdict(summer)) == pytest.approx(litres)
 
 
-def test_water_limit():
-    # Con 8.642,5 l/día entran justo las 100 vacas del ejemplo: 124,85 EV.
+# Con 5.000 l/día: 72 EV a 70 L/EV dan 5.000 / 70 = 71,43 EV
+# y 80 EV a 60 L/EV dan 5.000 / 60 = 83,33 EV.
+@pytest.mark.parametrize(
+    ("cow_equivalents", "litres_per_ev", "expected"),
+    [(72, 70, 71.43), (80, 60, 83.33)],
+)
+def test_water_limit(cow_equivalents, litres_per_ev, expected):
     limit = water_limit(
-        available_l_day=8642.5,
-        composition_l_day=86.425,
-        composition_cow_equivalents=1.2485,
+        available_l_day=5000,
+        herd_l_day=cow_equivalents * litres_per_ev,
+        herd_cow_equivalents=cow_equivalents,
     )
 
-    assert limit == pytest.approx(124.85)
+    assert limit == pytest.approx(expected, abs=0.01)
 
 
-@pytest.mark.parametrize(
-    ("composition_l_day", "expected"), [(86.425, 8642.5), (45.35, 4535)]
-)
-def test_water_need(composition_l_day, expected):
-    # 124,85 EV ÷ 1,2485 EV por vaca = 100 vacas con su parte del rodeo.
-    # En verano necesitan 100 × 86,425 L/día y en invierno 100 × 45,35 L/día.
+# Rodeo actual de 72 EV que toma 70 L/EV en verano y 40 L/EV en invierno.
+# Con un límite por pasto de 100 EV necesita 7.000 y 4.000 l/día.
+@pytest.mark.parametrize(("litres_per_ev", "expected"), [(70, 7000), (40, 4000)])
+def test_water_need(litres_per_ev, expected):
     need = water_need(
-        limit_cow_equivalents=124.85,
-        composition_l_day=composition_l_day,
-        composition_cow_equivalents=1.2485,
+        limit_cow_equivalents=100,
+        herd_l_day=72 * litres_per_ev,
+        herd_cow_equivalents=72,
     )
 
     assert need == pytest.approx(expected)
 
 
 def test_herd_litres():
-    herd = RecommendedHerd(
+    herd = MaxBreedingHerd(
         cows=7,
         bulls=1,
         replacement_calves=1,
