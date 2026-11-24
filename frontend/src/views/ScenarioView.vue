@@ -8,8 +8,8 @@ import SeasonRainfall from '@/components/SeasonRainfall.vue'
 import UnitsMap from '@/components/UnitsMap.vue'
 import { loadScenarioMap, type ScenarioMap } from '@/api/farm'
 import { listSeasons, type Season } from '@/api/scenarios'
-import { hectares, routeId } from '@/utils/farm'
-import { formatDate, seasonLabel, seasonName } from '@/utils/season'
+import { hectares, keepSeason, routeId } from '@/utils/farm'
+import { formatDate, pickSeason, seasonName } from '@/utils/season'
 
 const route = useRoute()
 const router = useRouter()
@@ -23,8 +23,15 @@ const missing = ref('')
 const addingSeason = ref(false)
 let loadVersion = 0
 
-const current = computed(() => seasons.value.find((season) => season.is_current))
-const otherSeasons = computed(() => seasons.value.filter((season) => !season.is_current))
+// La campaña elegida sale de la dirección (?season=); sin una válida, la actual
+const selected = computed(() => pickSeason(seasons.value, route.query.season))
+// Elegir otra reemplaza la dirección sin sumar un paso al historial
+const selectedId = computed({
+  get: () => selected.value?.id,
+  set: (id) => void router.replace({ query: { season: id } }),
+})
+// El servidor las da de la más vieja a la más nueva
+const newestFirst = computed(() => [...seasons.value].reverse())
 const totalArea = computed(() =>
   (data.value?.units ?? []).reduce((total, unit) => total + unit.area_ha, 0),
 )
@@ -58,8 +65,9 @@ async function load() {
   }
 }
 
-// La campaña actual puede cambiar con la nueva
-async function onSeasonCreated() {
+// La campaña nueva queda elegida. Se piden todas de nuevo
+// porque la actual puede cambiar con ella
+async function onSeasonCreated(created: Season) {
   addingSeason.value = false
   if (!data.value) return
   try {
@@ -67,11 +75,21 @@ async function onSeasonCreated() {
   } catch {
     await load()
   }
+  selectedId.value = created.id
+}
+
+// La lista guarda la lluvia nueva para mostrarla al volver a esta campaña
+function onRainfallSaved(saved: Season) {
+  seasons.value = seasons.value.map((season) => (season.id === saved.id ? saved : season))
 }
 
 function openSector(unitId: number) {
   if (!data.value) return
-  void router.push({ name: 'sector', params: { scenarioId: data.value.scenario.id, unitId } })
+  void router.push({
+    name: 'sector',
+    params: { scenarioId: data.value.scenario.id, unitId },
+    query: keepSeason(route.query),
+  })
 }
 
 watch(() => route.params.scenarioId, load, { immediate: true })
@@ -95,7 +113,18 @@ watch(() => route.params.scenarioId, load, { immediate: true })
             <strong>{{ hectares(totalArea) }} ha</strong>
           </p>
         </div>
-        <button type="button" class="btn" @click="addingSeason = true">Nueva campaña</button>
+        <div class="season-bar">
+          <template v-if="seasons.length">
+            <label for="season-select">Campaña</label>
+            <select id="season-select" v-model="selectedId">
+              <option v-for="season in newestFirst" :key="season.id" :value="season.id">
+                {{ seasonName(season.start_date, season.end_date) }}
+                {{ season.is_current ? '(actual)' : '' }}
+              </option>
+            </select>
+          </template>
+          <button type="button" class="btn" @click="addingSeason = true">Nueva campaña</button>
+        </div>
       </header>
 
       <div class="overview">
@@ -115,30 +144,23 @@ watch(() => route.params.scenarioId, load, { immediate: true })
           </div>
         </div>
 
-        <section class="campaign panel" aria-label="Campaña actual">
-          <template v-if="current">
+        <section class="campaign panel" aria-label="Campaña elegida">
+          <template v-if="selected">
             <h2>
-              Campaña {{ seasonName(current.start_date, current.end_date) }}
-              <span class="current">actual</span>
+              Campaña {{ seasonName(selected.start_date, selected.end_date) }}
+              <span v-if="selected.is_current" class="current">actual</span>
             </h2>
             <p class="hint">
-              Del {{ formatDate(current.start_date) }} al {{ formatDate(current.end_date) }}
+              Del {{ formatDate(selected.start_date) }} al {{ formatDate(selected.end_date) }}
             </p>
             <SeasonRainfall
-              :key="current.id"
-              :season-id="current.id"
-              :rainfall-mm="current.rainfall_mm"
+              :key="selected.id"
+              :season-id="selected.id"
+              :rainfall-mm="selected.rainfall_mm"
+              @saved="onRainfallSaved"
             />
           </template>
           <p v-else class="hint">El escenario todavía no tiene campañas.</p>
-          <details v-if="otherSeasons.length" class="past-seasons">
-            <summary>Otras campañas</summary>
-            <ul>
-              <li v-for="season in otherSeasons" :key="season.id">
-                Campaña {{ seasonLabel(season.start_date, season.end_date) }}
-              </li>
-            </ul>
-          </details>
         </section>
       </div>
 
@@ -146,7 +168,11 @@ watch(() => route.params.scenarioId, load, { immediate: true })
         <h2>Sectores</h2>
         <RouterLink
           class="btn"
-          :to="{ name: 'new-sector', params: { scenarioId: data.scenario.id } }"
+          :to="{
+            name: 'new-sector',
+            params: { scenarioId: data.scenario.id },
+            query: keepSeason(route.query),
+          }"
         >
           Dibujar sector
         </RouterLink>
@@ -168,6 +194,7 @@ watch(() => route.params.scenarioId, load, { immediate: true })
                   :to="{
                     name: 'sector',
                     params: { scenarioId: data.scenario.id, unitId: unit.id },
+                    query: keepSeason(route.query),
                   }"
                 >
                   {{ unit.name }}
@@ -293,10 +320,27 @@ h2 {
   font-weight: 400;
 }
 
-.past-seasons {
-  margin-top: 8px;
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
+.season-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.season-bar label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.season-bar select {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.9rem;
 }
 
 .section-heading {

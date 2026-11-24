@@ -28,6 +28,13 @@ function button(wrapper: VueWrapper, text: string) {
   return wrapper.findAll('button').find((item) => item.text() === text)!
 }
 
+function href(wrapper: VueWrapper, text: string) {
+  return wrapper
+    .findAll('a')
+    .find((item) => item.text() === text)!
+    .attributes('href')
+}
+
 beforeEach(() => {
   vi.resetAllMocks()
   vi.mocked(listScenarios).mockResolvedValue([SCENARIO])
@@ -62,6 +69,42 @@ describe('Pantalla del sector', () => {
     expect(link.attributes('href')).toBe(
       '/calculators/carrying-capacity?scenario=7&unit=1&season=12',
     )
+  })
+
+  it('muestra la campaña elegida y la pasa al rodeo y a los enlaces', async () => {
+    vi.mocked(listSeasons).mockResolvedValue([season(11, 2025), season(12, 2026, true)])
+    const { wrapper } = await openAt('/farm/7/sectors/1?season=11')
+
+    expect(wrapper.get('.season-meta').text()).toContain('Campaña 2025/26')
+    expect(wrapper.getComponent({ name: 'HerdForm' }).props()).toEqual({ seasonId: 11, unitId: 1 })
+    const links = wrapper.findAll('.breadcrumb a').map((a) => a.attributes('href'))
+    expect(links).toEqual(['/farm', '/farm/7?season=11'])
+    expect(href(wrapper, 'Cambiar campaña')).toBe('/farm/7?season=11')
+    expect(href(wrapper, 'Calcular')).toBe(
+      '/calculators/carrying-capacity?scenario=7&unit=1&season=11',
+    )
+    expect(href(wrapper, 'Ubicar aguada')).toBe('/farm/7/sectors/1/water-points/new?season=11')
+    expect(wrapper.get('tbody a').attributes('href')).toBe(
+      '/farm/7/sectors/1/water-points/10?season=11',
+    )
+  })
+
+  it('si la campaña de la dirección no es del escenario, usa la actual', async () => {
+    vi.mocked(listSeasons).mockResolvedValue([season(11, 2025), season(12, 2026, true)])
+    const { wrapper } = await openAt('/farm/7/sectors/1?season=99')
+
+    expect(wrapper.get('.season-meta').text()).toContain('Campaña 2026/27')
+    expect(wrapper.getComponent({ name: 'HerdForm' }).props('seasonId')).toBe(12)
+  })
+
+  it('carga el rodeo de otra campaña al cambiar la dirección', async () => {
+    vi.mocked(listSeasons).mockResolvedValue([season(11, 2025), season(12, 2026, true)])
+    const { wrapper, router } = await openAt('/farm/7/sectors/1?season=11')
+
+    await router.push('/farm/7/sectors/1?season=12')
+    await flushPromises()
+
+    expect(wrapper.getComponent({ name: 'HerdForm' }).props('seasonId')).toBe(12)
   })
 
   it('avisa si el sector no tiene aguadas o si alguna no tiene los litros', async () => {
@@ -182,16 +225,16 @@ describe('Pantalla del sector', () => {
     expect(wrapper.find('tbody').exists()).toBe(false)
   })
 
-  it('elimina el sector y vuelve al escenario', async () => {
+  it('elimina el sector y vuelve al escenario con la misma campaña', async () => {
     vi.spyOn(window, 'confirm').mockReturnValueOnce(true)
     vi.mocked(deleteProductionUnit).mockResolvedValue()
-    const { wrapper, router } = await openAt('/farm/7/sectors/1')
+    const { wrapper, router } = await openAt('/farm/7/sectors/1?season=12')
 
     await button(wrapper, 'Eliminar sector').trigger('click')
     await flushPromises()
 
     expect(deleteProductionUnit).toHaveBeenCalledWith(1)
-    expect(router.currentRoute.value.path).toBe('/farm/7')
+    expect(router.currentRoute.value.fullPath).toBe('/farm/7?season=12')
   })
 
   it('no elimina el sector si no se confirma', async () => {

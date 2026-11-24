@@ -58,6 +58,23 @@ describe('Dibujar sector', () => {
     expect(cancel.attributes('href')).toBe('/farm/7')
   })
 
+  it('mantiene la campaña elegida en las migas, en Cancelar y al guardar', async () => {
+    vi.mocked(createProductionUnit).mockResolvedValue({ ...NORTH, id: 3, name: 'Sector 3' })
+    const { wrapper, router } = await openAt('/farm/7/sectors/new?season=11')
+
+    const links = wrapper.findAll('.breadcrumb a').map((a) => a.attributes('href'))
+    expect(links).toEqual(['/farm', '/farm/7?season=11'])
+    const cancel = wrapper.findAll('a').find((a) => a.text() === 'Cancelar')!
+    expect(cancel.attributes('href')).toBe('/farm/7?season=11')
+
+    wrapper.getComponent({ name: 'UnitsMap' }).vm.$emit('draw', polygon)
+    await wrapper.get('#unit-name').setValue('Sector 3')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/farm/7/sectors/3?season=11')
+  })
+
   it('pide el nombre antes de guardar', async () => {
     const { wrapper } = await openAt('/farm/7/sectors/new')
     wrapper.getComponent({ name: 'UnitsMap' }).vm.$emit('draw', polygon)

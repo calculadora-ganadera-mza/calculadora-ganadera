@@ -130,6 +130,20 @@ describe('Editar aguada', () => {
     expect(router.currentRoute.value.path).toBe('/farm/7/sectors/1')
   })
 
+  it('mantiene la campaña elegida en las migas, en Cancelar y al volver al sector', async () => {
+    vi.mocked(waterRequest).mockResolvedValue(WELL)
+    const { wrapper, router } = await openAt('/farm/7/sectors/1/water-points/10?season=11')
+
+    const links = wrapper.findAll('.breadcrumb a').map((a) => a.attributes('href'))
+    expect(links).toEqual(['/farm', '/farm/7?season=11', '/farm/7/sectors/1?season=11'])
+    const cancel = wrapper.findAll('a').find((a) => a.text() === 'Cancelar')!
+    expect(cancel.attributes('href')).toBe('/farm/7/sectors/1?season=11')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/farm/7/sectors/1?season=11')
+  })
+
   it('al moverla la guarda sin compartir y vuelve a preguntar', async () => {
     const coordinates: [number, number] = [-68.2, -34.2]
     const moved = { ...WELL, location: { type: 'Point' as const, coordinates } }

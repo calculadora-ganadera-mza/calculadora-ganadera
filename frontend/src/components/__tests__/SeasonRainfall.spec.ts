@@ -22,6 +22,25 @@ describe('SeasonRainfall', () => {
     expect(wrapper.text()).toContain('Lluvia guardada.')
   })
 
+  it('avisa la campaña con la lluvia guardada', async () => {
+    const saved = {
+      id: 5,
+      start_year: 2026,
+      start_date: '2026-07-01',
+      end_date: '2027-06-30',
+      rainfall_mm: 280,
+      is_current: true,
+    }
+    vi.mocked(updateSeasonRainfall).mockResolvedValue(saved)
+    const wrapper = mount(SeasonRainfall, { props: { seasonId: 5, rainfallMm: null } })
+
+    await wrapper.find('input').setValue(280)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.emitted('saved')).toEqual([[saved]])
+  })
+
   it('sin valor borra la lluvia', async () => {
     const wrapper = mount(SeasonRainfall, { props: { seasonId: 5, rainfallMm: 300 } })
 

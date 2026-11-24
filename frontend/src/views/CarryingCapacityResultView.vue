@@ -131,7 +131,11 @@ onMounted(load)
           {{ scenario.name }} · {{ unit.name }} · campaña
           {{ seasonLabel(season.start_date, season.end_date) }} ·
           <RouterLink
-            :to="{ name: 'sector', params: { scenarioId: scenario.id, unitId: unit.id } }"
+            :to="{
+              name: 'sector',
+              params: { scenarioId: scenario.id, unitId: unit.id },
+              query: { season: season.id },
+            }"
           >
             ver sector
           </RouterLink>
@@ -151,13 +155,27 @@ onMounted(load)
       <p>{{ error }}</p>
       <button type="button" @click="load">Reintentar</button>
     </div>
-    <p v-else-if="missing === 'rainfall'" class="missing" role="alert">
+    <p v-else-if="missing === 'rainfall' && scenario && season" class="missing" role="alert">
       Para calcular falta cargar la lluvia de la campaña anterior.
-      <RouterLink to="/farm">Cargarla en Mi campo</RouterLink>
+      <RouterLink
+        :to="{
+          name: 'scenario',
+          params: { scenarioId: scenario.id },
+          query: { season: season.id },
+        }"
+      >
+        Cargarla en Mi campo
+      </RouterLink>
     </p>
     <p v-else-if="missing === 'herd' && scenario && unit" class="missing" role="alert">
       Para calcular falta cargar los datos de la campaña del sector.
-      <RouterLink :to="{ name: 'sector', params: { scenarioId: scenario.id, unitId: unit.id } }">
+      <RouterLink
+        :to="{
+          name: 'sector',
+          params: { scenarioId: scenario.id, unitId: unit.id },
+          query: { season: season?.id },
+        }"
+      >
         Cargarlos en el sector
       </RouterLink>
     </p>

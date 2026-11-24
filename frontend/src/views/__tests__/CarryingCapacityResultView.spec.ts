@@ -80,6 +80,7 @@ async function open() {
     history: createMemoryHistory(),
     routes: [
       { path: '/calc/:scenarioId/:unitId/:seasonId', component: CarryingCapacityResultView },
+      { path: '/farm/:scenarioId', name: 'scenario', component: {} },
       { path: '/farm/:scenarioId/sectors/:unitId', name: 'sector', component: {} },
       { path: '/:other(.*)', component: {} },
     ],
@@ -96,6 +97,8 @@ describe('Resultado de receptividad', () => {
 
     expect(calculateCarryingCapacity).toHaveBeenCalledWith(2, { ...herd, rainfall_mm: 300 })
     expect(wrapper.find('.subtitle').text()).toContain('La Esperanza · Sector 1 · campaña 2026/27')
+    const sector = wrapper.findAll('a').find((a) => a.text() === 'ver sector')!
+    expect(sector.attributes('href')).toBe('/farm/7/sectors/2?season=12')
     expect(wrapper.findAll('.kpi .value').map((value) => value.text())).toEqual([
       '15,1 ha/EV',
       '65,0 EV',
@@ -231,6 +234,7 @@ describe('Resultado de receptividad', () => {
     const wrapper = await open()
 
     expect(calculateCarryingCapacity).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="alert"] a').attributes('href')).toBe('/farm/7?season=12')
     expect(wrapper.find('[role="alert"]').text()).toContain('falta cargar la lluvia')
     expect(wrapper.find('.simulate-link').exists()).toBe(false)
   })
@@ -241,6 +245,7 @@ describe('Resultado de receptividad', () => {
     const wrapper = await open()
 
     expect(calculateCarryingCapacity).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="alert"] a').attributes('href')).toBe('/farm/7/sectors/2?season=12')
     expect(wrapper.find('[role="alert"]').text()).toContain('falta cargar los datos de la campaña')
   })
 

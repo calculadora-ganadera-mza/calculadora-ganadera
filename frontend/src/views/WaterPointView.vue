@@ -11,7 +11,7 @@ import {
   type WaterPoint,
   type WaterPointInput,
 } from '@/api/waterPoints'
-import { routeId } from '@/utils/farm'
+import { keepSeason, routeId } from '@/utils/farm'
 
 // Una sola pantalla para ubicar una aguada nueva y para editar una existente
 const route = useRoute()
@@ -47,6 +47,7 @@ const point = computed(() =>
 const sectorRoute = computed(() => ({
   name: 'sector',
   params: { scenarioId: route.params.scenarioId, unitId: route.params.unitId },
+  query: keepSeason(route.query),
 }))
 
 async function load() {
@@ -143,7 +144,11 @@ watch(() => [route.params.scenarioId, route.params.unitId, route.params.waterPoi
       :steps="[
         {
           label: data?.scenario.name ?? 'Escenario',
-          to: { name: 'scenario', params: { scenarioId: route.params.scenarioId } },
+          to: {
+            name: 'scenario',
+            params: { scenarioId: route.params.scenarioId },
+            query: keepSeason(route.query),
+          },
         },
         { label: unit?.name ?? 'Sector', to: sectorRoute },
         { label: isNew ? 'Nueva aguada' : (point?.name ?? 'Aguada') },

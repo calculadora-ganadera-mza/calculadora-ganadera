@@ -2,8 +2,10 @@
 import { ref } from 'vue'
 import { ApiError } from '@/api/errors'
 import { updateSeasonRainfall } from '@/api/seasons'
+import type { Season } from '@/api/scenarios'
 
 const props = defineProps<{ seasonId: number; rainfallMm: number | null }>()
+const emit = defineEmits<{ saved: [season: Season] }>()
 
 const rainfall = ref<number | ''>(props.rainfallMm ?? '')
 const saving = ref(false)
@@ -19,7 +21,11 @@ async function save() {
   }
   saving.value = true
   try {
-    await updateSeasonRainfall(props.seasonId, rainfall.value === '' ? null : rainfall.value)
+    const season = await updateSeasonRainfall(
+      props.seasonId,
+      rainfall.value === '' ? null : rainfall.value,
+    )
+    emit('saved', season)
     saved.value = true
   } catch (err) {
     error.value =
