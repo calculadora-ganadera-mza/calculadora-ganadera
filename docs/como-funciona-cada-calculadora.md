@@ -1,6 +1,6 @@
 # Cómo funciona cada calculadora
 
-Calculadora ganadera · actualizado al 21 de noviembre de 2026
+Calculadora ganadera · actualizado al 24 de noviembre de 2026
 
 Las decisiones generales (guardado, simulación, costos, ambientes) están en `definiciones-del-proyecto`. Los valores de referencia y su origen están en la sección 7 de ese documento.
 
@@ -43,17 +43,16 @@ Común a las cuatro:
    - Vaquillonas: la misma cantidad que las terneras de reposición. Valen 0,7 EV desde el año hasta el primer entore, a los 24 meses.
    - El valor anual de las terneras y las vaquillonas es su EV × los meses que pasan en la etapa ÷ 12. Los terneros que no son de reposición salen al destete y no cuentan.
 9. **Calendario:** el parto es el inicio del entore + 283 días, y el destete llega 6 meses después del parto, o 3 con destete precoz. Las terneras están en el campo desde el destete hasta el año, y las vaquillonas desde el año hasta el primer entore. El calendario se repite todos los años.
-10. **Litros por EV en invierno:** litros por día que necesita en invierno la composición por vaca, sumando cada categoría por cabeza, ÷ los EV de esa composición. Las terneras y las vaquillonas cuentan solo si están en el campo en algún mes del invierno.
-11. **Litros por EV en verano:** litros por día que necesita en verano la composición por vaca, sumando cada categoría por cabeza, ÷ los EV de esa composición. Las terneras y las vaquillonas cuentan solo si están en el campo en algún mes del verano.
-12. **Litros disponibles:** los litros por día de las aguadas del sector, más la parte que le toca de cada aguada compartida. La parte es la misma proporción del alcance que cae en el sector, calculada solo entre los sectores que comparten la aguada.
-13. **Límite por agua (EV):** litros disponibles ÷ litros por EV en verano. Los litros por EV en invierno se usan para informar la demanda del límite por pasto en el paso 20.
-14. **Rodeo máximo (EV):** el menor entre el límite por pasto y el límite por agua. Se informa cuál de los dos limita.
-15. **Rodeo recomendado:** el rodeo máximo repartido según la composición por vaca, en cantidades enteras redondeadas al número más cercano, con al menos un toro. Si el rodeo entero supera el rodeo máximo o los litros disponibles en verano, se baja una vaca por vez hasta que entre. Se informan también los terneros destetados, machos y hembras.
-16. **Rodeo actual (EV):** las cantidades cargadas, convertidas con sus equivalencias, más las terneras de reposición que se calculan a partir de las vacas, con su valor anual.
-17. **Rodeo máximo con la composición del rodeo actual (EV):** el menor entre el rodeo máximo y el límite por agua calculado con el rodeo actual. Ese límite es litros disponibles ÷ litros por EV en verano del rodeo actual, que son los litros por día que necesita en verano el rodeo actual ÷ sus EV del paso 16. Los animales cargados cuentan con sus litros de verano; las terneras de reposición, solo si están en el campo en algún mes del verano. Si el rodeo actual necesita más agua por EV que la composición por vaca, queda por debajo del rodeo máximo; nunca lo supera. Si el agua no se evaluó, es el rodeo máximo.
-18. **Mi rodeo ajustado:** el rodeo actual agrandado o achicado hasta el rodeo máximo con la composición del rodeo actual, con sus mismas proporciones. Se toma la mayor cantidad entera de vacas que entra en esos EV y en los litros disponibles en verano, y el resto sale de las proporciones cargadas. Lleva al menos un toro solo si se cargaron toros.
-19. **Termómetro de carga:** rodeo actual ÷ rodeo máximo con la composición del rodeo actual, sin redondear. Por debajo de 90% la carga está por debajo de la capacidad, hasta 100% está dentro y si supera 100% está por encima.
-20. **Necesidad de agua:** litros por día que necesita el límite por pasto con la composición por vaca, en verano y en invierno, frente a los litros disponibles. Las terneras y las vaquillonas cuentan solo en la estación en que están en el campo.
+10. **Rodeo actual (EV):** las cantidades cargadas, convertidas con sus equivalencias, más las terneras de reposición que se calculan a partir de las vacas, con su valor anual. Sin vacas, son solo las cantidades cargadas.
+11. **Litros por EV en verano del rodeo actual:** litros por día que necesita en verano el rodeo actual ÷ sus EV del paso 10. Los animales cargados cuentan con los litros de verano de su categoría; las terneras de reposición, solo si están en el campo en algún mes del verano.
+12. **Litros por EV en invierno del rodeo actual:** lo mismo que el paso 11, con los litros de invierno. Las terneras de reposición cuentan solo si están en el campo en algún mes del invierno.
+13. **Litros disponibles:** los litros por día de las aguadas del sector, más la parte que le toca de cada aguada compartida. La parte es la misma proporción del alcance que cae en el sector, calculada solo entre los sectores que comparten la aguada.
+14. **Límite por agua (EV):** litros disponibles ÷ litros por EV en verano del rodeo actual.
+15. **Rodeo máximo (EV):** el menor entre el límite por pasto y el límite por agua. Se informa cuál de los dos limita.
+16. **Rodeo de cría máximo:** el límite por pasto repartido según la composición por vaca, en cantidades enteras redondeadas al número más cercano, con al menos un toro. Si el rodeo entero supera el límite por pasto o los litros disponibles en verano, se baja una vaca por vez hasta que entre. En los litros de verano, las terneras y las vaquillonas cuentan solo si están en el campo en algún mes del verano. Se informan su total en EV y los terneros destetados, machos y hembras.
+17. **Mi rodeo ajustado al campo:** el rodeo actual agrandado o achicado hasta el rodeo máximo, con sus mismas proporciones. Se toma la mayor cantidad entera de vacas que entra en esos EV y en los litros disponibles en verano, y el resto sale de las proporciones cargadas. Lleva al menos un toro solo si se cargaron toros.
+18. **Termómetro de carga:** rodeo actual ÷ rodeo máximo, sin redondear. Por debajo de 90% la carga está por debajo de la capacidad, hasta 100% está dentro y si supera 100% está por encima.
+19. **Necesidad de agua:** límite por pasto × litros por EV del rodeo actual, en verano (paso 11) y en invierno (paso 12), frente a los litros disponibles.
 
 Los pasos 2 a 5 resumen el método de Guevara y otros (1995). En la práctica dan 0,73 kg de MS consumible por hectárea por cada mm de lluvia. Sin índices, con 300 mm de lluvia la receptividad es de 15,1 ha por EV.
 
@@ -63,10 +62,11 @@ Los pasos 2 a 5 resumen el método de Guevara y otros (1995). En la práctica da
 - Si falta un índice, se calcula sin él y la aplicación avisa.
 - Si las terneras de reposición superan a las hembras destetadas, se acepta el dato, se cuentan las hembras destetadas y la aplicación avisa.
 - Si solo algunas aguadas tienen litros, se calcula con esas y la aplicación avisa.
-- Si ninguna aguada tiene litros, se omiten los pasos 11 a 13 y el límite por agua del paso 17. El rodeo máximo es el límite por pasto y el resultado aclara que el agua no se evaluó.
-- Si el sector no tiene vacas, no se arma la composición, el rodeo recomendado ni Mi rodeo ajustado. El rodeo máximo es el límite por pasto y el resultado aclara que el agua no se evaluó.
-- Si el rodeo máximo no alcanza para una vaca con su toro, no se muestra el rodeo recomendado y la aplicación avisa. Los límites, el rodeo máximo y el termómetro se muestran igual.
-- Si el rodeo máximo con la composición del rodeo actual no alcanza para una vaca con su parte de los demás animales, no se muestra Mi rodeo ajustado. El termómetro se muestra igual.
+- Si ninguna aguada tiene litros, se omite el paso 14. El rodeo máximo es el límite por pasto, el rodeo de cría máximo no se controla con los litros de verano y el resultado aclara que el agua no se evaluó.
+- Si el sector no tiene animales cargados, se omiten los pasos 11, 12, 14 y 19. El rodeo máximo es el límite por pasto y el resultado aclara que el agua no se evaluó.
+- Si el sector no tiene vacas, no se arman la composición, el rodeo de cría máximo ni Mi rodeo ajustado al campo. El límite por agua, el rodeo máximo, el termómetro y la necesidad de agua salen de los animales cargados.
+- Si no entra una vaca con su toro en el rodeo de cría máximo, no se muestra y la aplicación avisa. Los límites, el rodeo máximo y el termómetro se muestran igual.
+- Si el rodeo máximo no alcanza para una vaca con su parte de los demás animales, no se muestra Mi rodeo ajustado al campo. El termómetro se muestra igual.
 
 ### Qué devuelve
 
@@ -74,9 +74,9 @@ Los pasos 2 a 5 resumen el método de Guevara y otros (1995). En la práctica da
 - Receptividad, en hectáreas por EV.
 - Límite por pasto y límite por agua, en EV.
 - Rodeo máximo, en EV, y cuál de los dos límites lo fija.
-- Rodeo recomendado, en cabezas por categoría, con los terneros destetados machos y hembras.
-- Mi rodeo ajustado, en cabezas por categoría, con el rodeo máximo con la composición del rodeo actual hasta el que se ajustó, en EV.
-- Termómetro de carga: su estado y los dos números que compara, rodeo actual y rodeo máximo con la composición del rodeo actual.
+- Rodeo de cría máximo, en cabezas por categoría, con su total en EV y los terneros destetados machos y hembras.
+- Mi rodeo ajustado al campo, en cabezas por categoría, junto al rodeo actual.
+- Termómetro de carga: su estado, el rodeo actual en EV y desde cuántos EV la carga está dentro de la capacidad. Se compara con el rodeo máximo.
 - Necesidad de agua frente a los litros disponibles, en verano y en invierno.
 - Los avisos de los casos especiales.
 
