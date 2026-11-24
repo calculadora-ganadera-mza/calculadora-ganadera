@@ -1558,7 +1558,7 @@ components:
           description: Cabezas del rodeo actual.
         quantity:
           type: integer
-          description: Cabezas de Mi rodeo ajustado.
+          description: Cabezas de Mi rodeo ajustado al campo.
 
     LimitedBy:
       type: string
@@ -1571,7 +1571,7 @@ components:
         - `missing_index`: falta un índice y el cálculo se hizo sin él.
         - `partial_water_data`: solo algunas aguadas tienen litros cargados.
         - `water_not_evaluated`: ninguna aguada tiene litros cargados o no hay
-          vacas.
+          animales cargados.
         - `replacement_exceeds_females`: la reposición requiere más terneras que
           las hembras destetadas.
         - `herd_does_not_fit`: el campo no alcanza para una vaca con su toro.
@@ -1601,7 +1601,7 @@ components:
         - pasture_limit_cow_equivalents
         - water
         - max_herd
-        - recommended_herd
+        - max_breeding_herd
         - scaled_herd
         - load_thermometer
         - warnings
@@ -1629,10 +1629,14 @@ components:
           properties:
             evaluated:
               type: boolean
-              description: Es `false` si ninguna aguada tiene litros cargados o no hay vacas.
+              description: |
+                Es `false` si ninguna aguada tiene litros cargados o no hay animales
+                cargados.
             limit_cow_equivalents:
               type: [number, "null"]
-              description: Límite por agua, en EV. Es `null` si no se evaluó.
+              description: |
+                Límite por agua, en EV, con los litros por EV en verano del rodeo
+                actual. Es `null` si no se evaluó.
             refill_l_day:
               type: [number, "null"]
               description: |
@@ -1640,28 +1644,32 @@ components:
                 Es `null` si ninguna tiene litros cargados.
             summer_need_l_day:
               type: [number, "null"]
-              description: Litros por día que requiere el límite por pasto en verano. Es `null` sin vacas.
+              description: |
+                Litros por día que requiere el límite por pasto en verano, con los
+                litros por EV del rodeo actual. Es `null` sin animales cargados.
             winter_need_l_day:
               type: [number, "null"]
-              description: Litros por día que requiere el límite por pasto en invierno. Es `null` sin vacas.
+              description: |
+                Litros por día que requiere el límite por pasto en invierno, con los
+                litros por EV del rodeo actual. Es `null` sin animales cargados.
         max_herd:
           type: object
-          required: [cow_equivalents, limited_by, categories]
+          required: [cow_equivalents, limited_by]
           properties:
             cow_equivalents:
               type: number
-              description: Rodeo máximo, en EV, sin redondear.
+              description: |
+                Rodeo máximo, en EV, sin redondear: el menor entre el límite por
+                pasto y el límite por agua. Es el valor hasta el que se ajusta
+                `scaled_herd` y con el que compara `load_thermometer`.
             limited_by:
               $ref: "#/components/schemas/LimitedBy"
-            categories:
-              type: array
-              description: Rodeo máximo por categoría, sin redondear.
-              items:
-                $ref: "#/components/schemas/HerdQuantity"
-        recommended_herd:
+        max_breeding_herd:
           description: |
-            Rodeo recomendado, en cantidades enteras. Es `null` si no hay vacas o si
-            el campo no alcanza para una vaca con su toro.
+            Rodeo de cría máximo, en cantidades enteras: el límite por pasto
+            repartido según la composición por vaca, sin pasarse de los litros de
+            verano. Puede superar a `max_herd`. Es `null` si no hay vacas o si no
+            entra una vaca con su toro.
           oneOf:
             - type: "null"
             - type: object
@@ -1669,6 +1677,7 @@ components:
               properties:
                 cow_equivalents:
                   type: number
+                  description: Total del rodeo de cría máximo, en EV.
                 categories:
                   type: array
                   items:
@@ -1683,49 +1692,33 @@ components:
                       type: integer
         scaled_herd:
           description: |
-            Rodeo cargado, agrandado o achicado hasta el rodeo máximo con la
-            composición del rodeo actual, en cantidades enteras. Incluye las
-            terneras de reposición que se calculan a partir de las vacas. Es
-            `null` si no hay vacas o si ese rodeo máximo no alcanza para una vaca
-            con su parte de los demás animales.
+            Rodeo cargado, agrandado o achicado hasta el rodeo máximo, en
+            cantidades enteras. Incluye las terneras de reposición que se calculan
+            a partir de las vacas. Es `null` si no hay vacas o si el rodeo máximo
+            no alcanza para una vaca con su parte de los demás animales.
           oneOf:
             - type: "null"
             - type: object
-              required: [cow_equivalents, max_cow_equivalents, categories]
+              required: [cow_equivalents, categories]
               properties:
                 cow_equivalents:
                   type: number
-                  description: EV de Mi rodeo ajustado.
-                max_cow_equivalents:
-                  type: number
-                  description: |
-                    Rodeo máximo con la composición del rodeo actual, en EV, sin
-                    redondear: el menor entre el rodeo máximo y el límite por agua
-                    calculado con el rodeo actual. Es el valor hasta el que se
-                    ajustó.
+                  description: EV de Mi rodeo ajustado al campo.
                 categories:
                   type: array
                   items:
                     $ref: "#/components/schemas/ScaledHerdQuantity"
         load_thermometer:
           type: object
-          required: [status, current_cow_equivalents, max_cow_equivalents, below_cow_equivalents]
+          required: [status, current_cow_equivalents, below_cow_equivalents]
           properties:
             status:
               type: string
               enum: [below, within, above]
-              description: |
-                Posición del rodeo actual respecto del rodeo máximo con la
-                composición del rodeo actual.
+              description: Posición del rodeo actual respecto del rodeo máximo.
             current_cow_equivalents:
               type: number
               description: Rodeo cargado más las terneras de reposición, en EV.
-            max_cow_equivalents:
-              type: number
-              description: |
-                Rodeo máximo con la composición del rodeo actual, en EV. Coincide
-                con `scaled_herd.max_cow_equivalents` cuando `scaled_herd` no es
-                `null`.
             below_cow_equivalents:
               type: number
               description: Umbral, en EV, a partir del cual el rodeo está dentro de la capacidad.
