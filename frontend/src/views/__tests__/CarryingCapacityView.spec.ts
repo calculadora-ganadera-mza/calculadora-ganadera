@@ -142,7 +142,7 @@ describe('Elegir qué calcular', () => {
 
     expect(dataRows(wrapper)).toEqual([
       { label: 'Lluvia de la campaña anterior', value: '300 mm', link: undefined },
-      { label: 'Superficie aprovechable', value: '60 ha', link: undefined },
+      { label: 'Superficie aprovechable', value: '60,0 ha', link: undefined },
       { label: 'Reposición de las aguadas', value: '4.200 L/día', link: undefined },
       { label: 'Rodeo cargado', value: 'Vaca 20', link: undefined },
       { label: 'Estado del campo', value: 'Bueno', link: undefined },
@@ -157,7 +157,7 @@ describe('Elegir qué calcular', () => {
     const sector = '/farm/7/sectors/2?season=12'
     expect(dataRows(wrapper)).toEqual([
       { label: 'Lluvia de la campaña anterior', value: 'Falta', link: '/farm/7?season=12' },
-      { label: 'Superficie aprovechable', value: '60 ha', link: undefined },
+      { label: 'Superficie aprovechable', value: '60,0 ha', link: undefined },
       { label: 'Reposición de las aguadas', value: 'Falta', link: sector },
       { label: 'Rodeo cargado', value: 'Falta', link: sector },
       { label: 'Estado del campo', value: 'Falta', link: sector },
@@ -296,9 +296,14 @@ describe('Elegir qué calcular', () => {
     })
     expect(wrapper.findAll('.kpis')).toHaveLength(1)
     expect(wrapper.get('.kpi .value').text()).toBe('12,9 ha/EV')
-    expect(wrapper.get('.kpi .sub').text()).toContain('350.5 mm de lluvia')
+    expect(wrapper.get('.kpi .sub').text()).toContain('350,5 mm de lluvia')
     expect(wrapper.get('.load .status').text()).toBe('Dentro')
     expect(wrapper.get('.water-need').text()).toContain('1.800')
+    // Los datos usados muestran lo simulado, sin enlaces para cambiarlo
+    const used = wrapper.get('.details .data-list').text()
+    expect(used).toContain('350,5 mm')
+    expect(used).toContain('Toros cada 100 vacas4')
+    expect(wrapper.findAll('.details .data-list a')).toHaveLength(0)
 
     const restoreButton = wrapper.get('.simulation-notice button')
     expect(restoreButton.text()).toBe('Volver a mis datos')

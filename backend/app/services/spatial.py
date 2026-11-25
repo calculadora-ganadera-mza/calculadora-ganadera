@@ -1,4 +1,4 @@
-"""Predicados espaciales compartidos por sectores y aguadas."""
+"""Predicados y cuentas espaciales compartidos por sectores y aguadas."""
 
 from typing import Any
 

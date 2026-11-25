@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { calculateCarryingCapacity, type CarryingCapacityResult } from '@/api/carryingCapacity'
 import { ApiError } from '@/api/errors'
@@ -27,8 +27,31 @@ const simulation = ref<{
   bullsPer100Cows: number | ''
   busy: boolean
   error: string
-  calculated?: { result: CarryingCapacityResult; rainfallMm: number; herd: HerdData }
+  calculated?: {
+    result: CarryingCapacityResult
+    rainfallMm: number
+    herd: HerdData
+    bullsPer100Cows?: number
+  }
 }>()
+
+// Dónde se cambia cada dato usado. Con valores simulados no hay enlaces,
+// porque esos valores no están guardados.
+const links = computed(() => {
+  if (simulation.value?.calculated || !scenario.value || !unit.value || !season.value) return
+  return {
+    rainfall: {
+      name: 'scenario',
+      params: { scenarioId: scenario.value.id },
+      query: { season: season.value.id },
+    },
+    sector: {
+      name: 'sector',
+      params: { scenarioId: scenario.value.id, unitId: unit.value.id },
+      query: { season: season.value.id },
+    },
+  }
+})
 
 async function load() {
   loading.value = true
@@ -103,7 +126,12 @@ async function recalculate(herd: HerdData) {
       rainfall_mm: rainfallMm,
       ...(bullsPer100Cows === '' ? {} : { bulls_per_100_cows: bullsPer100Cows }),
     })
-    draft.calculated = { result, rainfallMm, herd }
+    draft.calculated = {
+      result,
+      rainfallMm,
+      herd,
+      ...(bullsPer100Cows === '' ? {} : { bullsPer100Cows }),
+    }
   } catch (err) {
     draft.error = err instanceof ApiError ? err.message : 'No se pudo simular. Probá de nuevo.'
   } finally {
@@ -223,27 +251,13 @@ onMounted(load)
         :rainfall-mm="simulation?.calculated?.rainfallMm ?? season.rainfall_mm"
       />
       <CalculationDetails
-        v-if="campaignHerd && scenario && unit"
+        v-if="campaignHerd"
         :result="simulation?.calculated?.result ?? result"
         :rainfall-mm="simulation?.calculated?.rainfallMm ?? season.rainfall_mm"
         :herd="simulation?.calculated?.herd ?? campaignHerd"
         :categories="categories"
-        :links="
-          simulation?.calculated
-            ? undefined
-            : {
-                rainfall: {
-                  name: 'scenario',
-                  params: { scenarioId: scenario.id },
-                  query: { season: season.id },
-                },
-                sector: {
-                  name: 'sector',
-                  params: { scenarioId: scenario.id, unitId: unit.id },
-                  query: { season: season.id },
-                },
-              }
-        "
+        :bulls-per100-cows="simulation?.calculated?.bullsPer100Cows"
+        :links="links"
       />
     </template>
   </section>

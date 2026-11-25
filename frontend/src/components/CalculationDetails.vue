@@ -11,6 +11,8 @@ const props = defineProps<{
   rainfallMm: number
   herd: HerdData
   categories: AnimalCategory[]
+  // Solo si se simularon; si no, el cálculo usa el valor de referencia
+  bullsPer100Cows?: number
   // Dónde se cambia cada dato; sin enlaces cuando se muestran valores simulados
   links?: { rainfall: RouteLocationRaw; sector: RouteLocationRaw }
 }>()
@@ -80,6 +82,9 @@ const rows = computed(() => {
       change: 'la suplementación',
       to: sector,
     },
+    ...(props.bullsPer100Cows === undefined
+      ? []
+      : [{ label: 'Toros cada 100 vacas', value: number.format(props.bullsPer100Cows) }]),
     {
       label: 'Superficie aprovechable',
       value: `${oneDecimal.format(result.usable_area_ha)} de ${oneDecimal.format(result.area_ha)} ha`,

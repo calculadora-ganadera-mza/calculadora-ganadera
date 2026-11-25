@@ -26,6 +26,11 @@ const season = computed(() => seasons.value.find((item) => item.id === seasonId.
 const herd = computed(() => herds.value?.find((item) => item.production_unit_id === unitId.value))
 
 const number = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 })
+const oneDecimal = new Intl.NumberFormat('es-AR', {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+})
+const integer = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 })
 
 // Datos que va a usar el cálculo. Si falta uno, la fila lo marca y enlaza a
 // donde se carga. La lluvia, el rodeo y la superficie hacen falta para calcular.
@@ -55,7 +60,7 @@ const calculationData = computed(() => {
       label: 'Superficie aprovechable',
       value:
         unit.value.usable_area_ha > 0
-          ? `${number.format(unit.value.usable_area_ha)} ha`
+          ? `${oneDecimal.format(unit.value.usable_area_ha)} ha`
           : undefined,
       required: true,
       load: 'una aguada en el sector',
@@ -63,7 +68,7 @@ const calculationData = computed(() => {
     },
     {
       label: 'Reposición de las aguadas',
-      value: refill === null ? undefined : `${number.format(refill)} L/día`,
+      value: refill === null ? undefined : `${integer.format(refill)} L/día`,
       required: false,
       load: 'los litros de las aguadas',
       to: sector,

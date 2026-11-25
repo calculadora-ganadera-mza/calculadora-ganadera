@@ -23,6 +23,7 @@ const oneDecimal = new Intl.NumberFormat('es-AR', {
 })
 
 const integer = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 })
+const number = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 })
 const signed = new Intl.NumberFormat('es-AR', {
   maximumFractionDigits: 0,
   signDisplay: 'exceptZero',
@@ -67,7 +68,7 @@ const waterRows = computed(() => [
         <span class="unit">ha/EV</span>
       </p>
       <p class="sub">
-        {{ rainfallMm }} mm de lluvia
+        {{ number.format(rainfallMm) }} mm de lluvia
         <span v-if="warning('missing_index')" class="tag warn">Falta un índice</span>
       </p>
     </div>
