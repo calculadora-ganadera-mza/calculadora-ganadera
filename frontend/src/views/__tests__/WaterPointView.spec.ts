@@ -135,7 +135,7 @@ describe('Editar aguada', () => {
     const { wrapper, router } = await openAt('/farm/7/sectors/1/water-points/10?season=11')
 
     const links = wrapper.findAll('.breadcrumb a').map((a) => a.attributes('href'))
-    expect(links).toEqual(['/farm', '/farm/7?season=11', '/farm/7/sectors/1?season=11'])
+    expect(links).toEqual(['/farm/scenarios', '/farm/7?season=11', '/farm/7/sectors/1?season=11'])
     const cancel = wrapper.findAll('a').find((a) => a.text() === 'Cancelar')!
     expect(cancel.attributes('href')).toBe('/farm/7/sectors/1?season=11')
     await wrapper.get('form').trigger('submit')

@@ -24,6 +24,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: 'Mi campo' },
   },
   {
+    path: '/farm/scenarios',
+    name: 'scenarios',
+    component: () => import('../views/FarmView.vue'),
+    meta: { title: 'Mi campo' },
+  },
+  {
     path: '/farm/:scenarioId',
     name: 'scenario',
     component: () => import('../views/ScenarioView.vue'),
