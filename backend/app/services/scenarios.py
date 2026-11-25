@@ -194,10 +194,10 @@ def season_reads(seasons: list[Season], today: date) -> list[SeasonRead]:
 def create_season(session: Session, scenario_id: int, start_year: int) -> Season:
     """Crea una campaña sin datos para el año pedido, si el establecimiento no la tiene.
 
-    Cada pantalla decide qué años ofrece: Mi campo, solo los posteriores. Que
-    no se cruce en fechas con otra campaña lo decide la restricción
-    ex_season_no_overlap de la base, que vale aunque cambie el mes de inicio y
-    aunque lleguen dos pedidos al mismo tiempo.
+    Cada pantalla decide qué años ofrece: Mi campo, solo los posteriores, y
+    Seguimiento, solo los anteriores. Que no se cruce en fechas con otra
+    campaña lo decide la restricción ex_season_no_overlap de la base, que vale
+    aunque cambie el mes de inicio y aunque lleguen dos pedidos al mismo tiempo.
     """
     start, end = season_dates(start_year, get_season_start_month(session))
     season = Season(scenario_id=scenario_id, start_date=start, end_date=end)
