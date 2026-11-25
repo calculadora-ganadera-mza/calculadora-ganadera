@@ -46,7 +46,7 @@ const loadedRoutes = Promise.all(
   ),
 )
 
-// Monta la app en una dirección, con las rutas reales y sin el mapa ni el rodeo
+// Monta la app en una dirección, con las rutas reales y sin el mapa, el rodeo ni los gráficos
 export async function openAt(path: string) {
   const router = createRouter({
     history: createMemoryHistory(),
@@ -56,7 +56,7 @@ export async function openAt(path: string) {
   const wrapper = mount(RouterView, {
     global: {
       plugins: [router],
-      stubs: { UnitsMap: true, HerdForm: true, teleport: true },
+      stubs: { UnitsMap: true, HerdForm: true, HistoryCharts: true, teleport: true },
     },
   })
   await flushPromises()
