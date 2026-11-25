@@ -53,6 +53,20 @@ describe('HistoryCharts', () => {
     })
   })
 
+  it('cada categoría tiene el mismo color aunque el sector no tenga las anteriores', () => {
+    const onlyBulls = (categories: HistoryEntry['categories']) =>
+      mount(HistoryCharts, {
+        props: { entries: [{ ...ENTRIES[1]!, categories }], labels: ['2026/27'] },
+      }).findAllComponents({ name: 'Bar' })[0]!
+    const colors = (chart: ReturnType<typeof onlyBulls>) =>
+      chart.props('data').datasets.map((d: { backgroundColor: string }) => d.backgroundColor)
+
+    const both = colors(onlyBulls(ENTRIES[1]!.categories))
+    const bulls = colors(onlyBulls([{ animal_category_id: 2, name: 'Toro', quantity: 3 }]))
+
+    expect(bulls).toEqual([both[1]])
+  })
+
   it('muestra destete y reposición en porcentaje y la lluvia en mm', () => {
     const wrapper = open()
     const rates = wrapper.getComponent({ name: 'Line' })

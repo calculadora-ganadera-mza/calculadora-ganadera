@@ -20,7 +20,7 @@ ChartJS.register(BarElement, CategoryScale, Legend, LinearScale, LineElement, Po
 // labels: el nombre de cada campaña, en el mismo orden que entries
 const props = defineProps<{ entries: HistoryEntry[]; labels: string[] }>()
 
-// Un color por categoría, en el orden en que aparecen
+// Un color fijo por categoría, según su id: no cambia al pasar de un sector a otro
 const PALETTE = ['#3d6b35', '#2678a7', '#c47a2c', '#8a6bb0', '#b8434e', '#6b8e23']
 const WEANING_COLOR = '#2678a7'
 const REPLACEMENT_COLOR = '#c47a2c'
@@ -56,10 +56,10 @@ const hasHerds = computed(() => props.entries.some((entry) => entry.categories.l
 
 const animals = computed(() => ({
   labels: props.labels,
-  datasets: historyCategories(props.entries).map((category, index) => ({
+  datasets: historyCategories(props.entries).map((category) => ({
     label: category.name,
     data: props.entries.map((entry) => headCount(entry, category.id)),
-    backgroundColor: PALETTE[index % PALETTE.length],
+    backgroundColor: PALETTE[(category.id - 1) % PALETTE.length],
   })),
 }))
 
