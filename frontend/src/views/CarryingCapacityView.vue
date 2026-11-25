@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { computed, onMounted, ref, watch } from 'vue'
+import { RouterLink, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
+import { listAnimalCategories, listHerds, type AnimalCategory, type Herd } from '@/api/herds'
 import { listProductionUnits, type ProductionUnit } from '@/api/productionUnits'
 import { listScenarios, listSeasons, type Scenario, type Season } from '@/api/scenarios'
+import { loadedAnimals, RANGE_CONDITION_LABELS } from '@/utils/herd'
 import { pickSeason, seasonLabel } from '@/utils/season'
 
 const route = useRoute()
@@ -13,12 +15,94 @@ const units = ref<ProductionUnit[]>([])
 const scenarioId = ref<number>()
 const unitId = ref<number>()
 const seasonId = ref<number>()
+const categories = ref<AnimalCategory[]>([])
+// Rodeos de la campaña elegida; undefined mientras se cargan
+const herds = ref<Herd[]>()
 const loading = ref(true)
 const error = ref('')
 
+const unit = computed(() => units.value.find((item) => item.id === unitId.value))
+const season = computed(() => seasons.value.find((item) => item.id === seasonId.value))
+const herd = computed(() => herds.value?.find((item) => item.production_unit_id === unitId.value))
+
+const number = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 })
+
+// Datos que va a usar el cálculo. Si falta uno, la fila lo marca y enlaza a
+// donde se carga. La lluvia, el rodeo y la superficie hacen falta para calcular.
+const calculationData = computed(() => {
+  if (!scenarioId.value || !unit.value || !season.value || !herds.value) return undefined
+  const sector: RouteLocationRaw = {
+    name: 'sector',
+    params: { scenarioId: scenarioId.value, unitId: unit.value.id },
+    query: { season: season.value.id },
+  }
+  const rainfall = season.value.rainfall_mm
+  const refill = unit.value.refill_l_day
+  const animals = herd.value ? loadedAnimals(herd.value, categories.value) : []
+  return [
+    {
+      label: 'Lluvia de la campaña anterior',
+      value: rainfall ? `${number.format(rainfall)} mm` : undefined,
+      required: true,
+      load: 'la lluvia',
+      to: {
+        name: 'scenario',
+        params: { scenarioId: scenarioId.value },
+        query: { season: season.value.id },
+      },
+    },
+    {
+      label: 'Superficie aprovechable',
+      value:
+        unit.value.usable_area_ha > 0
+          ? `${number.format(unit.value.usable_area_ha)} ha`
+          : undefined,
+      required: true,
+      load: 'una aguada en el sector',
+      to: sector,
+    },
+    {
+      label: 'Reposición de las aguadas',
+      value: refill === null ? undefined : `${number.format(refill)} L/día`,
+      required: false,
+      load: 'los litros de las aguadas',
+      to: sector,
+    },
+    {
+      label: 'Rodeo cargado',
+      value: herd.value ? 'Sin animales' : undefined,
+      animals,
+      required: true,
+      load: 'el rodeo',
+      to: sector,
+    },
+    {
+      label: 'Estado del campo',
+      value: herd.value ? RANGE_CONDITION_LABELS[herd.value.range_condition] : undefined,
+      required: true,
+      load: 'el estado del campo',
+      to: sector,
+    },
+  ]
+})
+
 const ready = computed(
-  () => !loading.value && !!scenarioId.value && !!unitId.value && !!seasonId.value,
+  () =>
+    !loading.value &&
+    !!calculationData.value?.every((row) => !row.required || row.value !== undefined),
 )
+
+// Rodeos de la campaña elegida, para saber si el sector tiene datos
+watch(seasonId, async (id) => {
+  herds.value = undefined
+  if (!id) return
+  try {
+    const loaded = await listHerds(id)
+    if (seasonId.value === id) herds.value = loaded
+  } catch {
+    error.value = 'No se pudieron cargar los datos de la campaña.'
+  }
+})
 
 // Id que llega en la URL desde el botón Calcular del sector
 function queryId(name: string): number {
@@ -48,7 +132,10 @@ async function loadScenario(preselectedUnit?: number, preselectedSeason?: number
 
 onMounted(async () => {
   try {
-    scenarios.value = await listScenarios()
+    ;[scenarios.value, categories.value] = await Promise.all([
+      listScenarios(),
+      listAnimalCategories(),
+    ])
   } catch {
     error.value = 'No se pudieron cargar los escenarios.'
     loading.value = false
@@ -105,6 +192,26 @@ function calculate() {
       <p v-if="error" class="error" role="alert">{{ error }}</p>
       <button type="submit" :disabled="!ready">Calcular</button>
     </form>
+    <section v-if="calculationData" class="calculation-data" aria-labelledby="data-heading">
+      <h2 id="data-heading">Datos del cálculo</h2>
+      <dl class="data-list">
+        <div v-for="row in calculationData" :key="row.label">
+          <dt>{{ row.label }}</dt>
+          <dd>
+            <ul v-if="row.animals?.length">
+              <li v-for="animal in row.animals" :key="animal.id">
+                <span>{{ animal.name }}</span> <span>{{ animal.quantity }}</span>
+              </li>
+            </ul>
+            <template v-else-if="row.value">{{ row.value }}</template>
+            <span v-else class="tag warn">Falta</span>
+          </dd>
+          <RouterLink v-if="row.value === undefined" :to="row.to">
+            Cargar <span class="visually-hidden">{{ row.load }}</span>
+          </RouterLink>
+        </div>
+      </dl>
+    </section>
   </section>
 </template>
 
@@ -147,6 +254,14 @@ select {
   color: var(--color-text);
   font: inherit;
   font-weight: 400;
+}
+.calculation-data {
+  max-width: 560px;
+  margin-top: 24px;
+}
+.calculation-data h2 {
+  margin: 0 0 8px;
+  font-size: 1rem;
 }
 .hint {
   color: var(--color-text-muted);

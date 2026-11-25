@@ -24,6 +24,8 @@ export interface ProductionUnit extends ProductionUnitInput {
   area_ha: number
   usable_geometry?: { type: 'MultiPolygon'; coordinates: Position[][][] } | null
   usable_area_ha: number
+  // Litros por día que reponen las aguadas; null si ninguna tiene litros cargados
+  refill_l_day: number | null
 }
 
 async function send<T>(path: string, init: RequestInit = {}): Promise<T> {

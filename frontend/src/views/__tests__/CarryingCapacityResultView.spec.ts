@@ -4,13 +4,13 @@ import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
 import CarryingCapacityResultView from '../CarryingCapacityResultView.vue'
 import { calculateCarryingCapacity, type CarryingCapacityResult } from '@/api/carryingCapacity'
 import { ApiError } from '@/api/errors'
-import { listHerds } from '@/api/herds'
+import { listAnimalCategories, listHerds } from '@/api/herds'
 import { listProductionUnits } from '@/api/productionUnits'
 import { listScenarios, listSeasons } from '@/api/scenarios'
 
 vi.mock('@/api/scenarios', () => ({ listScenarios: vi.fn(), listSeasons: vi.fn() }))
 vi.mock('@/api/productionUnits', () => ({ listProductionUnits: vi.fn() }))
-vi.mock('@/api/herds', () => ({ listHerds: vi.fn() }))
+vi.mock('@/api/herds', () => ({ listAnimalCategories: vi.fn(), listHerds: vi.fn() }))
 vi.mock('@/api/carryingCapacity', () => ({ calculateCarryingCapacity: vi.fn() }))
 
 const season = {
@@ -39,6 +39,16 @@ const result: CarryingCapacityResult = {
   usable_area_ha: 981.8,
   carrying_capacity_ha_per_cow_equivalent: 15.1,
   pasture_limit_cow_equivalents: 65.02,
+  pasture_breakdown: {
+    cow_equivalent_dm_intake_kg_year: 3285,
+    consumable_forage_kg_ha_year: 217.8,
+    base_carrying_capacity_ha_per_cow_equivalent: 15.08,
+    indices: [
+      { code: 'range_condition', applies: true, value: null },
+      { code: 'early_weaning', applies: false, value: null },
+      { code: 'supplementation', applies: true, value: 1.25 },
+    ],
+  },
   water: {
     evaluated: true,
     limit_cow_equivalents: 60.7,
@@ -67,10 +77,29 @@ beforeEach(() => {
       name: 'Sector 1',
       area_ha: 1000,
       usable_area_ha: 981.8,
+      refill_l_day: null,
       polygon: { type: 'Polygon', coordinates: [] },
     },
   ])
   vi.mocked(listHerds).mockResolvedValue([herd])
+  vi.mocked(listAnimalCategories).mockResolvedValue([
+    {
+      id: 1,
+      code: 'cow',
+      name: 'Vaca',
+      cow_equivalent: 1,
+      summer_water_l_day: 70,
+      winter_water_l_day: 40,
+    },
+    {
+      id: 2,
+      code: 'bull',
+      name: 'Toro',
+      cow_equivalent: 1.3,
+      summer_water_l_day: 65,
+      winter_water_l_day: 40,
+    },
+  ])
   vi.mocked(calculateCarryingCapacity).mockResolvedValue(result)
 })
 
@@ -322,5 +351,67 @@ describe('Resultado de receptividad', () => {
     expect(wrapper.find('[role="alert"]').text()).toContain(detail)
     expect(wrapper.find('.kpis').exists()).toBe(false)
     expect(wrapper.find('.simulate-link').exists()).toBe(false)
+  })
+
+  it('muestra los datos usados, cada uno con un enlace para cambiarlo', async () => {
+    vi.mocked(listHerds).mockResolvedValue([
+      {
+        ...herd,
+        categories: [
+          { animal_category_id: 1, quantity: 80 },
+          { animal_category_id: 2, quantity: 3 },
+        ],
+        replacement_rate: 0.2,
+        weaning_rate: 0.65,
+        breeding_start: '2026-11-15',
+        breeding_end: '2027-01-31',
+        supplemented: true,
+      },
+    ])
+    const wrapper = await open()
+
+    const rows = wrapper
+      .findAll('.details .data-list > div')
+      .map((row) => [row.get('dt').text(), row.get('dd').text()])
+    expect(rows).toEqual([
+      ['Lluvia de la campaña anterior', '300 mm'],
+      ['Estado del campo', 'Bueno'],
+      ['Rodeo cargado', 'Vaca 80Toro 3'],
+      ['Reposición', '20 %'],
+      ['Destete', '65 %'],
+      ['Inicio del entore', '15/11/2026'],
+      ['Destete precoz', 'No'],
+      ['Suplementación', 'Sí'],
+      ['Superficie aprovechable', '981,8 de 1.000,0 ha'],
+      ['Reposición de las aguadas', '4.200 L/día'],
+    ])
+    const links = wrapper.findAll('.details .data-list a')
+    expect(links).toHaveLength(10)
+    expect(links[0]!.attributes('href')).toBe('/farm/7?season=12')
+    expect(links[0]!.text()).toBe('Cambiar la lluvia')
+    expect(links[2]!.attributes('href')).toBe('/farm/7/sectors/2?season=12')
+  })
+
+  it('muestra el desglose plegado con el forraje, la receptividad base y cada índice', async () => {
+    const wrapper = await open()
+
+    const details = wrapper.get('details.breakdown')
+    expect(details.attributes('open')).toBeUndefined()
+    expect(details.get('summary').text()).toBe('Desglose del cálculo')
+    const cells = details
+      .findAll('tr')
+      .map((row) => row.findAll('th, td').map((cell) => cell.text()))
+    expect(cells).toEqual([
+      ['Lluvia de la campaña anterior', '300 mm'],
+      ['Forraje consumible', '217,8 kg MS/ha/año'],
+      ['Consumo anual de un EV', '3.285 kg MS'],
+      ['Base', '15,1 ha/EV'],
+      ['Índice por estado del campo (bueno)', 'Sin valor'],
+      ['Índice por destete precoz', 'No marcado'],
+      ['Índice por suplementación', '1,25'],
+      ['Corregida', '15,1 ha/EV'],
+      ['Superficie aprovechable', '981,8 ha'],
+      ['Límite por pasto', '65,0 EV'],
+    ])
   })
 })
