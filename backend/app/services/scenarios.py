@@ -1,11 +1,11 @@
 from datetime import date, timedelta
 
-from sqlalchemy import exists, select
+from sqlalchemy import exists, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.db import violated_constraint
-from app.models import Scenario, Season
+from app.models import Scenario, Season, User
 from app.schemas.scenario import SeasonRead
 from app.services.parameters import select_parameter
 
@@ -78,6 +78,9 @@ def create_scenario(
             f"El año de la primera campaña tiene que ser {years_text(allowed)}."
         )
 
+    # Bloquea la fila del usuario para que dos altas concurrentes no choquen
+    # con el índice único uq_scenario_main_per_user
+    session.execute(select(User.id).where(User.id == user_id).with_for_update())
     has_scenarios = session.scalar(select(exists().where(Scenario.user_id == user_id)))
     scenario = Scenario(user_id=user_id, name=name, is_main=not has_scenarios)
     session.add(scenario)
@@ -88,6 +91,35 @@ def create_scenario(
     session.add(season)
     session.flush()
     return scenario, season
+
+
+def update_scenario(
+    session: Session,
+    scenario: Scenario,
+    *,
+    name: str | None = None,
+    is_main: bool = False,
+) -> Scenario:
+    """Renombra un establecimiento o lo marca como principal.
+
+    Al marcarlo como principal, el anterior del mismo usuario deja de serlo.
+    Bloquea la fila del usuario para que dos cambios concurrentes no choquen
+    con el índice único uq_scenario_main_per_user.
+    """
+    if name is not None:
+        scenario.name = name
+    if is_main and not scenario.is_main:
+        session.execute(
+            select(User.id).where(User.id == scenario.user_id).with_for_update()
+        )
+        session.execute(
+            update(Scenario)
+            .where(Scenario.user_id == scenario.user_id, Scenario.is_main.is_(True))
+            .values(is_main=False)
+        )
+        scenario.is_main = True
+    session.flush()
+    return scenario
 
 
 def list_scenarios(session: Session, user_id: int) -> list[Scenario]:

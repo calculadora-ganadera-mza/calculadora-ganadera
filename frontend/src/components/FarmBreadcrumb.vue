@@ -7,7 +7,7 @@ defineProps<{ steps: { label: string; to?: RouteLocationRaw }[] }>()
 
 <template>
   <nav class="breadcrumb" aria-label="Ruta de navegación">
-    <RouterLink to="/farm">Mi campo</RouterLink>
+    <RouterLink to="/farm/scenarios">Mi campo</RouterLink>
     <!-- La clave es la posición: el escenario y el sector pueden llamarse igual -->
     <template v-for="(step, index) in steps" :key="index">
       <span aria-hidden="true">›</span>

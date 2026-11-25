@@ -6,8 +6,9 @@ import AppModal from '@/components/AppModal.vue'
 import FarmBreadcrumb from '@/components/FarmBreadcrumb.vue'
 import SeasonRainfall from '@/components/SeasonRainfall.vue'
 import UnitsMap from '@/components/UnitsMap.vue'
+import { ApiError } from '@/api/errors'
 import { loadScenarioMap, type ScenarioMap } from '@/api/farm'
-import { listSeasons, type Season } from '@/api/scenarios'
+import { listSeasons, updateScenario, type Season } from '@/api/scenarios'
 import { hectares, keepSeason, routeId } from '@/utils/farm'
 import { formatDate, pickSeason, seasonName } from '@/utils/season'
 
@@ -21,6 +22,12 @@ const error = ref('')
 // La dirección trae un escenario que no existe: reintentar no sirve
 const missing = ref('')
 const addingSeason = ref(false)
+const markingMain = ref(false)
+const mainError = ref('')
+const renaming = ref(false)
+const newName = ref('')
+const renameError = ref('')
+const savingName = ref(false)
 let loadVersion = 0
 
 // La campaña elegida sale de la dirección (?season=); sin una válida, la actual
@@ -46,6 +53,7 @@ async function load() {
   loading.value = true
   error.value = ''
   missing.value = ''
+  mainError.value = ''
   data.value = undefined
   const scenarioId = routeId(route.params.scenarioId)
   try {
@@ -83,6 +91,48 @@ function onRainfallSaved(saved: Season) {
   seasons.value = seasons.value.map((season) => (season.id === saved.id ? saved : season))
 }
 
+async function markAsMain() {
+  if (!data.value || data.value.scenario.is_main) return
+  markingMain.value = true
+  mainError.value = ''
+  try {
+    const updated = await updateScenario(data.value.scenario.id, { is_main: true })
+    data.value = { ...data.value, scenario: updated }
+  } catch (err) {
+    mainError.value =
+      err instanceof ApiError ? err.message : 'No se pudo marcar el escenario como principal.'
+  } finally {
+    markingMain.value = false
+  }
+}
+
+function openRename() {
+  newName.value = data.value?.scenario.name ?? ''
+  renameError.value = ''
+  renaming.value = true
+}
+
+async function saveName() {
+  const current = data.value
+  const trimmed = newName.value.trim()
+  if (!current) return
+  if (!trimmed) {
+    renameError.value = 'Falta el nombre del escenario.'
+    return
+  }
+  savingName.value = true
+  renameError.value = ''
+  try {
+    const updated = await updateScenario(current.scenario.id, { name: trimmed })
+    data.value = { ...current, scenario: updated }
+    renaming.value = false
+  } catch (err) {
+    renameError.value = err instanceof ApiError ? err.message : 'No se pudo cambiar el nombre.'
+  } finally {
+    savingName.value = false
+  }
+}
+
 function openSector(unitId: number) {
   if (!data.value) return
   void router.push({
@@ -107,7 +157,21 @@ watch(() => route.params.scenarioId, load, { immediate: true })
     <template v-else-if="data">
       <header class="heading">
         <div>
-          <h1>{{ data.scenario.name }}</h1>
+          <div class="title">
+            <h1>{{ data.scenario.name }}</h1>
+            <span v-if="data.scenario.is_main" class="badge">Principal</span>
+            <button
+              v-else
+              type="button"
+              class="text-button"
+              :disabled="markingMain"
+              @click="markAsMain"
+            >
+              {{ markingMain ? 'Guardando…' : 'Marcar como principal' }}
+            </button>
+            <button type="button" class="text-button" @click="openRename">Editar</button>
+          </div>
+          <p v-if="mainError" class="error" role="alert">{{ mainError }}</p>
           <p class="summary">
             Sectores <strong>{{ data.units.length }}</strong> · Superficie
             <strong>{{ hectares(totalArea) }} ha</strong>
@@ -148,7 +212,7 @@ watch(() => route.params.scenarioId, load, { immediate: true })
           <template v-if="selected">
             <h2>
               Campaña {{ seasonName(selected.start_date, selected.end_date) }}
-              <span v-if="selected.is_current" class="current">actual</span>
+              <span v-if="selected.is_current" class="badge">actual</span>
             </h2>
             <p class="hint">
               Del {{ formatDate(selected.start_date) }} al {{ formatDate(selected.end_date) }}
@@ -216,6 +280,20 @@ watch(() => route.params.scenarioId, load, { immediate: true })
           </template>
         </AddSeason>
       </AppModal>
+
+      <AppModal v-if="renaming" title="Nombre del escenario" @close="renaming = false">
+        <form class="rename" novalidate @submit.prevent="saveName">
+          <div class="field">
+            <label for="scenario-new-name">Nombre</label>
+            <input id="scenario-new-name" v-model="newName" maxlength="100" autocomplete="off" />
+          </div>
+          <p v-if="renameError" class="error" role="alert">{{ renameError }}</p>
+          <div class="modal-actions">
+            <button class="btn btn-primary" :disabled="savingName">Guardar</button>
+            <button type="button" class="btn" @click="renaming = false">Cancelar</button>
+          </div>
+        </form>
+      </AppModal>
     </template>
   </section>
 </template>
@@ -232,6 +310,13 @@ watch(() => route.params.scenarioId, load, { immediate: true })
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
+}
+
+.title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
 }
 
 h1 {
@@ -309,7 +394,7 @@ h2 {
   gap: 6px;
 }
 
-.current {
+.badge {
   display: inline-block;
   margin-left: 6px;
   padding: 3px 9px;
@@ -345,6 +430,18 @@ h2 {
 
 .section-heading {
   margin-bottom: 10px;
+}
+
+.rename {
+  display: grid;
+  gap: 14px;
+}
+
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
 }
 
 @media (max-width: 800px) {

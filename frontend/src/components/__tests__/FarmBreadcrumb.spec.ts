@@ -22,7 +22,10 @@ describe('FarmBreadcrumb', () => {
     })
     await wrapper.setProps({ steps: [{ label: 'Lote', to: '/farm/7' }, { label: 'Lote' }] })
 
-    expect(wrapper.findAll('a').map((a) => a.attributes('href'))).toEqual(['/farm', '/farm/7'])
+    expect(wrapper.findAll('a').map((a) => a.attributes('href'))).toEqual([
+      '/farm/scenarios',
+      '/farm/7',
+    ])
     expect(wrapper.get('[aria-current="page"]').text()).toBe('Lote')
     expect(warn).not.toHaveBeenCalled()
   })
