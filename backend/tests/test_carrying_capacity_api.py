@@ -148,7 +148,7 @@ def test_missing_reference_parameter_fails(session):
         read_pasture_parameters(session)
 
 
-# Rodeo recomendado (#15). El sector de prueba tiene unas 101,8 ha y, con
+# Rodeo de cría máximo. El sector de prueba tiene unas 101,8 ha y, con
 # 300 mm, 15,08 ha/EV: el límite por pasto es de unos 6,75 EV.
 
 
@@ -166,26 +166,27 @@ def herd_with_cows(session, **changes) -> dict:
     return data | changes
 
 
-def test_recommended_herd_fits_in_the_pasture_limit(api, session, unit_id):
+def test_max_breeding_herd_fits_in_the_pasture_limit(api, session, unit_id):
     add_water_point(api, unit_id)
 
     result = calculate(api, unit_id, **herd_with_cows(session)).json()
 
     # 5 vacas con su toro, ternera y vaquillona suman 7,25 EV: se pasa.
     # 4 vacas + 1 toro + 1 ternera + 1 vaquillona = 4 + 1,3 + 0,25 + 0,7 = 6,25.
-    herd = result["recommended_herd"]
+    herd = result["max_breeding_herd"]
     assert [c["quantity"] for c in herd["categories"]] == [4, 1, 1, 1]
     assert herd["cow_equivalents"] == pytest.approx(6.25)
     assert herd["cow_equivalents"] <= result["pasture_limit_cow_equivalents"]
     assert herd["weaned_calves"] == {"males": 1, "females": 1}
 
 
-def test_without_cows_there_is_no_recommended_herd(api, unit_id):
+def test_without_animals_the_water_is_not_evaluated(api, unit_id):
     add_water_point(api, unit_id, refill_l_day=300)
 
     result = calculate(api, unit_id).json()
 
-    assert result["recommended_herd"] is None
+    # Sin animales no hay litros por EV: no hay límite por agua ni demanda.
+    assert result["max_breeding_herd"] is None
     assert result["water"]["evaluated"] is False
     assert result["water"]["limit_cow_equivalents"] is None
     assert result["water"]["refill_l_day"] == pytest.approx(300)
@@ -194,7 +195,6 @@ def test_without_cows_there_is_no_recommended_herd(api, unit_id):
     assert result["max_herd"] == {
         "cow_equivalents": pytest.approx(result["pasture_limit_cow_equivalents"]),
         "limited_by": "pasture",
-        "categories": [],
     }
     codes = [w["code"] for w in result["warnings"]]
     assert codes == ["missing_index", "water_not_evaluated"]
@@ -202,7 +202,6 @@ def test_without_cows_there_is_no_recommended_herd(api, unit_id):
     load = result["load_thermometer"]
     assert load["status"] == "below"
     assert load["current_cow_equivalents"] == 0
-    assert load["max_cow_equivalents"] == result["pasture_limit_cow_equivalents"]
 
 
 def test_bulls_per_100_cows_from_the_request(api, session, unit_id):
@@ -213,7 +212,7 @@ def test_bulls_per_100_cows_from_the_request(api, session, unit_id):
     ).json()
 
     # 3 vacas con 50 toros cada 100: round(1,5) = 2 toros.
-    assert [c["quantity"] for c in result["recommended_herd"]["categories"]][:2] == [
+    assert [c["quantity"] for c in result["max_breeding_herd"]["categories"]][:2] == [
         3,
         2,
     ]
@@ -226,7 +225,7 @@ def test_replacement_above_weaned_females_warns(api, session, unit_id):
 
     codes = [w["code"] for w in result["warnings"]]
     assert "replacement_exceeds_females" in codes
-    assert result["recommended_herd"] is not None
+    assert result["max_breeding_herd"] is not None
 
 
 def test_field_too_small_for_a_cow_and_her_bull(api, session, unit_id):
@@ -234,17 +233,18 @@ def test_field_too_small_for_a_cow_and_her_bull(api, session, unit_id):
 
     result = calculate(api, unit_id, **herd_with_cows(session), rainfall_mm=1).json()
 
-    assert result["recommended_herd"] is None
+    assert result["max_breeding_herd"] is None
     assert "herd_does_not_fit" in [w["code"] for w in result["warnings"]]
     assert result["pasture_limit_cow_equivalents"] > 0
     assert result["scaled_herd"] is None
     assert result["load_thermometer"]["status"] == "above"
 
 
-# Límite por agua (#14). Con herd_with_cows (reposición 0,2, entore el 1/11)
-# las terneras están en el campo de febrero a agosto: cuentan en verano.
-# Cada vaca suma 1,2485 EV y pide 70 + 0,045 × 65 + 0,2 × (25 + 42,5) =
-# 86,425 l/día.
+# Límite por agua. Con herd_with_cows (reposición 0,2, entore el 1/11) las
+# terneras están en el campo de febrero a agosto: cuentan en verano y en
+# invierno. El rodeo actual son 10 vacas y 10 × 0,2 = 2 terneras a 0,25 EV
+# anual: 10,5 EV, que piden 10 × 70 + 2 × 25 = 750 l/día en verano y
+# 10 × 37,5 + 2 × 12,5 = 400 en invierno.
 EAST_POLYGON = {
     "type": "Polygon",
     "coordinates": [
@@ -283,40 +283,43 @@ def test_water_limits_the_herd(api, session, unit_id):
 
     result = calculate(api, unit_id, **herd_with_cows(session)).json()
 
-    # 300 × 1,2485 ÷ 86,425 = 4,334 EV, menos que los 6,75 del pasto
+    # 300 × 10,5 ÷ 750 = 4,2 EV, menos que los 6,75 del pasto
     water = result["water"]
     assert water["evaluated"] is True
     assert water["refill_l_day"] == pytest.approx(300)
-    assert water["limit_cow_equivalents"] == pytest.approx(4.334, abs=0.001)
+    assert water["limit_cow_equivalents"] == pytest.approx(4.2)
     # La demanda se calcula con el pasto, aunque el agua limite el rodeo.
-    pasture_cows = result["pasture_limit_cow_equivalents"] / 1.2485
-    assert water["summer_need_l_day"] == pytest.approx(pasture_cows * 86.425)
-    assert water["winter_need_l_day"] == pytest.approx(pasture_cows * 45.35)
-    max_herd = result["max_herd"]
-    assert max_herd["limited_by"] == "water"
-    assert max_herd["cow_equivalents"] == pytest.approx(water["limit_cow_equivalents"])
-    # 4,334 ÷ 1,2485 = 3,471 vacas, 0,156 toros, 0,694 terneras y vaquillonas
-    assert [c["quantity"] for c in max_herd["categories"]] == pytest.approx(
-        [3.471, 0.156, 0.694, 0.694], abs=0.001
-    )
-    # 3 vacas con su toro, ternera y vaquillona suman 5,25 EV: se pasa.
-    # 2 vacas y 1 toro suman 3,3 EV.
-    herd = result["recommended_herd"]
+    pasture_limit = result["pasture_limit_cow_equivalents"]
+    assert water["summer_need_l_day"] == pytest.approx(pasture_limit * 750 / 10.5)
+    assert water["winter_need_l_day"] == pytest.approx(pasture_limit * 400 / 10.5)
+    assert result["max_herd"] == {
+        "cow_equivalents": pytest.approx(4.2),
+        "limited_by": "water",
+    }
+    # El rodeo de cría parte del pasto y baja hasta entrar en los 300 l/día:
+    # 4 vacas con su toro, ternera y vaquillona piden 412,5 y 3 piden 342,5.
+    # 2 vacas y 1 toro piden 205 l/día y suman 3,3 EV.
+    herd = result["max_breeding_herd"]
     assert [c["quantity"] for c in herd["categories"]] == [2, 1, 0, 0]
+    assert herd["cow_equivalents"] == pytest.approx(3.3)
     assert codes_of(result) == ["missing_index"]
 
 
-def test_herd_also_fits_in_the_summer_litres(api, session, unit_id):
-    add_water_point(api, unit_id, refill_l_day=2150)
+def test_max_breeding_herd_can_exceed_the_max_herd(api, session, unit_id):
+    add_water_point(api, unit_id, refill_l_day=2100)
 
     result = calculate(api, unit_id, **herd_with_cows(session), rainfall_mm=1500).json()
 
-    # Por agua: 2150 × 1,2485 ÷ 86,425 = 31,059 EV; el pasto da unos 33,75.
-    # 25 vacas, 1 toro, 5 terneras y 5 vaquillonas suman 31,05 EV y entran,
-    # pero piden 2152,5 l/día. Con 24 vacas piden 2082,5.
+    # Por agua: 2100 × 10,5 ÷ 750 = 29,4 EV; el pasto da unos 33,75.
+    # El rodeo de cría parte del pasto: 27, 26 y 25 vacas con 1 toro,
+    # 5 terneras y 5 vaquillonas piden 2292,5, 2222,5 y 2152,5 l/día.
+    # 24 vacas piden 2082,5 y suman 30,05 EV: más que el rodeo máximo,
+    # porque piden menos litros por EV que el rodeo actual.
     assert result["max_herd"]["limited_by"] == "water"
-    herd = result["recommended_herd"]
+    assert result["max_herd"]["cow_equivalents"] == pytest.approx(29.4)
+    herd = result["max_breeding_herd"]
     assert [c["quantity"] for c in herd["categories"]] == [24, 1, 5, 5]
+    assert herd["cow_equivalents"] == pytest.approx(30.05)
 
 
 def test_calves_outside_summer_do_not_count(api, session, unit_id):
@@ -327,12 +330,13 @@ def test_calves_outside_summer_do_not_count(api, session, unit_id):
 
     result = calculate(api, unit_id, **herd).json()
 
-    # Entore el 1/1: las terneras están de abril a octubre.
-    # 70 + 2,925 + 0,2 × 42,5 = 81,425 l/día; 300 × 1,2485 ÷ 81,425 = 4,600 EV
-    assert result["water"]["limit_cow_equivalents"] == pytest.approx(4.6, abs=0.001)
-    pasture_cows = result["pasture_limit_cow_equivalents"] / 1.2485
-    assert result["water"]["summer_need_l_day"] == pytest.approx(pasture_cows * 81.425)
-    assert result["water"]["winter_need_l_day"] == pytest.approx(pasture_cows * 45.35)
+    # Entore el 1/1: las terneras están de abril a octubre, fuera del verano.
+    # En verano piden 10 × 70 = 700 l/día; 300 × 10,5 ÷ 700 = 4,5 EV.
+    water = result["water"]
+    assert water["limit_cow_equivalents"] == pytest.approx(4.5)
+    pasture_limit = result["pasture_limit_cow_equivalents"]
+    assert water["summer_need_l_day"] == pytest.approx(pasture_limit * 700 / 10.5)
+    assert water["winter_need_l_day"] == pytest.approx(pasture_limit * 400 / 10.5)
 
 
 def test_winter_need_uses_the_configured_months(api, session, unit_id):
@@ -347,13 +351,16 @@ def test_winter_need_uses_the_configured_months(api, session, unit_id):
 
     result = calculate(api, unit_id, **herd).json()
 
-    # Diciembre y enero quedan fuera de la etapa de ternera.
-    pasture_cows = result["pasture_limit_cow_equivalents"] / 1.2485
-    assert result["water"]["winter_need_l_day"] == pytest.approx(pasture_cows * 42.85)
+    # Diciembre y enero quedan fuera de la etapa de ternera: en invierno piden
+    # solo las vacas, 10 × 37,5 = 375 l/día.
+    pasture_limit = result["pasture_limit_cow_equivalents"]
+    assert result["water"]["winter_need_l_day"] == pytest.approx(
+        pasture_limit * 375 / 10.5
+    )
 
 
-def test_heifers_outside_summer_do_not_count_in_summer_need(api, session, unit_id):
-    add_water_point(api, unit_id)
+def test_breeding_herd_ignores_heifers_outside_summer(api, session, unit_id):
+    add_water_point(api, unit_id, refill_l_day=450)
     session.execute(
         update(Parameter)
         .where(Parameter.key == "heifer_first_breeding_age_months")
@@ -362,12 +369,12 @@ def test_heifers_outside_summer_do_not_count_in_summer_need(api, session, unit_i
 
     result = calculate(api, unit_id, **herd_with_cows(session)).json()
 
-    # Las vaquillonas están en agosto y septiembre. Su EV anual es 0,7 / 12.
-    pasture_cows = result["pasture_limit_cow_equivalents"] / (
-        1 + 0.045 * 1.3 + 0.2 * (0.25 + 0.7 / 12)
-    )
-    assert result["water"]["summer_need_l_day"] == pytest.approx(pasture_cows * 77.925)
-    assert result["water"]["winter_need_l_day"] == pytest.approx(pasture_cows * 45.35)
+    # Las vaquillonas están en agosto y septiembre: en verano no piden agua.
+    # Su EV anual es 0,7 ÷ 12. 6 vacas con su toro, ternera y vaquillona
+    # suman 7,61 EV: se pasa. 5 vacas suman 6,61 EV y piden
+    # 5 × 70 + 65 + 25 = 440 l/día; con la vaquillona serían 482,5.
+    herd = result["max_breeding_herd"]
+    assert [c["quantity"] for c in herd["categories"]] == [5, 1, 1, 1]
 
 
 def test_partial_water_data_warns(api, session, unit_id):
@@ -396,7 +403,7 @@ def test_without_litres_the_pasture_limits(api, session, unit_id):
         result["pasture_limit_cow_equivalents"]
     )
     assert "water_not_evaluated" in codes_of(result)
-    assert result["recommended_herd"] is not None
+    assert result["max_breeding_herd"] is not None
 
 
 def test_point_of_another_sector_does_not_count(api, session, unit_id):
@@ -458,8 +465,8 @@ def test_overlapping_sectors_share_the_litres_without_creating_more(
     assert refills == pytest.approx([500, 500], rel=0.001)
 
 
-# Mi rodeo ajustado (#16). Con herd_with_cows el rodeo actual son 10 vacas y
-# 2 terneras: 10 × 0,2 = 2; destetados 5, hembras 2,5 -> 3.
+# Mi rodeo ajustado al campo. Con herd_with_cows el rodeo actual son 10 vacas
+# y 2 terneras: 10 × 0,2 = 2; destetados 5, hembras 2,5 -> 3.
 
 
 def category_ids(session) -> dict[str, int]:
@@ -483,9 +490,6 @@ def test_scaled_herd_keeps_the_loaded_proportions(api, session, unit_id):
     # 5 vacas: novillos 2,5 -> 3, terneras 1; 5 + 2,4 + 0,25 = 7,65 se pasa.
     # 4 vacas: novillos 2, terneras 0,8 -> 1; 4 + 1,6 + 0,25 = 5,85.
     scaled = result["scaled_herd"]
-    assert scaled["max_cow_equivalents"] == pytest.approx(
-        result["max_herd"]["cow_equivalents"]
-    )
     assert scaled["cow_equivalents"] == pytest.approx(5.85)
     assert [
         (c["animal_category_id"], c["current_quantity"], c["quantity"])
@@ -493,25 +497,21 @@ def test_scaled_herd_keeps_the_loaded_proportions(api, session, unit_id):
     ] == [(ids["cow"], 10, 4), (ids["calf"], 2, 1), (ids["steer"], 5, 2)]
 
 
-def test_scaled_herd_uses_the_water_of_the_current_herd(api, session, unit_id):
+def test_scaled_herd_fits_in_the_max_herd(api, session, unit_id):
     add_water_point(api, unit_id, refill_l_day=300)
 
     result = calculate(api, unit_id, **herd_with_cows(session)).json()
 
-    # Las terneras están en el campo en verano: 10 × 70 + 2 × 25 = 750 l/día
-    # y 10 + 2 × 0,25 = 10,5 EV. 300 × 10,5 ÷ 750 = 4,2 EV, menos que el
-    # rodeo máximo de 4,334.
-    # 4 vacas con 1 ternera suman 4,25 EV: se pasa. 3 vacas con 1 ternera
-    # suman 3,25 EV y piden 235 l/día.
+    # El agua limita el rodeo máximo a 4,2 EV. 4 vacas con 1 ternera suman
+    # 4,25 EV: se pasa. 3 vacas con 1 ternera suman 3,25 EV y piden 235 l/día.
     scaled = result["scaled_herd"]
-    assert result["max_herd"]["cow_equivalents"] == pytest.approx(4.334, abs=0.001)
-    assert scaled["max_cow_equivalents"] == pytest.approx(4.2)
+    assert result["max_herd"]["cow_equivalents"] == pytest.approx(4.2)
     assert scaled["cow_equivalents"] == pytest.approx(3.25)
     assert [c["quantity"] for c in scaled["categories"]] == [3, 1]
     load = result["load_thermometer"]
     assert load["status"] == "above"
     assert load["current_cow_equivalents"] == pytest.approx(10.5)
-    assert load["max_cow_equivalents"] == scaled["max_cow_equivalents"]
+    assert load["below_cow_equivalents"] == pytest.approx(4.2 * 0.9)
 
 
 def test_load_counts_the_annual_equivalent_for_early_weaning(api, session, unit_id):
@@ -525,7 +525,7 @@ def test_load_counts_the_annual_equivalent_for_early_weaning(api, session, unit_
     assert result["load_thermometer"]["current_cow_equivalents"] == pytest.approx(10.75)
 
 
-def test_load_without_cows_counts_the_loaded_animals(api, session, unit_id):
+def test_herd_without_cows_uses_its_own_litres(api, session, unit_id):
     add_water_point(api, unit_id, refill_l_day=300)
     steer = category_ids(session)["steer"]
 
@@ -533,10 +533,20 @@ def test_load_without_cows_counts_the_loaded_animals(api, session, unit_id):
         api, unit_id, categories=[{"animal_category_id": steer, "quantity": 10}]
     ).json()
 
+    # 10 novillos suman 8 EV y piden 425 l/día en verano y 200 en invierno.
+    # 300 × 8 ÷ 425 = 5,65 EV, menos que los 6,75 del pasto.
+    water = result["water"]
+    assert water["limit_cow_equivalents"] == pytest.approx(300 * 8 / 425)
+    pasture_limit = result["pasture_limit_cow_equivalents"]
+    assert water["summer_need_l_day"] == pytest.approx(pasture_limit * 425 / 8)
+    assert water["winter_need_l_day"] == pytest.approx(pasture_limit * 200 / 8)
+    assert result["max_herd"]["limited_by"] == "water"
+    assert result["max_breeding_herd"] is None
+    assert result["scaled_herd"] is None
+    assert codes_of(result) == ["missing_index"]
     load = result["load_thermometer"]
     assert load["status"] == "above"
     assert load["current_cow_equivalents"] == pytest.approx(8)
-    assert load["max_cow_equivalents"] == result["pasture_limit_cow_equivalents"]
 
 
 def test_load_status_uses_the_threshold_from_parameters(api, session, unit_id):
@@ -548,10 +558,10 @@ def test_load_status_uses_the_threshold_from_parameters(api, session, unit_id):
         replacement_rate=0,
     )
 
-    initial = calculate(api, unit_id, **herd).json()["load_thermometer"]
-    assert initial["status"] == "below"
-    assert initial["below_cow_equivalents"] == pytest.approx(
-        initial["max_cow_equivalents"] * 0.9
+    initial = calculate(api, unit_id, **herd).json()
+    assert initial["load_thermometer"]["status"] == "below"
+    assert initial["load_thermometer"]["below_cow_equivalents"] == pytest.approx(
+        initial["max_herd"]["cow_equivalents"] * 0.9
     )
 
     session.execute(
@@ -559,8 +569,8 @@ def test_load_status_uses_the_threshold_from_parameters(api, session, unit_id):
         .where(Parameter.key == "load_thermometer_below_threshold")
         .values(value=0.85)
     )
-    updated = calculate(api, unit_id, **herd).json()["load_thermometer"]
-    assert updated["status"] == "within"
-    assert updated["below_cow_equivalents"] == pytest.approx(
-        updated["max_cow_equivalents"] * 0.85
+    updated = calculate(api, unit_id, **herd).json()
+    assert updated["load_thermometer"]["status"] == "within"
+    assert updated["load_thermometer"]["below_cow_equivalents"] == pytest.approx(
+        updated["max_herd"]["cow_equivalents"] * 0.85
     )

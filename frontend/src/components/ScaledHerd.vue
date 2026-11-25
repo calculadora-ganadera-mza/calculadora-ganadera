@@ -1,24 +1,14 @@
 <script setup lang="ts">
 import type { ScaledHerd } from '@/api/carryingCapacity'
 
-defineProps<{
-  herd: ScaledHerd | null
-  currentCowEquivalents: number
-  // Rodeo máximo del resultado, para aclarar si el ajuste queda por debajo
-  maxHerdCowEquivalents: number
-}>()
+defineProps<{ herd: ScaledHerd | null; currentCowEquivalents: number }>()
 
 const oneDecimal = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 })
 </script>
 
 <template>
-  <section v-if="herd" class="scaled" aria-label="Mi rodeo ajustado">
-    <h2>Mi rodeo ajustado</h2>
-    <p class="limit">Ajustado hasta {{ oneDecimal.format(herd.max_cow_equivalents) }} EV</p>
-    <p v-if="herd.max_cow_equivalents < maxHerdCowEquivalents" class="note">
-      Queda por debajo del rodeo máximo porque el rodeo cargado toma más agua por EV en verano que
-      el rodeo de cría.
-    </p>
+  <section v-if="herd" class="scaled" aria-label="Mi rodeo ajustado al campo">
+    <h2>Mi rodeo ajustado al campo</h2>
 
     <table>
       <thead>
@@ -59,20 +49,8 @@ const oneDecimal = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 })
 }
 
 h2 {
-  margin: 0 0 4px;
-  font-size: 1rem;
-}
-
-.limit,
-.note,
-.hint {
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-}
-
-.limit,
-.note {
   margin: 0 0 12px;
+  font-size: 1rem;
 }
 
 .hint {

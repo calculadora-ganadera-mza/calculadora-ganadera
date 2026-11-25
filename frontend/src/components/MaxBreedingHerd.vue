@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { CalculationWarning, RecommendedHerd } from '@/api/carryingCapacity'
+import type { CalculationWarning, MaxBreedingHerd } from '@/api/carryingCapacity'
 
 const props = defineProps<{
-  herd: RecommendedHerd | null
+  herd: MaxBreedingHerd | null
   warnings: CalculationWarning[]
 }>()
 
@@ -20,8 +20,18 @@ const herdWarnings = computed(() =>
 </script>
 
 <template>
-  <section v-if="herd || herdWarnings.length" class="recommended" aria-label="Rodeo recomendado">
-    <h2>Rodeo recomendado</h2>
+  <section v-if="herd || herdWarnings.length" class="breeding" aria-label="Rodeo de cría máximo">
+    <div class="head">
+      <h2 class="term heading">
+        <button type="button" aria-describedby="tip-max-breeding">Rodeo de cría máximo</button>
+        <span id="tip-max-breeding" class="tip" role="tooltip">
+          Rodeo de cría estándar que entra en el sector. Parte del límite por pasto y baja si en
+          verano necesita más agua de la que reponen las aguadas. Como usa sus propios litros por
+          EV, puede quedar por encima del rodeo máximo.
+        </span>
+      </h2>
+      <span v-if="herd" class="total">{{ oneDecimal.format(herd.cow_equivalents) }} EV</span>
+    </div>
 
     <ul v-if="herdWarnings.length" class="warnings">
       <li v-for="warning in herdWarnings" :key="warning.code" role="status">
@@ -37,12 +47,6 @@ const herdWarnings = computed(() =>
             <td>{{ category.quantity }}</td>
           </tr>
         </tbody>
-        <tfoot>
-          <tr>
-            <th scope="row">Total</th>
-            <td>{{ oneDecimal.format(herd.cow_equivalents) }} EV</td>
-          </tr>
-        </tfoot>
       </table>
       <p class="weaned">
         Terneros destetados por año: {{ count(herd.weaned_calves.males, 'macho', 'machos') }} y
@@ -54,16 +58,30 @@ const herdWarnings = computed(() =>
 </template>
 
 <style scoped>
-.recommended {
+.breeding {
   padding: 20px 24px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 12px;
 }
 
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
 h2 {
-  margin: 0 0 12px;
+  margin: 0;
   font-size: 1rem;
+}
+
+.total {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 table {
@@ -87,10 +105,8 @@ th {
   font-weight: 400;
 }
 
-tfoot th,
-tfoot td {
+tbody tr:last-child > * {
   border-bottom: 0;
-  font-weight: 600;
 }
 
 .weaned {

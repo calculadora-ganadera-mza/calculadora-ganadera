@@ -16,7 +16,7 @@ export interface HerdQuantity {
   quantity: number
 }
 
-export interface RecommendedHerd {
+export interface MaxBreedingHerd {
   cow_equivalents: number
   categories: HerdQuantity[]
   weaned_calves: { males: number; females: number }
@@ -25,22 +25,21 @@ export interface RecommendedHerd {
 export interface ScaledHerdQuantity {
   animal_category_id: number
   name: string
-  // Cabezas del rodeo actual y de Mi rodeo ajustado
+  // Cabezas del rodeo actual y de Mi rodeo ajustado al campo
   current_quantity: number
   quantity: number
 }
 
 export interface ScaledHerd {
   cow_equivalents: number
-  // Rodeo máximo con la composición del rodeo actual: hasta donde se ajustó
-  max_cow_equivalents: number
   categories: ScaledHerdQuantity[]
 }
 
 export type LimitedBy = 'pasture' | 'water'
 
 // Si se evaluó, el límite y los litros siempre llegan. Si no se evaluó (sin
-// litros cargados o sin vacas), no hay límite, pero puede haber litros.
+// litros cargados o sin animales), no hay límite, pero puede haber litros.
+// Las necesidades faltan si no hay animales cargados.
 export type WaterResult = (
   | { evaluated: true; limit_cow_equivalents: number; refill_l_day: number }
   | { evaluated: false; limit_cow_equivalents: null; refill_l_day: number | null }
@@ -49,18 +48,17 @@ export type WaterResult = (
   winter_need_l_day: number | null
 }
 
+// Compara el rodeo actual con el rodeo máximo del resultado
 export interface LoadThermometer {
   status: 'below' | 'within' | 'above'
   current_cow_equivalents: number
-  max_cow_equivalents: number
   below_cow_equivalents: number
 }
 
-// Rodeo máximo sin redondear. Sus categorías quedan vacías si no hay vacas.
+// Rodeo máximo en EV, sin redondear
 export interface MaxHerd {
   cow_equivalents: number
   limited_by: LimitedBy
-  categories: HerdQuantity[]
 }
 
 export interface CalculationWarning {
@@ -76,7 +74,7 @@ export interface CarryingCapacityResult {
   water: WaterResult
   max_herd: MaxHerd
   // null si no hay vacas o si no entra ni una vaca con su toro
-  recommended_herd: RecommendedHerd | null
+  max_breeding_herd: MaxBreedingHerd | null
   // null si no hay vacas o si no entra ni una vaca con su parte de los demás animales
   scaled_herd: ScaledHerd | null
   load_thermometer: LoadThermometer

@@ -1,13 +1,14 @@
 import pytest
 
 from app.calculators.current_herd import (
-    current_herd_max,
     herd_total,
     herd_with_calves,
     load_status,
     scale_herd,
 )
-from app.calculators.recommended_herd import HerdParameters
+from app.calculators.max_breeding_herd import HerdParameters
+from app.calculators.water import max_herd, water_limit
+from app.models.enums import LimitedBy
 
 # Valores del seed y de las migraciones de la #14 y la #15
 PARAMETERS = HerdParameters(
@@ -40,12 +41,10 @@ def test_load_status_at_the_water_limit(refill_l_day, expected):
     herd = {"cow": 1}
     equivalents = {"cow": 0.98}
     current = herd_total(herd, equivalents)
-    limit = current_herd_max(
-        max_cow_equivalents=10,
+    limit = water_limit(
         available_l_day=refill_l_day,
-        herd=herd,
-        summer_l_day={"cow": 70},
-        cow_equivalents=equivalents,
+        herd_l_day=herd_total(herd, {"cow": 70}),
+        herd_cow_equivalents=current,
     )
 
     assert load_status(current, limit, limit * 0.9) == expected
@@ -53,6 +52,42 @@ def test_load_status_at_the_water_limit(refill_l_day, expected):
 
 def test_load_status_at_the_computed_lower_boundary():
     assert load_status(0.09, 0.1, 0.1 * 0.9) == "within"
+
+
+# Con 5.000 l/día y un límite por pasto de 100 EV, el agua fija el rodeo máximo.
+# 72 EV a 70 L/EV: rodeo máximo de 71,4 EV, quedan por encima.
+# 80 EV a 60 L/EV: rodeo máximo de 83,3 EV, quedan dentro (el piso es 75).
+@pytest.mark.parametrize(
+    ("current", "litres_per_ev", "expected"),
+    [(72, 70, "above"), (80, 60, "within")],
+)
+def test_load_status_when_water_limits_the_herd(current, litres_per_ev, expected):
+    limit = water_limit(
+        available_l_day=5000,
+        herd_l_day=current * litres_per_ev,
+        herd_cow_equivalents=current,
+    )
+    maximum, _ = max_herd(100, limit)
+
+    assert load_status(current, maximum, maximum * 0.9) == expected
+
+
+def test_herd_of_steers_that_does_not_fit_the_water_is_above():
+    # Sin vacas cuentan los litros de cada categoría cargada.
+    # 100 novillos: 80 EV y 4.250 l/día. Con 3.000 l/día el límite por agua es
+    # 3.000 × 80 / 4.250 = 56,47 EV.
+    herd = {"steer": 100}
+    current = herd_total(herd, EQUIVALENTS)
+    limit = water_limit(
+        available_l_day=3000,
+        herd_l_day=herd_total(herd, SUMMER_LITRES),
+        herd_cow_equivalents=current,
+    )
+    maximum, limited_by = max_herd(100, limit)
+
+    assert maximum == pytest.approx(56.47, abs=0.01)
+    assert limited_by == LimitedBy.WATER
+    assert load_status(current, maximum, maximum * 0.9) == "above"
 
 
 def scale(loaded, limit, *, replacement=0.2, weaning=0.75, fits=None):
@@ -173,58 +208,15 @@ def test_scaled_herd_never_exceeds_the_limit(limit):
     assert herd.quantities["bull"] >= 1
 
 
-def test_current_herd_max_with_more_water_per_cow_equivalent():
-    # Rodeo actual: 95 vacas y 19 terneras.
-    # Litros: 95 * 70 + 19 * 0 = 6.650; EV: 95 + 19 * 0,25 = 99,75.
-    # Litros por EV: 6.650 / 99,75 = 66,67; límite 6.522 / 66,67 = 97,83.
-    result = current_herd_max(
-        max_cow_equivalents=100,
-        available_l_day=6522,
-        herd={"cow": 95, "calf": 19},
-        summer_l_day=SUMMER_LITRES,
-        cow_equivalents=EQUIVALENTS,
-    )
-
-    assert result == pytest.approx(97.83)
-
-
-def test_current_herd_max_never_exceeds_the_max_herd():
-    # 50 vacas, 100 novillos y 10 terneras: 7.750 litros y 132,5 EV.
-    # Límite 6.522 * 132,5 / 7.750 = 111,5: queda el rodeo máximo.
-    result = current_herd_max(
-        max_cow_equivalents=100,
-        available_l_day=6522,
-        herd={"cow": 50, "steer": 100, "calf": 10},
-        summer_l_day=SUMMER_LITRES,
-        cow_equivalents=EQUIVALENTS,
-    )
-
-    assert result == 100
-
-
-def test_current_herd_max_without_litres_is_the_max_herd():
-    result = current_herd_max(
-        max_cow_equivalents=100,
-        available_l_day=None,
-        herd={"cow": 95, "calf": 19},
-        summer_l_day=SUMMER_LITRES,
-        cow_equivalents=EQUIVALENTS,
-    )
-
-    assert result == 100
-
-
 def test_herd_that_fits_exactly_is_not_lost_to_rounding():
     # Vaca de 0,98 EV y 70 l/día, sin reposición, con 70 l/día disponibles.
     # El límite da 0,9799999999999999 en punto flotante: con floor la búsqueda
     # arrancaría en 0 vacas, y la vaca de 0,98 EV parecería pasarse del límite.
     equivalents = {"cow": 0.98, "calf": 0.25}
-    limit = current_herd_max(
-        max_cow_equivalents=100,
+    limit = water_limit(
         available_l_day=70,
-        herd={"cow": 1, "calf": 0},
-        summer_l_day={"cow": 70, "calf": 0},
-        cow_equivalents=equivalents,
+        herd_l_day=herd_total({"cow": 1, "calf": 0}, {"cow": 70, "calf": 0}),
+        herd_cow_equivalents=herd_total({"cow": 1, "calf": 0}, equivalents),
     )
 
     herd = scale_herd(

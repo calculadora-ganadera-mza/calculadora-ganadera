@@ -182,3 +182,66 @@ p {
   margin: 0;
   color: var(--color-danger);
 }
+
+/* Término con explicación: el texto de ayuda aparece al pasar el mouse o al
+   llevar el foco al botón */
+.term {
+  position: relative;
+  align-self: flex-start;
+}
+
+.term button {
+  padding: 0;
+  border: 0;
+  border-bottom: 1px dotted var(--color-text-muted);
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: help;
+}
+
+/* Término que hace de título de una sección */
+.term.heading button {
+  color: var(--color-text);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.tip {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 5;
+  width: 250px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--color-text);
+  color: var(--color-background);
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.term:hover .tip,
+.term:focus-within .tip {
+  display: block;
+}
+
+/* Etiqueta corta junto a un valor */
+.tag {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--color-hover);
+  color: var(--color-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tag.warn {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}

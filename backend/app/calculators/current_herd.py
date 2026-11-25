@@ -1,4 +1,4 @@
-"""Rodeo actual: sus terneras de reposición, su rodeo máximo y Mi rodeo ajustado.
+"""Rodeo actual: terneras de reposición, termómetro y Mi rodeo ajustado al campo.
 
 Los rodeos son cabezas por código de categoría.
 """
@@ -7,7 +7,7 @@ import math
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
-from app.calculators.recommended_herd import (
+from app.calculators.max_breeding_herd import (
     HerdParameters,
     exceeds_limit,
     replacement_calves,
@@ -15,7 +15,6 @@ from app.calculators.recommended_herd import (
     round_half_up,
     weaned_calves,
 )
-from app.calculators.water import water_limit
 from app.models.enums import LoadStatus
 
 # Códigos fijos de las categorías con reglas propias
@@ -39,7 +38,7 @@ def load_status(
 
 @dataclass(frozen=True)
 class ScaledHerd:
-    """Mi rodeo ajustado: cabezas por código de categoría y sus EV."""
+    """Mi rodeo ajustado al campo: cabezas por código de categoría y sus EV."""
 
     quantities: dict[str, int]
     cow_equivalents: float
@@ -70,30 +69,6 @@ def herd_with_calves(
     return {**herd, CALF: replacement_calves(cows, rate, weaned_females)}
 
 
-def current_herd_max(
-    *,
-    max_cow_equivalents: float,
-    available_l_day: float | None,
-    herd: Mapping[str, int],
-    summer_l_day: Mapping[str, float],
-    cow_equivalents: Mapping[str, float],
-) -> float:
-    """Rodeo máximo con la composición del rodeo actual, en EV.
-
-    Es el menor entre el rodeo máximo y el límite por agua calculado con los
-    litros por EV en verano del rodeo actual, terneras de reposición incluidas.
-    Sin litros disponibles el agua no se evalúa y vale el rodeo máximo.
-    """
-    if available_l_day is None:
-        return max_cow_equivalents
-    limit = water_limit(
-        available_l_day=available_l_day,
-        composition_l_day=herd_total(herd, summer_l_day),
-        composition_cow_equivalents=herd_total(herd, cow_equivalents),
-    )
-    return min(max_cow_equivalents, limit)
-
-
 def scale_herd(
     *,
     loaded: Mapping[str, int],
@@ -104,7 +79,7 @@ def scale_herd(
     cow_equivalents: Mapping[str, float],
     fits: Callable[[Mapping[str, int]], bool] | None = None,
 ) -> ScaledHerd | None:
-    """Mi rodeo ajustado: el rodeo cargado llevado al límite con sus proporciones.
+    """Mi rodeo ajustado al campo: el rodeo cargado escalado hasta el límite.
 
     Parte de las vacas que llenan el límite solas, redondeando hacia arriba para
     que el error de punto flotante no deje afuera la última vaca.

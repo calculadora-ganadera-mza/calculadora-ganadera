@@ -38,8 +38,8 @@ class WeanedCalves(BaseModel):
     females: int
 
 
-class RecommendedHerdRead(BaseModel):
-    """Rodeo recomendado, en cantidades enteras."""
+class MaxBreedingHerdRead(BaseModel):
+    """Rodeo de cría máximo, en cantidades enteras."""
 
     cow_equivalents: float
     categories: list[HerdQuantity]
@@ -49,24 +49,21 @@ class RecommendedHerdRead(BaseModel):
 class ScaledHerdQuantity(BaseModel):
     animal_category_id: int
     name: str
-    # Cabezas del rodeo actual y de Mi rodeo ajustado
+    # Cabezas del rodeo actual y de Mi rodeo ajustado al campo
     current_quantity: int
     quantity: int
 
 
 class ScaledHerdRead(BaseModel):
-    """Mi rodeo ajustado, en cantidades enteras."""
+    """Mi rodeo ajustado al campo, en cantidades enteras."""
 
     cow_equivalents: float
-    # Rodeo máximo con la composición del rodeo actual: hasta donde se ajustó
-    max_cow_equivalents: float
     categories: list[ScaledHerdQuantity]
 
 
 class LoadThermometerRead(BaseModel):
     status: LoadStatus
     current_cow_equivalents: float
-    max_cow_equivalents: float
     below_cow_equivalents: float
 
 
@@ -80,7 +77,7 @@ class CarryingCapacityResult(BaseModel):
     water: WaterRead
     max_herd: MaxHerdRead
     # None si no hay vacas o si no entra ni una vaca con su toro
-    recommended_herd: RecommendedHerdRead | None
+    max_breeding_herd: MaxBreedingHerdRead | None
     # None si no hay vacas o si no entra ni una vaca con su parte de los demás
     # animales
     scaled_herd: ScaledHerdRead | None
@@ -96,6 +93,7 @@ class WaterRead(BaseModel):
     limit_cow_equivalents: float | None
     # None si ninguna aguada que cuenta para el sector tiene litros cargados
     refill_l_day: float | None
+    # None si no hay animales cargados
     summer_need_l_day: float | None
     winter_need_l_day: float | None
 
@@ -105,5 +103,3 @@ class MaxHerdRead(BaseModel):
 
     cow_equivalents: float
     limited_by: LimitedBy
-    # Vacío si no hay vacas
-    categories: list[HerdQuantity]

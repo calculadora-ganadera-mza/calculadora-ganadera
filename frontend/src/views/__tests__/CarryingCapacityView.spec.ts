@@ -141,14 +141,12 @@ describe('Elegir qué calcular', () => {
           max_herd: {
             cow_equivalents: simulated ? 26 : 20,
             limited_by: 'pasture',
-            categories: [],
           },
-          recommended_herd: null,
+          max_breeding_herd: null,
           scaled_herd: null,
           load_thermometer: {
             status: simulated ? 'within' : 'above',
             current_cow_equivalents: simulated ? 25.5 : 21,
-            max_cow_equivalents: simulated ? 26 : 20,
             below_cow_equivalents: simulated ? 23.4 : 18,
           },
           warnings: [],
@@ -224,8 +222,8 @@ describe('Elegir qué calcular', () => {
     expect(wrapper.findAll('.kpis')).toHaveLength(1)
     expect(wrapper.get('.kpi .value').text()).toBe('12,9 ha/EV')
     expect(wrapper.get('.kpi .sub').text()).toContain('350.5 mm de lluvia')
-    expect(wrapper.get('.load .status').text()).toBe('Dentro de la capacidad')
-    expect(wrapper.get('.water-need').text()).toContain('1.800 L/día')
+    expect(wrapper.get('.load .status').text()).toBe('Dentro')
+    expect(wrapper.get('.water-need').text()).toContain('1.800')
 
     const restoreButton = wrapper.get('.simulation-notice button')
     expect(restoreButton.text()).toBe('Volver a mis datos')
@@ -235,8 +233,8 @@ describe('Elegir qué calcular', () => {
     expect(wrapper.find('form').exists()).toBe(false)
     expect(wrapper.get('.kpi .value').text()).toBe('15,1 ha/EV')
     expect(wrapper.get('.kpi .sub').text()).toContain('300 mm de lluvia')
-    expect(wrapper.get('.load .status').text()).toBe('Por encima de la capacidad')
-    expect(wrapper.get('.water-need').text()).toContain('1.400 L/día')
+    expect(wrapper.get('.load .status').text()).toBe('Por encima')
+    expect(wrapper.get('.water-need').text()).toContain('1.400')
     expect(fetchMock).toHaveBeenCalledTimes(2)
 
     await wrapper.get('header .simulate-button').trigger('click')

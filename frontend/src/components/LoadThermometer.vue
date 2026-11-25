@@ -2,179 +2,262 @@
 import { computed } from 'vue'
 import type { LoadThermometer } from '@/api/carryingCapacity'
 
-const props = defineProps<{ load: LoadThermometer }>()
+const props = defineProps<{
+  load: LoadThermometer
+  // Rodeo máximo del resultado: la carga se compara con él
+  maxCowEquivalents: number
+}>()
 
-const labels = {
-  below: 'Por debajo',
-  within: 'Dentro',
-  above: 'Por encima',
-}
+const LABELS = { below: 'Por debajo', within: 'Dentro', above: 'Por encima' }
 
 const oneDecimal = new Intl.NumberFormat('es-AR', {
   minimumFractionDigits: 1,
   maximumFractionDigits: 1,
 })
+const tickNumber = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 })
 
-// La escala solo posiciona los elementos del gráfico con los EV que entrega la API.
-const trackStyle = computed(() => {
-  const load = props.load
-  const end = Math.max(load.current_cow_equivalents, load.max_cow_equivalents) * 1.1
-  const position = (value: number) => `${end > 0 ? (value / end) * 100 : 0}%`
+const current = computed(() => oneDecimal.format(props.load.current_cow_equivalents))
+const max = computed(() => oneDecimal.format(props.maxCowEquivalents))
+
+// Parte del rodeo máximo que ocupa el rodeo actual
+const percent = computed(() =>
+  Math.round((props.load.current_cow_equivalents / props.maxCowEquivalents) * 100),
+)
+
+// Qué significa el estado, con los EV que lo separan de los otros dos
+const statusHint = computed(() => {
+  const below = oneDecimal.format(props.load.below_cow_equivalents)
   return {
-    '--below': position(load.below_cow_equivalents),
-    '--limit': position(load.max_cow_equivalents),
-    '--current': position(load.current_cow_equivalents),
+    below: `Menos de ${below} EV.`,
+    within: `Entre ${below} y ${max.value} EV, el rodeo máximo.`,
+    above: `Más de ${max.value} EV, el rodeo máximo.`,
+  }[props.load.status]
+})
+
+const TICK_COUNT = 4
+const ROUND_FACTORS = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]
+
+// Eje del gráfico: va de 0 a un número redondo apenas mayor que el mayor de
+// los dos valores, para que ni la barra ni la línea queden pegadas al borde.
+// Solo ubica elementos en pantalla.
+const scale = computed(() => {
+  const top = Math.max(props.load.current_cow_equivalents, props.maxCowEquivalents) * 1.1
+  const rawStep = top / TICK_COUNT
+  const magnitude = 10 ** Math.floor(Math.log10(rawStep))
+  const factor = ROUND_FACTORS.find((value) => value * magnitude >= rawStep) ?? 10
+  const step = factor * magnitude
+  return {
+    end: step * TICK_COUNT,
+    ticks: Array.from({ length: TICK_COUNT + 1 }, (_, index) => index * step),
   }
+})
+
+const position = (value: number) => `${(value / scale.value.end) * 100}%`
+
+// Cerca de los bordes del eje, la etiqueta de la línea se apoya hacia adentro
+// para no salirse del gráfico. Solo ubica elementos en pantalla.
+const lineLabelAlign = computed(() => {
+  const ratio = props.maxCowEquivalents / scale.value.end
+  if (ratio < 0.25) return 'start'
+  if (ratio > 0.75) return 'end'
+  return ''
 })
 </script>
 
 <template>
-  <section class="load" aria-labelledby="sector-load">
-    <header>
-      <h2 id="sector-load">Carga del sector</h2>
-      <span class="status" :class="load.status">{{ labels[load.status] }} de la capacidad</span>
-    </header>
-    <div class="chart">
-      <div class="track" :style="trackStyle" aria-hidden="true">
-        <div class="current"></div>
-        <div class="limit"></div>
+  <section class="load" aria-labelledby="load-heading">
+    <h2 id="load-heading">Carga del sector</h2>
+    <div class="chart" :class="load.status">
+      <span class="label">Rodeo actual</span>
+      <p class="value">{{ current }} <span class="unit">EV</span></p>
+      <p class="sub">
+        <span class="percent">{{ percent }} % del rodeo máximo</span>
+        <span class="term">
+          <button type="button" aria-describedby="tip-load-status">
+            <span class="tag status">{{ LABELS[load.status] }}</span>
+          </button>
+          <span id="tip-load-status" class="tip" role="tooltip">{{ statusHint }}</span>
+        </span>
+      </p>
+      <div
+        class="meter"
+        role="meter"
+        aria-label="Rodeo actual"
+        aria-valuemin="0"
+        :aria-valuemax="scale.end"
+        :aria-valuenow="load.current_cow_equivalents"
+        :aria-valuetext="`${current} EV de un rodeo máximo de ${max} EV (${percent} %)`"
+      >
+        <div class="track"></div>
+        <div class="fill" :style="{ width: position(load.current_cow_equivalents) }"></div>
+        <div class="line" :style="{ left: position(maxCowEquivalents) }"></div>
+        <span
+          class="line-label"
+          :class="lineLabelAlign"
+          :style="{ left: position(maxCowEquivalents) }"
+        >
+          Rodeo máximo {{ max }}
+        </span>
+        <div class="axis">
+          <span
+            v-for="(tick, index) in scale.ticks"
+            :key="tick"
+            class="tick"
+            :style="{ left: position(tick) }"
+          >
+            {{ tickNumber.format(tick) }}<template v-if="index === TICK_COUNT"> EV</template>
+          </span>
+        </div>
       </div>
-      <ul class="legend">
-        <li class="current-key">
-          Rodeo actual <strong>{{ oneDecimal.format(load.current_cow_equivalents) }} EV</strong>
-        </li>
-        <li class="limit-key">
-          Límite de mi rodeo <strong>{{ oneDecimal.format(load.max_cow_equivalents) }} EV</strong>
-        </li>
-        <li v-for="(label, status) in labels" :key="status" :class="status">{{ label }}</li>
-      </ul>
     </div>
   </section>
 </template>
 
 <style scoped>
 .load {
-  --below-color: var(--color-hover);
-  --within-color: var(--color-primary-soft);
-  --above-color: color-mix(in srgb, var(--color-danger) 9%, var(--color-surface));
   margin-top: 24px;
 }
 
-header,
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-header {
-  justify-content: space-between;
-  gap: 8px 16px;
-  margin-bottom: 8px;
-}
-
 h2 {
-  margin: 0;
+  margin: 0 0 8px;
   font-size: 1rem;
 }
 
-.status {
-  padding: 3px 8px;
-  border-radius: 4px;
-  background: var(--zone-color);
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
+/* Color de cada estado: lo usan la etiqueta y la barra */
 .below {
-  --zone-color: var(--below-color);
+  --status-color: var(--color-warning);
+  --status-soft: var(--color-warning-soft);
 }
 
 .within {
-  --zone-color: var(--within-color);
+  --status-color: var(--color-primary);
+  --status-soft: var(--color-primary-soft);
 }
 
 .above {
-  --zone-color: var(--above-color);
-}
-
-.status.within {
-  color: var(--color-primary);
-}
-
-.status.above {
-  color: var(--color-danger);
+  --status-color: var(--color-danger);
+  --status-soft: color-mix(in srgb, var(--color-danger) 12%, var(--color-surface));
 }
 
 .chart {
-  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px 24px 16px;
   border: 1px solid var(--color-border);
   border-radius: 12px;
   background: var(--color-surface);
 }
 
-.track {
-  position: relative;
-  display: flex;
-  align-items: center;
-  height: 26px;
-  border-radius: 4px;
-  background: linear-gradient(
-    to right,
-    var(--below-color) 0 var(--below),
-    var(--within-color) var(--below) var(--limit),
-    var(--above-color) var(--limit) 100%
-  );
+.chart p {
+  margin: 0;
 }
 
-.current {
-  width: var(--current);
-  height: 10px;
-  border-radius: 2px;
-  background: var(--color-text);
-}
-
-.limit {
-  position: absolute;
-  inset-block: 1px;
-  left: var(--limit);
-  width: 2px;
-  background: var(--color-primary);
-}
-
-.legend {
-  gap: 6px 16px;
-  margin: 12px 0 0;
-  padding: 0;
+.label {
   color: var(--color-text-muted);
   font-size: 0.8rem;
-  list-style: none;
+  font-weight: 500;
 }
 
-.legend li::before {
-  display: inline-block;
-  width: 10px;
-  height: 7px;
-  margin-right: 6px;
-  border: 1px solid var(--color-border);
-  background: var(--zone-color);
-  content: '';
+.value {
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }
 
-.legend .current-key::before {
-  border-color: var(--color-text);
+.unit {
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.sub {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.status {
+  background: var(--status-soft);
+  color: var(--status-color);
+}
+
+.meter {
+  position: relative;
+  height: 60px;
+  margin-top: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.track,
+.fill {
+  position: absolute;
+  top: 22px;
+  left: 0;
+  height: 10px;
+  border-radius: 0 4px 4px 0;
+}
+
+.track {
+  right: 0;
+  background: var(--color-border);
+}
+
+.fill {
+  background: var(--status-color);
+}
+
+.line {
+  position: absolute;
+  top: 15px;
+  width: 2px;
+  height: 24px;
+  margin-left: -1px;
   background: var(--color-text);
 }
 
-.legend .limit-key::before {
-  width: 2px;
-  height: 10px;
-  border: 0;
-  background: var(--color-primary);
+.line-label,
+.tick {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
-strong {
-  color: var(--color-text);
-  font-variant-numeric: tabular-nums;
+.line-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.line-label.start {
+  transform: none;
+}
+
+.line-label.end {
+  transform: translateX(-100%);
+}
+
+.axis {
+  position: absolute;
+  inset: 44px 0 0;
+}
+
+.tick {
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+}
+
+.tick:first-child {
+  transform: none;
+}
+
+.tick:last-child {
+  transform: translateX(-100%);
 }
 </style>
