@@ -178,6 +178,24 @@ describe('Resultado de receptividad', () => {
     },
   )
 
+  it.each([
+    [40, ['line-label', 'end']],
+    [98.4, ['line-label']],
+    [500, ['line-label', 'start']],
+  ] as const)(
+    'con %s EV ubica la etiqueta del rodeo máximo dentro del gráfico',
+    async (current, classes) => {
+      vi.mocked(calculateCarryingCapacity).mockResolvedValue({
+        ...result,
+        load_thermometer: { ...result.load_thermometer, current_cow_equivalents: current },
+      })
+
+      const wrapper = await open()
+
+      expect(wrapper.get('.line-label').classes()).toEqual(classes)
+    },
+  )
+
   it('compara el agua que necesita el límite por pasto con la que reponen las aguadas', async () => {
     const wrapper = await open()
 
@@ -204,8 +222,8 @@ describe('Resultado de receptividad', () => {
     const wrapper = await open()
 
     expect(waterRows(wrapper)).toEqual([
-      ['Verano', 'Sin estimación', '4.200', 'Sin estimación'],
-      ['Invierno', 'Sin estimación', '4.200', 'Sin estimación'],
+      ['Verano', 'Sin estimación', '4.200', ''],
+      ['Invierno', 'Sin estimación', '4.200', ''],
     ])
   })
 
@@ -255,8 +273,8 @@ describe('Resultado de receptividad', () => {
     expect(water.get('.value').text()).toBe('Sin evaluar')
     expect(water.get('.sub').text()).toBe(message)
     expect(waterRows(wrapper)).toEqual([
-      ['Verano', '4.500', 'Sin datos', 'Sin datos'],
-      ['Invierno', '2.400', 'Sin datos', 'Sin datos'],
+      ['Verano', '4.500', 'Sin datos', ''],
+      ['Invierno', '2.400', 'Sin datos', ''],
     ])
   })
 

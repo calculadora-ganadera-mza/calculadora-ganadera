@@ -40,8 +40,7 @@ function waterRow(season: string, need: number | null) {
     need: need === null ? NO_ESTIMATE : integer.format(need),
     refill: refill === null ? NO_DATA : integer.format(refill),
   }
-  if (need === null) return { ...row, difference: NO_ESTIMATE, negative: false }
-  if (refill === null) return { ...row, difference: NO_DATA, negative: false }
+  if (need === null || refill === null) return { ...row, difference: '', negative: false }
   // Resta de los valores ya redondeados, para que cierre con lo que se ve
   const difference = Math.round(refill) - Math.round(need)
   return { ...row, difference: signed.format(difference), negative: difference < 0 }
@@ -116,8 +115,8 @@ const waterRows = computed(() => [
       <span class="term">
         <button type="button" aria-describedby="tip-max">Rodeo máximo</button>
         <span id="tip-max" class="tip" role="tooltip">
-          El menor entre el límite por pasto y el límite por agua. 1 EV = una vaca con su ternero
-          hasta el destete.
+          El menor entre el límite por pasto y el límite por agua, con la composición del rodeo
+          actual. 1 EV = una vaca con su ternero hasta el destete.
         </span>
       </span>
       <p class="value">

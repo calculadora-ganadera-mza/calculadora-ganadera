@@ -53,6 +53,15 @@ const scale = computed(() => {
 })
 
 const position = (value: number) => `${(value / scale.value.end) * 100}%`
+
+// Cerca de los bordes del eje, la etiqueta de la línea se apoya hacia adentro
+// para no salirse del gráfico. Solo ubica elementos en pantalla.
+const lineLabelAlign = computed(() => {
+  const ratio = props.maxCowEquivalents / scale.value.end
+  if (ratio < 0.25) return 'start'
+  if (ratio > 0.75) return 'end'
+  return ''
+})
 </script>
 
 <template>
@@ -82,7 +91,11 @@ const position = (value: number) => `${(value / scale.value.end) * 100}%`
         <div class="track"></div>
         <div class="fill" :style="{ width: position(load.current_cow_equivalents) }"></div>
         <div class="line" :style="{ left: position(maxCowEquivalents) }"></div>
-        <span class="line-label" :style="{ left: position(maxCowEquivalents) }">
+        <span
+          class="line-label"
+          :class="lineLabelAlign"
+          :style="{ left: position(maxCowEquivalents) }"
+        >
           Rodeo máximo {{ max }}
         </span>
         <div class="axis">
@@ -220,6 +233,14 @@ h2 {
 .line-label {
   font-size: 0.75rem;
   font-weight: 500;
+}
+
+.line-label.start {
+  transform: none;
+}
+
+.line-label.end {
+  transform: translateX(-100%);
 }
 
 .axis {

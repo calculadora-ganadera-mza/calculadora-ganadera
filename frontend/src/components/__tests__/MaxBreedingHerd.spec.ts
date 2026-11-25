@@ -23,7 +23,7 @@ describe('MaxBreedingHerd', () => {
 
     expect(wrapper.get('h2 button').text()).toBe('Rodeo de cría máximo')
     expect(rows).toEqual(['Vaca4', 'Toro1', 'Ternero de destete1', 'Vaquillona1'])
-    expect(wrapper.find('tfoot').text()).toContain('6,3 EV')
+    expect(wrapper.get('.total').text()).toBe('6,3 EV')
     expect(wrapper.text()).toContain('Terneros destetados por año: 1 macho y 1 hembra.')
   })
 
