@@ -4,14 +4,17 @@ import { ApiError } from '@/api/errors'
 import { createSeason } from '@/api/seasons'
 import type { Season } from '@/api/scenarios'
 
-const props = defineProps<{ scenarioId: number; seasons: Season[] }>()
+// previous: ofrece el año anterior a la primera campaña, como en Seguimiento
+const props = defineProps<{ scenarioId: number; seasons: Season[]; previous?: boolean }>()
 const emit = defineEmits<{ created: [season: Season] }>()
 
-// Mi campo solo ofrece el año siguiente a la última campaña: así nunca se
-// repite un año ni se crea uno anterior
-const nextYear = computed(() =>
-  props.seasons.length ? Math.max(...props.seasons.map((s) => s.start_year)) + 1 : null,
-)
+// Solo se ofrece el año pegado a la última campaña (o a la primera): así nunca
+// se repite un año. Mi campo agrega posteriores y Seguimiento, anteriores
+const nextYear = computed(() => {
+  if (!props.seasons.length) return null
+  const years = props.seasons.map((s) => s.start_year)
+  return props.previous ? Math.min(...years) - 1 : Math.max(...years) + 1
+})
 const label = computed(() =>
   nextYear.value === null ? '' : `${nextYear.value}/${String(nextYear.value + 1).slice(-2)}`,
 )
@@ -41,7 +44,7 @@ async function add() {
     </button>
     <!-- Otros botones de quien usa el componente, como «Cancelar» en una ventana -->
     <slot name="actions" />
-    <p class="hint">Nace sin datos. Las campañas anteriores no cambian.</p>
+    <p class="hint">Nace sin datos. Las demás campañas no cambian.</p>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
   </div>
 </template>

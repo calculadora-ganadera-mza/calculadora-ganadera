@@ -26,6 +26,7 @@ Si algo no está definido en esos documentos, no inventarlo: preguntar.
 | Frontend | Vue 3 + Vite + TypeScript, con vite-plugin-pwa |
 | Estado del frontend | Pinia |
 | Mapas | Leaflet + Geoman |
+| Gráficos | Chart.js, con vue-chartjs |
 | Avisos | Web Push (pywebpush) y una tarea diaria programada |
 | Pruebas | pytest en el backend y Vitest en el frontend |
 | Formato | ruff en el backend; eslint y prettier en el frontend |

@@ -227,6 +227,7 @@ En el celular la navegación va en una barra inferior. En la computadora, en un 
 | Frontend | Vue + Vite + TypeScript, con vite-plugin-pwa |
 | Estado del frontend | Pinia |
 | Mapas | Leaflet + Geoman |
+| Gráficos | Chart.js, con vue-chartjs |
 | Avisos | Web Push (pywebpush) y una tarea diaria programada |
 | Pruebas | pytest en el backend y Vitest en el frontend |
 | Formato del código | ruff en el backend, eslint y prettier en el frontend |

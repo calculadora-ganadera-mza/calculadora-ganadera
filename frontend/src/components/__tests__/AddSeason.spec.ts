@@ -29,6 +29,17 @@ describe('AddSeason', () => {
     expect(wrapper.find('button').text()).toBe('Agregar campaña 2028/29')
   })
 
+  it('con previous ofrece el año anterior a la primera campaña', async () => {
+    vi.mocked(createSeason).mockResolvedValue(season(3, 2025))
+    const wrapper = mount(AddSeason, {
+      props: { scenarioId: 6, seasons: [season(1, 2027), season(2, 2026)], previous: true },
+    })
+
+    expect(wrapper.find('button').text()).toBe('Agregar campaña 2025/26')
+    await wrapper.find('button').trigger('click')
+    expect(createSeason).toHaveBeenCalledWith(6, 2025)
+  })
+
   it('crea la campaña y avisa', async () => {
     const created = season(3, 2028)
     vi.mocked(createSeason).mockResolvedValue(created)
