@@ -60,7 +60,7 @@ describe('Pantalla del sector', () => {
     expect(map.props('waterPoints')).toEqual([WELL])
     expect(wrapper.getComponent({ name: 'HerdForm' }).props()).toEqual({ seasonId: 12, unitId: 1 })
     const links = wrapper.findAll('.breadcrumb a').map((a) => a.attributes('href'))
-    expect(links).toEqual(['/farm', '/farm/7'])
+    expect(links).toEqual(['/farm/scenarios', '/farm/7'])
   })
 
   it('lleva a calcular con el escenario, el sector y la campaña', async () => {
@@ -78,7 +78,7 @@ describe('Pantalla del sector', () => {
     expect(wrapper.get('.season-meta').text()).toContain('Campaña 2025/26')
     expect(wrapper.getComponent({ name: 'HerdForm' }).props()).toEqual({ seasonId: 11, unitId: 1 })
     const links = wrapper.findAll('.breadcrumb a').map((a) => a.attributes('href'))
-    expect(links).toEqual(['/farm', '/farm/7?season=11'])
+    expect(links).toEqual(['/farm/scenarios', '/farm/7?season=11'])
     expect(href(wrapper, 'Cambiar campaña')).toBe('/farm/7?season=11')
     expect(href(wrapper, 'Calcular')).toBe(
       '/calculators/carrying-capacity?scenario=7&unit=1&season=11',

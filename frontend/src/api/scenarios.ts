@@ -1,5 +1,5 @@
 import { authenticatedFetch } from './auth'
-import { ApiError } from './productionUnits'
+import { responseError } from './errors'
 
 // Tipos según docs/openapi.yaml
 
@@ -12,6 +12,11 @@ export interface SeasonYearOption {
 export interface ScenarioCreate {
   name: string
   first_season_start_year: number
+}
+
+export interface ScenarioUpdate {
+  name?: string
+  is_main?: true
 }
 
 export interface Scenario {
@@ -57,11 +62,17 @@ export async function createScenario(data: ScenarioCreate): Promise<Scenario> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   })
-  if (!response.ok) {
-    const body = await response.json().catch(() => null)
-    // Un detail de texto es un mensaje para el usuario; una lista es un error de formato
-    if (typeof body?.detail === 'string') throw new ApiError(body.detail)
-    throw new Error(`Error ${response.status}`)
-  }
+  if (!response.ok) throw await responseError(response)
+  return response.json()
+}
+
+// Renombra un establecimiento o lo marca como principal
+export async function updateScenario(id: number, data: ScenarioUpdate): Promise<Scenario> {
+  const response = await authenticatedFetch(`/scenarios/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!response.ok) throw await responseError(response)
   return response.json()
 }

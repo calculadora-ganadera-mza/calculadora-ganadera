@@ -5,6 +5,7 @@ from app.core.dates import today
 from app.schemas.scenario import (
     ScenarioCreate,
     ScenarioRead,
+    ScenarioUpdate,
     SeasonCreate,
     SeasonRead,
     SeasonYearOption,
@@ -20,6 +21,7 @@ from app.services.scenarios import (
     list_seasons,
     season_dates,
     season_reads,
+    update_scenario,
 )
 
 router = APIRouter(prefix="/scenarios", tags=["scenarios"])
@@ -63,6 +65,18 @@ def register_scenario(
         raise HTTPException(422, str(err)) from err
     session.commit()
     return ScenarioRead.model_validate(scenario)
+
+
+@router.patch("/{scenario_id}")
+def edit_scenario(
+    data: ScenarioUpdate, scenario: OwnedScenario, session: SessionDep
+) -> ScenarioRead:
+    """Renombra un establecimiento o lo marca como principal."""
+    updated = update_scenario(
+        session, scenario, name=data.name, is_main=bool(data.is_main)
+    )
+    session.commit()
+    return ScenarioRead.model_validate(updated)
 
 
 @router.get("/{scenario_id}/seasons")

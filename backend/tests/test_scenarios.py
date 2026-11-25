@@ -343,11 +343,128 @@ def test_add_season_to_another_users_scenario_is_not_found(
     assert response.status_code == 404
 
 
+def test_register_second_scenario_is_not_main(api: TestClient):
+    year = current_season_start_year(today(), 7)
+
+    first = api.post(
+        "/scenarios", json={"name": "La Aguada", "first_season_start_year": year}
+    )
+    second = api.post(
+        "/scenarios", json={"name": "El Puesto", "first_season_start_year": year}
+    )
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.json()["is_main"] is True
+    assert second.json()["is_main"] is False
+
+
+def test_mark_another_scenario_as_main_unsets_the_previous_one(
+    api: TestClient, session: Session, user: User
+):
+    first, _ = create_scenario(session, user.id, "La Aguada", 2026, TODAY)
+    second, _ = create_scenario(session, user.id, "El Puesto", 2026, TODAY)
+
+    response = api.patch(f"/scenarios/{second.id}", json={"is_main": True})
+
+    assert response.status_code == 200
+    assert response.json() == {"id": second.id, "name": "El Puesto", "is_main": True}
+    listed = api.get("/scenarios").json()
+    assert [(s["id"], s["is_main"]) for s in listed] == [
+        (first.id, False),
+        (second.id, True),
+    ]
+
+
+def test_mark_already_main_scenario_as_main_keeps_it_main(
+    api: TestClient, session: Session, user: User
+):
+    first, _ = create_scenario(session, user.id, "La Aguada", 2026, TODAY)
+
+    response = api.patch(f"/scenarios/{first.id}", json={"is_main": True})
+
+    assert response.status_code == 200
+    assert response.json() == {"id": first.id, "name": "La Aguada", "is_main": True}
+
+
+def test_rename_scenario_and_mark_as_main(
+    api: TestClient, session: Session, user: User
+):
+    first, _ = create_scenario(session, user.id, "La Aguada", 2026, TODAY)
+    second, _ = create_scenario(session, user.id, "El Puesto", 2026, TODAY)
+
+    response = api.patch(
+        f"/scenarios/{second.id}", json={"name": "  San José  ", "is_main": True}
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"id": second.id, "name": "San José", "is_main": True}
+    listed = api.get("/scenarios").json()
+    assert [(s["id"], s["name"], s["is_main"]) for s in listed] == [
+        (first.id, "La Aguada", False),
+        (second.id, "San José", True),
+    ]
+
+
+def test_rename_scenario_does_not_change_is_main(
+    api: TestClient, session: Session, user: User
+):
+    first, _ = create_scenario(session, user.id, "La Aguada", 2026, TODAY)
+    second, _ = create_scenario(session, user.id, "El Puesto", 2026, TODAY)
+
+    response = api.patch(f"/scenarios/{second.id}", json={"name": "San José"})
+
+    assert response.status_code == 200
+    assert response.json() == {"id": second.id, "name": "San José", "is_main": False}
+    listed = api.get("/scenarios").json()
+    assert [(s["id"], s["is_main"]) for s in listed] == [
+        (first.id, True),
+        (second.id, False),
+    ]
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {},
+        {"is_main": False},
+        {"is_main": None},
+        {"name": None},
+        {"name": "   "},
+        {"name": "x" * 101},
+        {"name": "Válido", "is_main": None},
+        {"name": None, "is_main": True},
+    ],
+)
+def test_patch_scenario_rejects_invalid_payloads(
+    api: TestClient, session: Session, user: User, payload: dict
+):
+    scenario, _ = create_scenario(session, user.id, "La Aguada", 2026, TODAY)
+
+    response = api.patch(f"/scenarios/{scenario.id}", json=payload)
+
+    assert response.status_code == 422
+
+
+def test_patch_another_users_scenario_is_not_found(
+    api: TestClient, session: Session, user: User, other_user: User
+):
+    own, _ = create_scenario(session, user.id, "Mío", 2026, TODAY)
+    foreign, _ = create_scenario(session, other_user.id, "Ajeno", 2026, TODAY)
+
+    response = api.patch(f"/scenarios/{foreign.id}", json={"is_main": True})
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Establecimiento no encontrado."}
+    assert session.get(Scenario, own.id).is_main is True
+
+
 @pytest.mark.parametrize(
     ("method", "path"),
     [
         ("get", "/scenarios"),
         ("post", "/scenarios"),
+        ("patch", "/scenarios/1"),
         ("get", "/scenarios/1/seasons"),
         ("get", "/scenarios/first-season-years"),
         ("post", "/scenarios/1/seasons"),

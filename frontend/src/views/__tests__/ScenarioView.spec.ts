@@ -1,12 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, type VueWrapper } from '@vue/test-utils'
-import { listScenarios, listSeasons } from '@/api/scenarios'
+import { listScenarios, listSeasons, updateScenario } from '@/api/scenarios'
 import { listProductionUnits } from '@/api/productionUnits'
 import { listScenarioWaterPoints } from '@/api/waterPoints'
 import { createSeason, updateSeasonRainfall } from '@/api/seasons'
 import { NORTH, SCENARIO, SOUTH, WELL, openAt, season } from './farmFixtures'
 
-vi.mock('@/api/scenarios', () => ({ listScenarios: vi.fn(), listSeasons: vi.fn() }))
+vi.mock('@/api/scenarios', () => ({
+  listScenarios: vi.fn(),
+  listSeasons: vi.fn(),
+  updateScenario: vi.fn(),
+}))
 vi.mock('@/api/productionUnits', async (original) => ({
   ...(await original<typeof import('@/api/productionUnits')>()),
   listProductionUnits: vi.fn(),
@@ -148,6 +152,89 @@ describe('Pantalla del escenario', () => {
     expect(wrapper.get('[role="alert"]').text()).toContain('No se encontró el escenario.')
     expect(wrapper.text()).not.toContain('Reintentar')
     expect(listProductionUnits).not.toHaveBeenCalled()
+  })
+
+  it('muestra si es principal', async () => {
+    const { wrapper } = await openAt('/farm/7')
+
+    expect(wrapper.get('.title').text()).toContain('Principal')
+  })
+
+  it('permite marcar como principal un escenario que no lo es', async () => {
+    const secondary = { id: 8, name: 'El Puesto', is_main: false }
+    vi.mocked(listScenarios).mockResolvedValue([SCENARIO, secondary])
+    vi.mocked(updateScenario).mockResolvedValue({ ...secondary, is_main: true })
+    const { wrapper } = await openAt('/farm/8')
+
+    const markButton = wrapper.findAll('button').find((b) => b.text() === 'Marcar como principal')!
+    await markButton.trigger('click')
+    await flushPromises()
+
+    expect(updateScenario).toHaveBeenCalledWith(8, { is_main: true })
+    expect(wrapper.get('.title').text()).toContain('Principal')
+    expect(wrapper.text()).not.toContain('Marcar como principal')
+  })
+
+  it('avisa si no pudo marcar el escenario como principal', async () => {
+    const secondary = { id: 8, name: 'El Puesto', is_main: false }
+    vi.mocked(listScenarios).mockResolvedValue([SCENARIO, secondary])
+    vi.mocked(updateScenario).mockRejectedValueOnce(new Error('Sin red'))
+    const { wrapper } = await openAt('/farm/8')
+
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Marcar como principal')!
+      .trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      'No se pudo marcar el escenario como principal.',
+    )
+  })
+
+  it('permite cambiar el nombre del escenario desde la ventana y valida que no quede vacío', async () => {
+    vi.mocked(updateScenario).mockResolvedValue({ ...SCENARIO, name: 'San José' })
+    const { wrapper } = await openAt('/farm/7')
+
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Editar')!
+      .trigger('click')
+    const dialog = wrapper.get('[role="dialog"]')
+    expect(dialog.get<HTMLInputElement>('#scenario-new-name').element.value).toBe('La Aguada')
+
+    await dialog.get('#scenario-new-name').setValue('   ')
+    await dialog.get('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.get('[role="dialog"] [role="alert"]').text()).toBe(
+      'Falta el nombre del escenario.',
+    )
+    expect(updateScenario).not.toHaveBeenCalled()
+
+    await dialog.get('#scenario-new-name').setValue('  San José  ')
+    await dialog.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(updateScenario).toHaveBeenCalledWith(7, { name: 'San José' })
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(wrapper.get('h1').text()).toBe('San José')
+  })
+
+  it('avisa si no pudo cambiar el nombre del escenario', async () => {
+    vi.mocked(updateScenario).mockRejectedValueOnce(new Error('Error 500'))
+    const { wrapper } = await openAt('/farm/7')
+
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Editar')!
+      .trigger('click')
+    await wrapper.get('#scenario-new-name').setValue('San José')
+    await wrapper.get('[role="dialog"] form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.get('[role="dialog"] [role="alert"]').text()).toBe(
+      'No se pudo cambiar el nombre.',
+    )
   })
 
   it('si falla la carga, deja reintentar', async () => {
