@@ -72,6 +72,7 @@ Los pasos 2 a 5 resumen el método de Guevara y otros (1995). En la práctica da
 
 - Superficie aprovechable.
 - Receptividad, en hectáreas por EV.
+- Desglose de la receptividad: consumo anual de un EV, forraje consumible, receptividad antes de corregir y los tres índices, cada uno con su valor o sin valor, y si corresponde aplicarlo.
 - Límite por pasto y límite por agua, en EV.
 - Rodeo máximo, en EV, y cuál de los dos límites lo fija.
 - Rodeo de cría máximo, en cabezas por categoría, con su total en EV y los terneros destetados machos y hembras.

@@ -97,6 +97,7 @@ Son cuatro, independientes entre sí, y se pueden usar en cualquier orden. Ningu
 - **Mi rodeo ajustado al campo:** el rodeo cargado, agrandado o achicado hasta el rodeo máximo, con sus mismas proporciones. Se toma la mayor cantidad entera de vacas que entra en esos EV y en los litros de verano. Al menos un toro solo si se cargaron toros. Si el sector no tiene vacas, no se arma.
 - **Termómetro de carga:** compara el rodeo actual con el rodeo máximo, sin redondear. El rodeo actual suma los animales cargados y las terneras de reposición que calcula la aplicación. Tiene tres estados: por debajo, dentro o por encima de la capacidad. El límite entre "por debajo" y "dentro" es un parámetro.
 - **Necesidad de agua:** litros por día que necesita el límite por pasto con los litros por EV del rodeo actual, en verano y en invierno, frente a lo que reponen las aguadas. Las terneras de reposición cuentan solo en la estación en que están en el campo. Sin animales cargados no se estima.
+- **Cómo se calculó:** antes de calcular, la pantalla para elegir escenario, sector y campaña muestra la lluvia, la superficie aprovechable, lo que reponen las aguadas, el rodeo y el estado del campo, y marca el dato que falta con un enlace para cargarlo. El resultado muestra los datos usados, cada uno con un enlace para cambiarlo, y un desglose plegado: forraje consumible, receptividad antes de corregir y cada índice, con su valor, sin valor o sin marcar.
 
 ### Proyección del estado del rodeo
 
