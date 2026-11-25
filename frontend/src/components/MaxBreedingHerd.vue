@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { CalculationWarning, RecommendedHerd } from '@/api/carryingCapacity'
+import type { CalculationWarning, MaxBreedingHerd } from '@/api/carryingCapacity'
 
 const props = defineProps<{
-  herd: RecommendedHerd | null
+  herd: MaxBreedingHerd | null
   warnings: CalculationWarning[]
 }>()
 
@@ -20,8 +20,15 @@ const herdWarnings = computed(() =>
 </script>
 
 <template>
-  <section v-if="herd || herdWarnings.length" class="recommended" aria-label="Rodeo recomendado">
-    <h2>Rodeo recomendado</h2>
+  <section v-if="herd || herdWarnings.length" class="breeding" aria-label="Rodeo de cría máximo">
+    <h2 class="term heading">
+      <button type="button" aria-describedby="tip-max-breeding">Rodeo de cría máximo</button>
+      <span id="tip-max-breeding" class="tip" role="tooltip">
+        Rodeo de cría estándar que entra en el sector. Parte del límite por pasto y baja si en
+        verano necesita más agua de la que reponen las aguadas. Como usa sus propios litros por EV,
+        puede quedar por encima del rodeo máximo.
+      </span>
+    </h2>
 
     <ul v-if="herdWarnings.length" class="warnings">
       <li v-for="warning in herdWarnings" :key="warning.code" role="status">
@@ -54,7 +61,7 @@ const herdWarnings = computed(() =>
 </template>
 
 <style scoped>
-.recommended {
+.breeding {
   padding: 20px 24px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);

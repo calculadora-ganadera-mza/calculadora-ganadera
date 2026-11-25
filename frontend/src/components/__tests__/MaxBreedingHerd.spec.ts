@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 
-import RecommendedHerd from '../RecommendedHerd.vue'
+import MaxBreedingHerd from '../MaxBreedingHerd.vue'
 
 const HERD = {
   cow_equivalents: 6.25,
@@ -16,18 +16,19 @@ const HERD = {
 
 const warning = (code: string, message: string) => ({ code, message })
 
-describe('RecommendedHerd', () => {
+describe('MaxBreedingHerd', () => {
   it('muestra cada categoría, el total en EV y los terneros destetados', () => {
-    const wrapper = mount(RecommendedHerd, { props: { herd: HERD, warnings: [] } })
+    const wrapper = mount(MaxBreedingHerd, { props: { herd: HERD, warnings: [] } })
     const rows = wrapper.findAll('tbody tr').map((row) => row.text())
 
+    expect(wrapper.get('h2 button').text()).toBe('Rodeo de cría máximo')
     expect(rows).toEqual(['Vaca4', 'Toro1', 'Ternero de destete1', 'Vaquillona1'])
     expect(wrapper.find('tfoot').text()).toContain('6,3 EV')
     expect(wrapper.text()).toContain('Terneros destetados por año: 1 macho y 1 hembra.')
   })
 
   it('avisa si la reposición pide más terneras que hembras', () => {
-    const wrapper = mount(RecommendedHerd, {
+    const wrapper = mount(MaxBreedingHerd, {
       props: {
         herd: HERD,
         warnings: [
@@ -42,7 +43,7 @@ describe('RecommendedHerd', () => {
   })
 
   it('si el campo no alcanza, avisa y no muestra el rodeo', () => {
-    const wrapper = mount(RecommendedHerd, {
+    const wrapper = mount(MaxBreedingHerd, {
       props: {
         herd: null,
         warnings: [warning('herd_does_not_fit', 'El campo no alcanza para una vaca con su toro.')],
@@ -54,7 +55,7 @@ describe('RecommendedHerd', () => {
   })
 
   it('sin vacas no muestra nada', () => {
-    const wrapper = mount(RecommendedHerd, { props: { herd: null, warnings: [] } })
+    const wrapper = mount(MaxBreedingHerd, { props: { herd: null, warnings: [] } })
 
     expect(wrapper.find('section').exists()).toBe(false)
   })

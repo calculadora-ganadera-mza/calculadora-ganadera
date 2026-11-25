@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { CarryingCapacityResult, LimitedBy } from '@/api/carryingCapacity'
 import LoadThermometer from './LoadThermometer.vue'
-import RecommendedHerd from './RecommendedHerd.vue'
+import MaxBreedingHerd from './MaxBreedingHerd.vue'
 import ScaledHerd from './ScaledHerd.vue'
 
 const props = defineProps<{ result: CarryingCapacityResult; rainfallMm: number }>()
@@ -22,10 +23,34 @@ const oneDecimal = new Intl.NumberFormat('es-AR', {
 })
 
 const integer = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 })
+const signed = new Intl.NumberFormat('es-AR', {
+  maximumFractionDigits: 0,
+  signDisplay: 'exceptZero',
+})
 
-function litresPerDay(value: number | null, unavailable: string) {
-  return value === null ? unavailable : `${integer.format(value)} L/día`
+const NO_ESTIMATE = 'Sin estimación'
+const NO_DATA = 'Sin datos'
+
+// Fila de la tabla del agua: lo que necesita el límite por pasto en la
+// estación, lo que reponen las aguadas y la diferencia entre los dos
+function waterRow(season: string, need: number | null) {
+  const refill = props.result.water.refill_l_day
+  const row = {
+    season,
+    need: need === null ? NO_ESTIMATE : integer.format(need),
+    refill: refill === null ? NO_DATA : integer.format(refill),
+  }
+  if (need === null) return { ...row, difference: NO_ESTIMATE, negative: false }
+  if (refill === null) return { ...row, difference: NO_DATA, negative: false }
+  // Resta de los valores ya redondeados, para que cierre con lo que se ve
+  const difference = Math.round(refill) - Math.round(need)
+  return { ...row, difference: signed.format(difference), negative: difference < 0 }
 }
+
+const waterRows = computed(() => [
+  waterRow('Verano', props.result.water.summer_need_l_day),
+  waterRow('Invierno', props.result.water.winter_need_l_day),
+])
 </script>
 
 <template>
@@ -65,7 +90,8 @@ function litresPerDay(value: number | null, unavailable: string) {
       <span class="term">
         <button type="button" aria-describedby="tip-water">Límite por agua</button>
         <span id="tip-water" class="tip" role="tooltip">
-          EV que pueden tomar agua en verano con lo que reponen por día las aguadas del sector.
+          EV que pueden tomar agua en verano con lo que reponen por día las aguadas del sector,
+          según los litros por EV del rodeo actual.
         </span>
       </span>
       <template v-if="result.water.evaluated">
@@ -103,32 +129,52 @@ function litresPerDay(value: number | null, unavailable: string) {
       </p>
     </div>
   </section>
-  <LoadThermometer :load="result.load_thermometer" />
-  <section class="water-need" aria-labelledby="water-need-heading">
-    <h2 id="water-need-heading">Agua necesaria para el límite por pasto</h2>
-    <dl>
-      <div>
-        <dt>Verano</dt>
-        <dd>{{ litresPerDay(result.water.summer_need_l_day, 'Sin estimación') }}</dd>
-      </div>
-      <div>
-        <dt>Invierno</dt>
-        <dd>{{ litresPerDay(result.water.winter_need_l_day, 'Sin estimación') }}</dd>
-      </div>
-      <div>
-        <dt>Reposición de las aguadas</dt>
-        <dd>{{ litresPerDay(result.water.refill_l_day, 'Sin datos') }}</dd>
-      </div>
-    </dl>
-  </section>
+  <LoadThermometer
+    :load="result.load_thermometer"
+    :max-cow-equivalents="result.max_herd.cow_equivalents"
+  />
   <div class="herds">
-    <RecommendedHerd :herd="result.recommended_herd" :warnings="result.warnings" />
+    <MaxBreedingHerd :herd="result.max_breeding_herd" :warnings="result.warnings" />
     <ScaledHerd
       :herd="result.scaled_herd"
       :current-cow-equivalents="result.load_thermometer.current_cow_equivalents"
-      :max-herd-cow-equivalents="result.max_herd.cow_equivalents"
     />
   </div>
+  <section class="water-need" aria-label="Agua para aprovechar todo el pasto">
+    <div class="section-head">
+      <h2 class="term heading">
+        <button type="button" aria-describedby="tip-water-need">
+          Agua para aprovechar todo el pasto
+        </button>
+        <span id="tip-water-need" class="tip" role="tooltip">
+          Litros por día que necesitan los
+          {{ oneDecimal.format(result.pasture_limit_cow_equivalents) }} EV del límite por pasto, con
+          los litros por EV del rodeo actual, comparados con lo que reponen las aguadas.
+        </span>
+      </h2>
+      <span class="sub">L/día</span>
+    </div>
+    <div class="table-wrap water-table">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Estación</th>
+            <th scope="col">Necesita</th>
+            <th scope="col">Reponen las aguadas</th>
+            <th scope="col">Diferencia</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in waterRows" :key="row.season">
+            <th scope="row">{{ row.season }}</th>
+            <td>{{ row.need }}</td>
+            <td>{{ row.refill }}</td>
+            <td :class="{ negative: row.negative }">{{ row.difference }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
 </template>
 
 <style scoped>
@@ -151,39 +197,6 @@ function litresPerDay(value: number | null, unavailable: string) {
 }
 .kpi p {
   margin: 0;
-}
-.term {
-  position: relative;
-  align-self: flex-start;
-}
-.term button {
-  padding: 0;
-  border: 0;
-  border-bottom: 1px dotted var(--color-text-muted);
-  background: none;
-  color: var(--color-text-muted);
-  font: inherit;
-  font-size: 0.8rem;
-  font-weight: 500;
-  cursor: help;
-}
-.tip {
-  display: none;
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  z-index: 5;
-  width: 250px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: var(--color-text);
-  color: var(--color-background);
-  font-size: 0.8rem;
-  line-height: 1.45;
-}
-.term:hover .tip,
-.term:focus-within .tip {
-  display: block;
 }
 .value {
   font-size: 2rem;
@@ -216,50 +229,61 @@ function litresPerDay(value: number | null, unavailable: string) {
   font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
 }
-.tag {
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: var(--color-hover);
-  color: var(--color-text);
-  font-size: 0.75rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-.tag.warn {
-  background: var(--color-warning-soft);
-  color: var(--color-warning);
-}
-.water-need {
-  margin: 16px 0;
-  padding: 16px;
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  background: var(--color-surface);
-}
-.water-need h2 {
-  margin: 0 0 12px;
-  font-size: 1rem;
-}
-.water-need dl {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px 24px;
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-}
-.water-need dt {
-  color: var(--color-text-muted);
-  font-size: 0.8rem;
-}
-.water-need dd {
-  margin: 2px 0 0;
-  font-weight: 600;
-}
 .herds {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
   gap: 16px;
+  margin-top: 24px;
+}
+.water-need {
+  margin-top: 24px;
+}
+.section-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.section-head h2 {
+  margin: 0;
+}
+.water-table {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+.water-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+.water-table th,
+.water-table td {
+  padding: 11px 20px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: right;
+  white-space: nowrap;
+}
+.water-table th:first-child {
+  text-align: left;
+}
+.water-table thead th {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.water-table tbody th {
+  font-weight: 400;
+}
+.water-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+.negative {
+  color: var(--color-danger);
 }
 @media (max-width: 900px) {
   .kpis {
