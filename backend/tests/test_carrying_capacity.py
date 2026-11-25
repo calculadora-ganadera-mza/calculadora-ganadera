@@ -8,7 +8,7 @@ from app.calculators.carrying_capacity import (
     calculate_pasture_limit,
     consumable_forage_kg_ha_year,
 )
-from app.models.enums import RangeCondition
+from app.models.enums import CorrectionIndexCode, RangeCondition
 
 # Valores de la migración inicial, sin índices cargados.
 PARAMETERS = PastureParameters(
@@ -66,6 +66,34 @@ def test_without_indices_300_mm_needs_15_1_ha_per_cow_equivalent():
     # 1000 ha ÷ 15,08 ha/EV = 66,30 EV
     assert result.pasture_limit_cow_equivalents == pytest.approx(66.30, abs=0.01)
     assert result.missing_index
+
+
+def test_keeps_the_forage_and_the_carrying_capacity_before_the_indices():
+    # 300 × 0,726 = 217,8 kg MS/ha; 3285 ÷ 217,8 = 15,08 ha/EV, que con el
+    # índice muy bueno (2,0) queda en 7,54.
+    result = calculate(WITH_INDICES, range_condition=RangeCondition.VERY_GOOD)
+
+    assert result.consumable_forage_kg_ha_year == pytest.approx(217.8)
+    assert result.base_carrying_capacity_ha_per_cow_equivalent == pytest.approx(
+        15.08, abs=0.01
+    )
+    assert result.carrying_capacity_ha_per_cow_equivalent == pytest.approx(
+        7.54, abs=0.01
+    )
+
+
+def test_lists_the_three_indices_with_whether_they_apply():
+    parameters = replace(WITH_INDICES, supplementation_index=None)
+
+    result = calculate(parameters, early_weaning=True)
+
+    assert [(i.code, i.applies, i.value) for i in result.indices] == [
+        (CorrectionIndexCode.RANGE_CONDITION, True, 1.0),
+        (CorrectionIndexCode.EARLY_WEANING, True, 1.2),
+        (CorrectionIndexCode.SUPPLEMENTATION, False, None),
+    ]
+    # La suplementación no corresponde: que no tenga valor no es un faltante
+    assert not result.missing_index
 
 
 def test_checked_indices_divide_the_carrying_capacity():

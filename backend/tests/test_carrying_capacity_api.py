@@ -66,6 +66,23 @@ def test_without_indices_calculates_and_warns(api, unit_id):
     assert codes == ["missing_index", "water_not_evaluated"]
 
 
+def test_shows_how_the_carrying_capacity_was_calculated(api, unit_id):
+    add_water_point(api, unit_id)
+
+    result = calculate(api, unit_id, supplemented=True).json()
+
+    # 300 mm × 0,726 = 217,8 kg MS/ha; 3.285 ÷ 217,8 = 15,1 ha/EV
+    breakdown = result["pasture_breakdown"]
+    assert breakdown["cow_equivalent_dm_intake_kg_year"] == 3285
+    assert breakdown["consumable_forage_kg_ha_year"] == pytest.approx(217.8)
+    assert round(breakdown["base_carrying_capacity_ha_per_cow_equivalent"], 1) == 15.1
+    assert breakdown["indices"] == [
+        {"code": "range_condition", "applies": True, "value": None},
+        {"code": "early_weaning", "applies": False, "value": None},
+        {"code": "supplementation", "applies": True, "value": None},
+    ]
+
+
 def test_simulation_uses_the_supplied_rainfall(api, unit_id):
     add_water_point(api, unit_id)
 
@@ -428,6 +445,30 @@ def test_shared_point_splits_its_litres(api, session, unit_id):
     # El alcance cubre los dos cuadrados enteros, que miden lo mismo: cada
     # sector recibe la mitad y entre los dos suman todos los litros.
     assert refills == pytest.approx([500, 500], rel=0.001)
+
+
+def test_sector_list_shows_the_same_litres_as_the_calculation(api, session, unit_id):
+    neighbor_id = add_neighbor(api, session, unit_id)
+    add_water_point(api, unit_id, location=EDGE, refill_l_day=1000, shared=True)
+    add_water_point(api, unit_id, refill_l_day=300)
+    scenario_id = session.get(ProductionUnit, unit_id).scenario_id
+
+    units = api.get(f"/scenarios/{scenario_id}/production-units").json()
+
+    # El sector tiene sus 300 más la mitad de la compartida; el vecino, la otra
+    # mitad.
+    refills = {unit["id"]: unit["refill_l_day"] for unit in units}
+    assert refills[unit_id] == pytest.approx(800, rel=0.001)
+    assert refills[neighbor_id] == pytest.approx(500, rel=0.001)
+
+
+def test_sector_without_litres_has_no_refill(api, session, unit_id):
+    add_water_point(api, unit_id)
+    scenario_id = session.get(ProductionUnit, unit_id).scenario_id
+
+    [unit] = api.get(f"/scenarios/{scenario_id}/production-units").json()
+
+    assert unit["refill_l_day"] is None
 
 
 def test_breeding_beyond_the_limit_is_rejected(api, session, unit_id):

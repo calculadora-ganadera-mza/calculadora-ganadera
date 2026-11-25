@@ -26,6 +26,12 @@ class RangeCondition(StrEnum):
     VERY_GOOD = "very_good"
 
 
+class CorrectionIndexCode(StrEnum):
+    RANGE_CONDITION = "range_condition"
+    EARLY_WEANING = "early_weaning"
+    SUPPLEMENTATION = "supplementation"
+
+
 class LimitedBy(StrEnum):
     PASTURE = "pasture"
     WATER = "water"

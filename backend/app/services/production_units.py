@@ -17,7 +17,12 @@ from sqlalchemy.orm import Session, aliased
 from app.models import ProductionUnit, Scenario, WaterPoint
 from app.models.enums import ProductionSystem
 from app.schemas.production_unit import PolygonGeoJSON
-from app.services.spatial import supplies_sector, water_point_reach, within_sector
+from app.services.spatial import (
+    sector_refill_l_day,
+    supplies_sector,
+    water_point_reach,
+    within_sector,
+)
 
 # Una franja de unos 10 cm a lo largo de 1 km de alambrado.
 SECTOR_OVERLAP_TOLERANCE_M2 = 100.0
@@ -111,6 +116,7 @@ def select_units() -> Select:
                 (func.ST_IsEmpty(coverage.c.geom), None),
                 else_=cast(func.ST_AsGeoJSON(coverage.c.geom), JSON),
             ).label("usable_geometry"),
+            sector_refill_l_day(ProductionUnit).label("refill_l_day"),
         )
         .select_from(ProductionUnit)
         .join(coverage, true(), isouter=True)
