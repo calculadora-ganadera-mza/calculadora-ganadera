@@ -159,7 +159,7 @@ watch(() => route.params.scenarioId, load, { immediate: true })
         <div>
           <div class="title">
             <h1>{{ data.scenario.name }}</h1>
-            <span v-if="data.scenario.is_main" class="current">Principal</span>
+            <span v-if="data.scenario.is_main" class="badge">Principal</span>
             <button
               v-else
               type="button"
@@ -212,7 +212,7 @@ watch(() => route.params.scenarioId, load, { immediate: true })
           <template v-if="selected">
             <h2>
               Campaña {{ seasonName(selected.start_date, selected.end_date) }}
-              <span v-if="selected.is_current" class="current">actual</span>
+              <span v-if="selected.is_current" class="badge">actual</span>
             </h2>
             <p class="hint">
               Del {{ formatDate(selected.start_date) }} al {{ formatDate(selected.end_date) }}
@@ -394,7 +394,7 @@ h2 {
   gap: 6px;
 }
 
-.current {
+.badge {
   display: inline-block;
   margin-left: 6px;
   padding: 3px 9px;

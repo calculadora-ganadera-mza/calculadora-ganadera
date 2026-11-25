@@ -117,7 +117,6 @@ def update_scenario(
             .where(Scenario.user_id == scenario.user_id, Scenario.is_main.is_(True))
             .values(is_main=False)
         )
-        session.flush()
         scenario.is_main = True
     session.flush()
     return scenario
