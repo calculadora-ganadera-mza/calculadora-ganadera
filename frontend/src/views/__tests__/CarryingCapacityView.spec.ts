@@ -156,7 +156,11 @@ describe('Elegir qué calcular', () => {
 
     const sector = '/farm/7/sectors/2?season=12'
     expect(dataRows(wrapper)).toEqual([
-      { label: 'Lluvia de la campaña anterior', value: 'Falta', link: '/farm/7?season=12' },
+      {
+        label: 'Lluvia de la campaña anterior',
+        value: 'Falta',
+        link: '/farm/7?season=12&calculate=2',
+      },
       { label: 'Superficie aprovechable', value: '60,0 ha', link: undefined },
       { label: 'Reposición de las aguadas', value: 'Falta', link: sector },
       { label: 'Rodeo cargado', value: 'Falta', link: sector },
@@ -164,6 +168,31 @@ describe('Elegir qué calcular', () => {
     ])
     expect(wrapper.get('.calculation-data a').text()).toBe('Cargar la lluvia')
     expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('al volver de guardar la lluvia avisa que ya se puede calcular', async () => {
+    vi.mocked(listHerds).mockResolvedValue([HERD])
+    const { wrapper } = await open('/calc?scenario=7&unit=2&season=12&rainfall=saved')
+
+    expect(wrapper.get('[role="status"]').text()).toBe('Lluvia guardada. Ya se puede calcular.')
+    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
+
+    // El aviso es de esa elección: al elegir otro sector desaparece
+    await wrapper.findAll('select')[1]!.setValue(3)
+    expect(wrapper.find('[role="status"]').exists()).toBe(false)
+  })
+
+  it('borra el error de los rodeos al elegir otra campaña que sí carga', async () => {
+    vi.mocked(listHerds).mockRejectedValueOnce(new Error('sin conexión'))
+    const { wrapper } = await open('/calc?scenario=7&unit=2&season=12')
+    expect(wrapper.get('[role="alert"]').text()).toBe(
+      'No se pudieron cargar los datos de la campaña.',
+    )
+
+    await wrapper.findAll('select')[2]!.setValue(11)
+    await flushPromises()
+
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
   })
 
   it('simula en la pantalla del resultado y permite volver al cálculo de la campaña', async () => {

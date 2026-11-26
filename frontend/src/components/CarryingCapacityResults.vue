@@ -4,6 +4,7 @@ import type { CarryingCapacityResult, LimitedBy } from '@/api/carryingCapacity'
 import LoadThermometer from './LoadThermometer.vue'
 import MaxBreedingHerd from './MaxBreedingHerd.vue'
 import ScaledHerd from './ScaledHerd.vue'
+import { integer, oneDecimal, upToOneDecimal } from '@/utils/format'
 
 const props = defineProps<{ result: CarryingCapacityResult; rainfallMm: number }>()
 
@@ -17,13 +18,6 @@ const LIMITED_BY: Record<LimitedBy, string> = {
   water: 'Limita el agua',
 }
 
-const oneDecimal = new Intl.NumberFormat('es-AR', {
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-})
-
-const integer = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 })
-const number = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 })
 const signed = new Intl.NumberFormat('es-AR', {
   maximumFractionDigits: 0,
   signDisplay: 'exceptZero',
@@ -68,8 +62,11 @@ const waterRows = computed(() => [
         <span class="unit">ha/EV</span>
       </p>
       <p class="sub">
-        {{ number.format(rainfallMm) }} mm de lluvia
+        {{ upToOneDecimal.format(rainfallMm) }} mm de lluvia
         <span v-if="warning('missing_index')" class="tag warn">Falta un índice</span>
+      </p>
+      <p v-if="warning('missing_index')" class="sub">
+        {{ warning('missing_index')?.message }}
       </p>
     </div>
     <div class="kpi">

@@ -6,6 +6,7 @@ import { listProductionUnits, type ProductionUnit } from '@/api/productionUnits'
 import { listScenarios, listSeasons, type Scenario, type Season } from '@/api/scenarios'
 import { loadedAnimals, RANGE_CONDITION_LABELS } from '@/utils/herd'
 import { pickSeason, seasonLabel } from '@/utils/season'
+import { integer, oneDecimal, upToOneDecimal } from '@/utils/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -25,13 +26,6 @@ const unit = computed(() => units.value.find((item) => item.id === unitId.value)
 const season = computed(() => seasons.value.find((item) => item.id === seasonId.value))
 const herd = computed(() => herds.value?.find((item) => item.production_unit_id === unitId.value))
 
-const number = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 })
-const oneDecimal = new Intl.NumberFormat('es-AR', {
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-})
-const integer = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 })
-
 // Datos que va a usar el cálculo. Si falta uno, la fila lo marca y enlaza a
 // donde se carga. La lluvia, el rodeo y la superficie hacen falta para calcular.
 const calculationData = computed(() => {
@@ -47,13 +41,13 @@ const calculationData = computed(() => {
   return [
     {
       label: 'Lluvia de la campaña anterior',
-      value: rainfall ? `${number.format(rainfall)} mm` : undefined,
+      value: rainfall ? `${upToOneDecimal.format(rainfall)} mm` : undefined,
       required: true,
       load: 'la lluvia',
       to: {
         name: 'scenario',
         params: { scenarioId: scenarioId.value },
-        query: { season: season.value.id },
+        query: { season: season.value.id, calculate: unit.value.id },
       },
     },
     {
@@ -97,9 +91,20 @@ const ready = computed(
     !!calculationData.value?.every((row) => !row.required || row.value !== undefined),
 )
 
+// Se vuelve de cargar la lluvia para esta misma elección (?rainfall=saved)
+const rainfallSaved = computed(
+  () =>
+    route.query.rainfall === 'saved' &&
+    scenarioId.value === queryId('scenario') &&
+    unitId.value === queryId('unit') &&
+    seasonId.value === queryId('season') &&
+    !!season.value?.rainfall_mm,
+)
+
 // Rodeos de la campaña elegida, para saber si el sector tiene datos
 watch(seasonId, async (id) => {
   herds.value = undefined
+  error.value = ''
   if (!id) return
   try {
     const loaded = await listHerds(id)
@@ -170,6 +175,9 @@ function calculate() {
       <span>Receptividad</span>
     </nav>
     <h1>Calcular receptividad</h1>
+    <p v-if="rainfallSaved" class="saved" role="status">
+      Lluvia guardada.{{ ready ? ' Ya se puede calcular.' : '' }}
+    </p>
     <form class="card" @submit.prevent="calculate">
       <label>
         Escenario
@@ -259,6 +267,14 @@ select {
   color: var(--color-text);
   font: inherit;
   font-weight: 400;
+}
+.saved {
+  max-width: 420px;
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
 }
 .calculation-data {
   max-width: 560px;

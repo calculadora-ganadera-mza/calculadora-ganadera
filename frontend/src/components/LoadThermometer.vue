@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { LoadThermometer } from '@/api/carryingCapacity'
+import { oneDecimal, upToOneDecimal } from '@/utils/format'
 
 const props = defineProps<{
   load: LoadThermometer
@@ -9,12 +10,6 @@ const props = defineProps<{
 }>()
 
 const LABELS = { below: 'Por debajo', within: 'Dentro', above: 'Por encima' }
-
-const oneDecimal = new Intl.NumberFormat('es-AR', {
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-})
-const tickNumber = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 })
 
 const current = computed(() => oneDecimal.format(props.load.current_cow_equivalents))
 const max = computed(() => oneDecimal.format(props.maxCowEquivalents))
@@ -105,7 +100,7 @@ const lineLabelAlign = computed(() => {
             class="tick"
             :style="{ left: position(tick) }"
           >
-            {{ tickNumber.format(tick) }}<template v-if="index === TICK_COUNT"> EV</template>
+            {{ upToOneDecimal.format(tick) }}<template v-if="index === TICK_COUNT"> EV</template>
           </span>
         </div>
       </div>

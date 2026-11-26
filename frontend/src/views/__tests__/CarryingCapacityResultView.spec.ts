@@ -163,6 +163,9 @@ describe('Resultado de receptividad', () => {
     const wrapper = await open()
 
     expect(wrapper.find('.tag.warn').text()).toBe('Falta un índice')
+    expect(wrapper.find('.kpi').text()).toContain(
+      'Falta cargar algún índice de corrección: se calculó sin él.',
+    )
   })
 
   it.each([
@@ -377,7 +380,7 @@ describe('Resultado de receptividad', () => {
       ['Lluvia de la campaña anterior', '300 mm'],
       ['Estado del campo', 'Bueno'],
       ['Rodeo cargado', 'Vaca 80Toro 3'],
-      ['Reposición', '20 %'],
+      ['Reposición del rodeo', '20 %'],
       ['Destete', '65 %'],
       ['Inicio del entore', '15/11/2026'],
       ['Destete precoz', 'No'],

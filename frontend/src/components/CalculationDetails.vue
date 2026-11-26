@@ -5,6 +5,7 @@ import type { CarryingCapacityResult, CorrectionIndex } from '@/api/carryingCapa
 import type { AnimalCategory, HerdData } from '@/api/herds'
 import { loadedAnimals, RANGE_CONDITION_LABELS } from '@/utils/herd'
 import { formatDate } from '@/utils/season'
+import { integer, oneDecimal, upToOneDecimal } from '@/utils/format'
 
 const props = defineProps<{
   result: CarryingCapacityResult
@@ -17,17 +18,11 @@ const props = defineProps<{
   links?: { rainfall: RouteLocationRaw; sector: RouteLocationRaw }
 }>()
 
-const oneDecimal = new Intl.NumberFormat('es-AR', {
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-})
-const number = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 })
-const integer = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 })
 // Los índices se muestran como los carga el administrador, sin redondear a un decimal
 const indexNumber = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 3 })
 
 const percent = (rate: number | null) =>
-  rate === null ? 'Sin cargar' : `${number.format(rate * 100)} %`
+  rate === null ? 'Sin cargar' : `${upToOneDecimal.format(rate * 100)} %`
 const yesNo = (value: boolean) => (value ? 'Sí' : 'No')
 
 const rangeCondition = computed(() => RANGE_CONDITION_LABELS[props.herd.range_condition])
@@ -40,7 +35,7 @@ const rows = computed(() => {
   return [
     {
       label: 'Lluvia de la campaña anterior',
-      value: `${number.format(props.rainfallMm)} mm`,
+      value: `${upToOneDecimal.format(props.rainfallMm)} mm`,
       change: 'la lluvia',
       to: links?.rainfall,
     },
@@ -58,7 +53,7 @@ const rows = computed(() => {
       to: sector,
     },
     {
-      label: 'Reposición',
+      label: 'Reposición del rodeo',
       value: percent(herd.replacement_rate),
       change: 'la reposición',
       to: sector,
@@ -84,7 +79,7 @@ const rows = computed(() => {
     },
     ...(props.bullsPer100Cows === undefined
       ? []
-      : [{ label: 'Toros cada 100 vacas', value: number.format(props.bullsPer100Cows) }]),
+      : [{ label: 'Toros cada 100 vacas', value: upToOneDecimal.format(props.bullsPer100Cows) }]),
     {
       label: 'Superficie aprovechable',
       value: `${oneDecimal.format(result.usable_area_ha)} de ${oneDecimal.format(result.area_ha)} ha`,
@@ -148,7 +143,7 @@ function indexValue(index: CorrectionIndex) {
           <tbody>
             <tr>
               <th scope="row">Lluvia de la campaña anterior</th>
-              <td>{{ number.format(rainfallMm) }} mm</td>
+              <td>{{ upToOneDecimal.format(rainfallMm) }} mm</td>
             </tr>
             <tr>
               <th scope="row">Forraje consumible</th>
