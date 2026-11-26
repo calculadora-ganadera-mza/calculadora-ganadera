@@ -61,7 +61,10 @@ paths:
       tags: [auth]
       operationId: register
       summary: Crear una cuenta e iniciar sesión.
-      description: Todos los usuarios nuevos se crean con el rol `producer`.
+      description: |
+        Todos los usuarios nuevos se crean con el rol `producer` y el correo sin
+        verificar. Después de responder, se envía al correo un código para
+        verificarlo.
       security: []
       requestBody:
         required: true
@@ -156,6 +159,64 @@ paths:
                 $ref: "#/components/schemas/CurrentUser"
         '401':
           $ref: "#/components/responses/Unauthorized"
+
+  /auth/verify-email:
+    post:
+      tags: [auth]
+      operationId: verifyEmail
+      summary: Verificar el correo con el código enviado.
+      description: |
+        Solo vale el último código enviado, hasta que vence o se agotan los
+        intentos. Un código incorrecto suma un intento fallido. Responde 422 si
+        el código es incorrecto, venció, fue anulado por intentos o no hay
+        ninguno vigente.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailVerificationInput"
+      responses:
+        '204':
+          description: Correo verificado.
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '409':
+          description: El correo ya está verificado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+
+  /auth/resend-verification:
+    post:
+      tags: [auth]
+      operationId: resendVerification
+      summary: Enviar un código nuevo al correo.
+      description: |
+        El código nuevo anula el anterior. El correo se envía después de
+        responder.
+      responses:
+        '202':
+          description: Código nuevo generado. El correo se envía en segundo plano.
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '409':
+          description: El correo ya está verificado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '429':
+          description: |
+            Todavía no se puede pedir otro código: no pasó la espera desde el
+            último o se llegó al máximo por hora.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /scenarios:
     get:
@@ -1106,7 +1167,7 @@ components:
 
     CurrentUser:
       type: object
-      required: [id, name, email, role]
+      required: [id, name, email, role, email_verified]
       properties:
         id:
           type: integer
@@ -1117,6 +1178,17 @@ components:
           format: email
         role:
           $ref: "#/components/schemas/Role"
+        email_verified:
+          type: boolean
+
+    EmailVerificationInput:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          pattern: "^[0-9]{6}$"
+          description: Código de 6 dígitos enviado al correo.
 
     Scenario:
       type: object

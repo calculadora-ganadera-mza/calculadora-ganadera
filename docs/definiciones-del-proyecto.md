@@ -1,6 +1,6 @@
 # Definiciones del proyecto
 
-Calculadora ganadera · actualizado al 24 de noviembre de 2026
+Calculadora ganadera · actualizado al 26 de noviembre de 2026
 
 Este documento reúne las decisiones vigentes del proyecto. Es la referencia del equipo: si otro documento lo contradice, vale este.
 
@@ -21,11 +21,12 @@ El funcionamiento de cada calculadora está explicado en `como-funciona-cada-cal
 - **Dispositivos:** computadora y Android como prioridad. iPhone también se contempla.
 - **Alojamiento:** la aplicación quedaría alojada en el sitio del clúster.
 - **Entrega:** un producto mínimo viable en diciembre de 2026.
-- **Alcance del producto mínimo viable:** solo la calculadora de Receptividad, en sectores de secano. Incluye registro e inicio de sesión, varios escenarios con su mapa, sectores y aguadas, campañas con sus datos, simulación, historial de campañas, guardado de cálculos, administración de los valores de referencia y una publicación en un host gratuito. Las otras tres calculadoras y lo que figura en "Para más adelante" quedan fuera.
+- **Alcance del producto mínimo viable:** solo la calculadora de Receptividad, en sectores de secano. Incluye registro e inicio de sesión, verificación del correo, varios escenarios con su mapa, sectores y aguadas, campañas con sus datos, simulación, historial de campañas, guardado de cálculos, administración de los valores de referencia y una publicación en un host gratuito. Las otras tres calculadoras y lo que figura en "Para más adelante" quedan fuera.
 
 ## 2. Usuarios
 
 - **Registro:** abierto. Cualquier persona puede crear una cuenta. Toda la aplicación, calculadoras incluidas, requiere iniciar sesión.
+- **Verificación del correo:** al crear la cuenta se envía al correo un código de 6 dígitos. Mientras el correo no esté verificado, la aplicación muestra un aviso en pantalla para escribir el código o pedir otro. No bloquea nada: la aplicación se usa igual. El código vence a los 15 minutos y admite 5 intentos fallidos; después queda anulado. Se usa una sola vez y se guarda con hash, nunca en texto plano. Para pedir otro hay que esperar 60 segundos, con un máximo de 5 códigos por hora, contando el del registro. Cada código nuevo anula el anterior. Los tiempos y los límites se configuran desde el entorno.
 - **Rol:** cada usuario tiene un solo rol: productor, técnico o administrador. Todos se registran como productor. Nadie elige el rol al registrarse.
 - **Primer administrador:** se crea con un comando que le da el rol a un usuario ya registrado. El rol técnico existe, pero por ahora no se asigna.
 - **Productor y técnico:** por ahora ven y hacen lo mismo.
@@ -229,6 +230,7 @@ En el celular la navegación va en una barra inferior. En la computadora, en un 
 | Mapas | Leaflet + Geoman |
 | Gráficos | Chart.js, con vue-chartjs |
 | Avisos | Web Push (pywebpush) y una tarea diaria programada |
+| Correo | SMTP, con Mailpit en desarrollo. El proveedor de producción se elige al publicar. |
 | Pruebas | pytest en el backend y Vitest en el frontend |
 | Formato del código | ruff en el backend, eslint y prettier en el frontend |
 
@@ -259,7 +261,6 @@ En el celular la navegación va en una barra inferior. En la computadora, en un 
 
 ## 16. Para más adelante
 
-- **Verificación del correo y recuperación de contraseña.**
 - **Fin automático de la campaña:** al terminar, la campaña se cierra, pasa al historial y se crea la siguiente.
 - **Lluvia mensual:** que el productor cargue cada mes y la aplicación sume el total de la campaña.
 - **Vista del establecimiento completo:** el rodeo máximo total de todas las unidades frente al rodeo total.
