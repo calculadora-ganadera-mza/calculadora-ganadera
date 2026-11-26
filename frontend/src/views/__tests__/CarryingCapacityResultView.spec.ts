@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
 import CarryingCapacityResultView from '../CarryingCapacityResultView.vue'
-import { calculateCarryingCapacity, type CarryingCapacityResult } from '@/api/carryingCapacity'
+import {
+  calculateCarryingCapacity,
+  saveCarryingCapacityCalculation,
+  type CarryingCapacityResult,
+} from '@/api/carryingCapacity'
 import { ApiError } from '@/api/errors'
 import { listAnimalCategories, listHerds } from '@/api/herds'
 import { listProductionUnits } from '@/api/productionUnits'
@@ -11,7 +15,10 @@ import { listScenarios, listSeasons } from '@/api/scenarios'
 vi.mock('@/api/scenarios', () => ({ listScenarios: vi.fn(), listSeasons: vi.fn() }))
 vi.mock('@/api/productionUnits', () => ({ listProductionUnits: vi.fn() }))
 vi.mock('@/api/herds', () => ({ listAnimalCategories: vi.fn(), listHerds: vi.fn() }))
-vi.mock('@/api/carryingCapacity', () => ({ calculateCarryingCapacity: vi.fn() }))
+vi.mock('@/api/carryingCapacity', () => ({
+  calculateCarryingCapacity: vi.fn(),
+  saveCarryingCapacityCalculation: vi.fn(),
+}))
 
 const season = {
   id: 12,
@@ -416,5 +423,94 @@ describe('Resultado de receptividad', () => {
       ['Superficie aprovechable', '981,8 ha'],
       ['Límite por pasto', '65,0 EV'],
     ])
+  })
+
+  it('en el resultado principal solo muestra guardar como resultado de la campaña y lo desactiva tras guardar', async () => {
+    vi.mocked(saveCarryingCapacityCalculation).mockResolvedValue({
+      id: 9,
+      production_unit_id: 2,
+      season_id: 12,
+      scenario_name: 'La Esperanza',
+      production_unit_name: 'Sector 1',
+      season_start_date: '2026-07-01',
+      season_end_date: '2027-06-30',
+      kind: 'result',
+      created_at: '2026-11-26T16:00:00Z',
+      season_updated: false,
+      input: { ...herd, rainfall_mm: 300 },
+      reference_values: { parameters: {}, animal_categories: [] },
+      result,
+    })
+
+    const wrapper = await open()
+    const buttons = wrapper.findAll('.save-actions button')
+    expect(buttons.map((button) => button.text())).toEqual(['Guardar como resultado de la campaña'])
+
+    await buttons[0]!.trigger('click')
+    await flushPromises()
+
+    expect(saveCarryingCapacityCalculation).toHaveBeenCalledWith(2, {
+      season_id: 12,
+      kind: 'result',
+      input: { ...herd, rainfall_mm: 300 },
+    })
+    expect(wrapper.get('[role="status"]').text()).toBe('Guardado como resultado de la campaña.')
+    expect(buttons[0]!.attributes('disabled')).toBeDefined()
+  })
+
+  it('en modo simulación ofrece ambas opciones de guardado y al elegir una desactiva las dos', async () => {
+    vi.mocked(saveCarryingCapacityCalculation).mockResolvedValue({
+      id: 10,
+      production_unit_id: 2,
+      season_id: 12,
+      scenario_name: 'La Esperanza',
+      production_unit_name: 'Sector 1',
+      season_start_date: '2026-07-01',
+      season_end_date: '2027-06-30',
+      kind: 'simulation',
+      created_at: '2026-11-26T16:05:00Z',
+      season_updated: false,
+      input: { ...herd, rainfall_mm: 450, bulls_per_100_cows: 5 },
+      reference_values: { parameters: {}, animal_categories: [] },
+      result,
+    })
+
+    const wrapper = await open()
+    await wrapper.get('.simulate-button').trigger('click')
+
+    // Antes de recalcular aparecen los dos botones, ambos deshabilitados
+    const saveButtons = () => wrapper.findAll('.save-actions button')
+    expect(saveButtons().map((button) => button.text())).toEqual([
+      'Guardar como resultado de la campaña',
+      'Guardar como simulación',
+    ])
+    expect(saveButtons().every((button) => button.attributes('disabled') !== undefined)).toBe(true)
+    expect(wrapper.text()).toContain('Recalculá la simulación para poder guardarla.')
+
+    const [rainfallInput, bullsInput] = wrapper.findAll('.simulation-inputs input')
+    await rainfallInput!.setValue('450')
+    await bullsInput!.setValue('5')
+    await wrapper.get('.simulation-form').trigger('submit')
+    await flushPromises()
+
+    // Después de recalcular, se habilitan las dos opciones
+    expect(saveButtons().every((button) => button.attributes('disabled') === undefined)).toBe(true)
+    await saveButtons()[1]!.trigger('click')
+    await flushPromises()
+
+    expect(saveCarryingCapacityCalculation).toHaveBeenCalledWith(2, {
+      season_id: 12,
+      kind: 'simulation',
+      input: expect.objectContaining({ rainfall_mm: 450, bulls_per_100_cows: 5 }),
+    })
+    // Al guardar cualquiera de las dos, quedan desactivados los dos botones
+    expect(saveButtons().every((button) => button.attributes('disabled') !== undefined)).toBe(true)
+
+    // Si se vuelve a editar y recalcular, vuelven a habilitarse
+    await rainfallInput!.setValue('500')
+    expect(saveButtons().every((button) => button.attributes('disabled') !== undefined)).toBe(true)
+    await wrapper.get('.simulation-form').trigger('submit')
+    await flushPromises()
+    expect(saveButtons().every((button) => button.attributes('disabled') === undefined)).toBe(true)
   })
 })

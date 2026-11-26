@@ -41,3 +41,8 @@ class LoadStatus(StrEnum):
     BELOW = "below"
     WITHIN = "within"
     ABOVE = "above"
+
+
+class CalculationKind(StrEnum):
+    RESULT = "result"
+    SIMULATION = "simulation"

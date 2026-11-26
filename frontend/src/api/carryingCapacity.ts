@@ -1,6 +1,6 @@
 import { authenticatedFetch } from './auth'
 import { responseError } from './errors'
-import type { HerdData } from './herds'
+import type { AnimalCategory, HerdData } from './herds'
 
 // Tipos según docs/openapi.yaml.
 
@@ -110,4 +110,92 @@ export async function calculateCarryingCapacity(
   })
   if (!response.ok) throw await responseError(response)
   return response.json()
+}
+
+export type CalculationKind = 'result' | 'simulation'
+
+export interface ReferenceValues {
+  parameters: Record<string, number | null>
+  animal_categories: AnimalCategory[]
+}
+
+export interface CarryingCapacityCalculationCreate {
+  season_id: number
+  kind: CalculationKind
+  update_season?: boolean
+  input: CarryingCapacityInput
+}
+
+export interface CarryingCapacityCalculationSummary {
+  id: number
+  production_unit_id: number
+  season_id: number
+  scenario_name: string
+  production_unit_name: string
+  season_start_date: string
+  season_end_date: string
+  kind: CalculationKind
+  created_at: string
+  rainfall_mm: number
+  carrying_capacity_ha_per_cow_equivalent: number
+  max_herd_cow_equivalents: number
+}
+
+export interface CarryingCapacityCalculation {
+  id: number
+  production_unit_id: number
+  season_id: number
+  scenario_name: string
+  production_unit_name: string
+  season_start_date: string
+  season_end_date: string
+  kind: CalculationKind
+  created_at: string
+  season_updated: boolean
+  input: CarryingCapacityInput
+  reference_values: ReferenceValues
+  result: CarryingCapacityResult
+}
+
+// Historial liviano de todos los cálculos guardados del usuario
+export async function listUserCarryingCapacityCalculations(): Promise<
+  CarryingCapacityCalculationSummary[]
+> {
+  const response = await authenticatedFetch('/carrying-capacity-calculations')
+  if (!response.ok) throw await responseError(response)
+  return response.json()
+}
+
+// Vuelve a calcular en el servidor y guarda el resultado o la simulación
+export async function saveCarryingCapacityCalculation(
+  unitId: number,
+  data: CarryingCapacityCalculationCreate,
+): Promise<CarryingCapacityCalculation> {
+  const response = await authenticatedFetch(
+    `/production-units/${unitId}/carrying-capacity-calculations`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    },
+  )
+  if (!response.ok) throw await responseError(response)
+  return response.json()
+}
+
+// Consulta un cálculo guardado tal como fue registrado
+export async function getCarryingCapacityCalculation(
+  calculationId: number,
+): Promise<CarryingCapacityCalculation> {
+  const response = await authenticatedFetch(`/carrying-capacity-calculations/${calculationId}`)
+  if (!response.ok) throw await responseError(response)
+  return response.json()
+}
+
+// Elimina un cálculo guardado
+export async function deleteCarryingCapacityCalculation(calculationId: number): Promise<void> {
+  const response = await authenticatedFetch(`/carrying-capacity-calculations/${calculationId}`, {
+    method: 'DELETE',
+  })
+  if (!response.ok) throw await responseError(response)
 }

@@ -5,6 +5,7 @@ from sqlalchemy import Engine, inspect, text
 TABLES = {
     "animal_category",
     "app_user",
+    "carrying_capacity_calculation",
     "refresh_session",
     "herd_category",
     "herd_season",

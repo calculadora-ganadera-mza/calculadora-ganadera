@@ -844,9 +844,48 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorOrValidation"
 
+  /carrying-capacity-calculations:
+    get:
+      tags: [carrying-capacity]
+      operationId: listUserCarryingCapacityCalculations
+      summary: Historial liviano de cálculos guardados del usuario.
+      description: |
+        Devuelve un resumen de todos los cálculos de receptividad guardados por
+        el usuario, ordenados del más reciente al más antiguo, con los nombres
+        del establecimiento, el sector y las fechas de la campaña.
+      responses:
+        '200':
+          description: Lista de resúmenes de cálculos guardados.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CarryingCapacityCalculationSummary"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+
   /carrying-capacity-calculations/{calculation_id}:
     parameters:
       - $ref: "#/components/parameters/CalculationId"
+    get:
+      tags: [carrying-capacity]
+      operationId: getCarryingCapacityCalculation
+      summary: Consultar un cálculo guardado.
+      description: |
+        Devuelve el cálculo tal como fue guardado, con los datos, los valores de
+        referencia y el resultado registrados en ese momento.
+      responses:
+        '200':
+          description: Cálculo guardado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarryingCapacityCalculation"
+        '401':
+          $ref: "#/components/responses/Unauthorized"
+        '404':
+          $ref: "#/components/responses/NotFound"
     delete:
       tags: [carrying-capacity]
       operationId: deleteCarryingCapacityCalculation
@@ -1816,12 +1855,60 @@ components:
           items:
             $ref: "#/components/schemas/AnimalCategory"
 
+    CarryingCapacityCalculationSummary:
+      type: object
+      required:
+        - id
+        - production_unit_id
+        - season_id
+        - scenario_name
+        - production_unit_name
+        - season_start_date
+        - season_end_date
+        - kind
+        - created_at
+        - rainfall_mm
+        - carrying_capacity_ha_per_cow_equivalent
+        - max_herd_cow_equivalents
+      properties:
+        id:
+          type: integer
+        production_unit_id:
+          type: integer
+        season_id:
+          type: integer
+        scenario_name:
+          type: string
+        production_unit_name:
+          type: string
+        season_start_date:
+          type: string
+          format: date
+        season_end_date:
+          type: string
+          format: date
+        kind:
+          $ref: "#/components/schemas/CalculationKind"
+        created_at:
+          type: string
+          format: date-time
+        rainfall_mm:
+          type: number
+        carrying_capacity_ha_per_cow_equivalent:
+          type: number
+        max_herd_cow_equivalents:
+          type: number
+
     CarryingCapacityCalculation:
       type: object
       required:
         - id
         - production_unit_id
         - season_id
+        - scenario_name
+        - production_unit_name
+        - season_start_date
+        - season_end_date
         - kind
         - created_at
         - season_updated
@@ -1835,6 +1922,16 @@ components:
           type: integer
         season_id:
           type: integer
+        scenario_name:
+          type: string
+        production_unit_name:
+          type: string
+        season_start_date:
+          type: string
+          format: date
+        season_end_date:
+          type: string
+          format: date
         kind:
           $ref: "#/components/schemas/CalculationKind"
         created_at:

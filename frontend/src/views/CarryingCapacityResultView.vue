@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import { calculateCarryingCapacity, type CarryingCapacityResult } from '@/api/carryingCapacity'
+import {
+  calculateCarryingCapacity,
+  saveCarryingCapacityCalculation,
+  type CalculationKind,
+  type CarryingCapacityResult,
+} from '@/api/carryingCapacity'
 import { ApiError } from '@/api/errors'
 import CalculationDetails from '@/components/CalculationDetails.vue'
 import CarryingCapacityResults from '@/components/CarryingCapacityResults.vue'
@@ -22,10 +27,16 @@ const missing = ref<'rainfall' | 'herd'>()
 const result = ref<CarryingCapacityResult>()
 const loading = ref(true)
 const error = ref('')
+const savingKind = ref<CalculationKind | null>(null)
+// Evita guardar de nuevo los mismos valores y desactiva ambos botones tras guardar
+const alreadySaved = ref(false)
+const saveMessage = ref('')
+const saveError = ref('')
 const simulation = ref<{
   rainfallMm: number | ''
   bullsPer100Cows: number | ''
   busy: boolean
+  dirty: boolean
   error: string
   calculated?: {
     result: CarryingCapacityResult
@@ -34,6 +45,11 @@ const simulation = ref<{
     bullsPer100Cows?: number
   }
 }>()
+
+// En modo simulación solo se puede guardar un resultado recién recalculado
+const canSave = computed(
+  () => !simulation.value || (!!simulation.value.calculated && !simulation.value.dirty),
+)
 
 // Dónde se cambia cada dato usado. Con valores simulados no hay enlaces,
 // porque esos valores no están guardados.
@@ -60,6 +76,9 @@ async function load() {
   result.value = undefined
   campaignHerd.value = undefined
   simulation.value = undefined
+  alreadySaved.value = false
+  saveMessage.value = ''
+  saveError.value = ''
   const scenarioId = Number(route.params.scenarioId)
   const unitId = Number(route.params.unitId)
   const seasonId = Number(route.params.seasonId)
@@ -98,11 +117,75 @@ async function load() {
 
 function startSimulation() {
   if (!season.value?.rainfall_mm) return
+  alreadySaved.value = false
+  saveMessage.value = ''
+  saveError.value = ''
   simulation.value = {
     rainfallMm: season.value.rainfall_mm,
     bullsPer100Cows: '',
     busy: false,
+    dirty: true,
     error: '',
+  }
+}
+
+function markSimulationDirty() {
+  if (!simulation.value) return
+  simulation.value.dirty = true
+  alreadySaved.value = false
+  saveMessage.value = ''
+  saveError.value = ''
+}
+
+function exitSimulation() {
+  simulation.value = undefined
+  alreadySaved.value = false
+  saveMessage.value = ''
+  saveError.value = ''
+}
+
+async function saveCalculation(kind: CalculationKind) {
+  if (
+    !unit.value ||
+    !season.value ||
+    !campaignHerd.value ||
+    savingKind.value ||
+    !canSave.value ||
+    alreadySaved.value
+  )
+    return
+  const simulated = simulation.value?.calculated
+  const rainfallMm = simulated?.rainfallMm ?? season.value.rainfall_mm
+  if (!rainfallMm) return
+  const activeHerd = simulated?.herd ?? campaignHerd.value
+
+  savingKind.value = kind
+  saveMessage.value = ''
+  saveError.value = ''
+  try {
+    const saved = await saveCarryingCapacityCalculation(unit.value.id, {
+      season_id: season.value.id,
+      kind,
+      input: {
+        ...activeHerd,
+        rainfall_mm: rainfallMm,
+        ...(simulated?.bullsPer100Cows === undefined
+          ? {}
+          : { bulls_per_100_cows: simulated.bullsPer100Cows }),
+      },
+    })
+    if (simulated) {
+      simulated.result = saved.result
+    } else {
+      result.value = saved.result
+    }
+    alreadySaved.value = true
+    saveMessage.value =
+      kind === 'result' ? 'Guardado como resultado de la campaña.' : 'Guardado como simulación.'
+  } catch (err) {
+    saveError.value = err instanceof ApiError ? err.message : 'No se pudo guardar el cálculo.'
+  } finally {
+    savingKind.value = null
   }
 }
 
@@ -132,6 +215,10 @@ async function recalculate(herd: HerdData) {
       herd,
       ...(bullsPer100Cows === '' ? {} : { bullsPer100Cows }),
     }
+    draft.dirty = false
+    alreadySaved.value = false
+    saveMessage.value = ''
+    saveError.value = ''
   } catch (err) {
     draft.error = err instanceof ApiError ? err.message : 'No se pudo simular. Probá de nuevo.'
   } finally {
@@ -210,11 +297,17 @@ onMounted(load)
           <strong>Modo simulación</strong>
           <p>Los cambios de la simulación son temporales.</p>
         </div>
-        <button class="simulate-button" type="button" @click="simulation = undefined">
+        <button class="simulate-button" type="button" @click="exitSimulation">
           Volver a mis datos
         </button>
       </div>
-      <section v-if="simulation" class="simulation-panel" aria-labelledby="simulation-title">
+      <section
+        v-if="simulation"
+        class="simulation-panel"
+        aria-labelledby="simulation-title"
+        @input="markSimulationDirty"
+        @change="markSimulationDirty"
+      >
         <h2 id="simulation-title">Valores simulados</h2>
         <HerdDataForm
           class="simulation-form"
@@ -246,6 +339,30 @@ onMounted(load)
           </fieldset>
         </HerdDataForm>
       </section>
+      <div class="save-bar">
+        <div class="save-actions">
+          <button
+            class="btn btn-primary"
+            type="button"
+            :disabled="savingKind !== null || !canSave || alreadySaved"
+            @click="saveCalculation('result')"
+          >
+            {{ savingKind === 'result' ? 'Guardando…' : 'Guardar como resultado de la campaña' }}
+          </button>
+          <button
+            v-if="simulation"
+            class="btn"
+            type="button"
+            :disabled="savingKind !== null || !canSave || alreadySaved"
+            @click="saveCalculation('simulation')"
+          >
+            {{ savingKind === 'simulation' ? 'Guardando…' : 'Guardar como simulación' }}
+          </button>
+        </div>
+        <p v-if="!canSave" class="hint save-hint">Recalculá la simulación para poder guardarla.</p>
+        <p v-if="saveMessage" class="saved-notice" role="status">{{ saveMessage }}</p>
+        <p v-if="saveError" class="error" role="alert">{{ saveError }}</p>
+      </div>
       <CarryingCapacityResults
         :result="simulation?.calculated?.result ?? result"
         :rainfall-mm="simulation?.calculated?.rainfallMm ?? season.rainfall_mm"
@@ -402,5 +519,23 @@ onMounted(load)
   color: var(--color-text);
   font: inherit;
   cursor: pointer;
+}
+.save-bar {
+  margin-bottom: 16px;
+}
+.save-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.save-hint {
+  margin-top: 8px;
+}
+.saved-notice {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
 }
 </style>

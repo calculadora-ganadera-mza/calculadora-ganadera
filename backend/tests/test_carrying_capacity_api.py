@@ -1,7 +1,16 @@
-import pytest
-from sqlalchemy import delete, select, update
+from datetime import date
 
-from app.models import AnimalCategory, Parameter, ProductionUnit, Scenario
+import pytest
+from sqlalchemy import delete, func, select, update
+
+from app.models import (
+    AnimalCategory,
+    CarryingCapacityCalculation,
+    Parameter,
+    ProductionUnit,
+    Scenario,
+    Season,
+)
 from app.models.enums import ProductionSystem
 from app.services.carrying_capacity import read_pasture_parameters
 
@@ -615,3 +624,359 @@ def test_load_status_uses_the_threshold_from_parameters(api, session, unit_id):
     assert updated["load_thermometer"]["below_cow_equivalents"] == pytest.approx(
         updated["max_herd"]["cow_equivalents"] * 0.85
     )
+
+
+# Guardado, consulta y borrado de cálculos
+
+
+@pytest.fixture
+def saved_farm(api, session, unit_id) -> dict[str, int]:
+    """Sector con aguada y campaña asociada para probar cálculos guardados."""
+    scenario_id = session.scalars(
+        select(ProductionUnit.scenario_id).where(ProductionUnit.id == unit_id)
+    ).one()
+    season = Season(
+        scenario_id=scenario_id,
+        start_date=date(2026, 7, 1),
+        end_date=date(2027, 6, 30),
+        rainfall_mm=300,
+    )
+    session.add(season)
+    session.flush()
+    add_water_point(api, unit_id, refill_l_day=1000)
+    return {"scenario_id": scenario_id, "season_id": season.id, "unit_id": unit_id}
+
+
+def saved_input(session, **changes) -> dict:
+    return (
+        {"range_condition": "good", "rainfall_mm": 300}
+        | herd_with_cows(session)
+        | changes
+    )
+
+
+def save_calculation(api, unit_id: int, season_id: int, kind: str, calc_input: dict):
+    return api.post(
+        f"/production-units/{unit_id}/carrying-capacity-calculations",
+        json={"season_id": season_id, "kind": kind, "input": calc_input},
+    )
+
+
+def test_save_calculation_records_result_and_reference_values(api, session, saved_farm):
+    calc_input = saved_input(session)
+
+    response = save_calculation(
+        api, saved_farm["unit_id"], saved_farm["season_id"], "result", calc_input
+    )
+
+    assert response.status_code == 201
+    saved = response.json()
+    assert saved["production_unit_id"] == saved_farm["unit_id"]
+    assert saved["season_id"] == saved_farm["season_id"]
+    assert saved["scenario_name"] == "Campo"
+    assert saved["production_unit_name"] == "Sector"
+    assert saved["season_start_date"] == "2026-07-01"
+    assert saved["season_end_date"] == "2027-06-30"
+    assert saved["kind"] == "result"
+    assert saved["season_updated"] is False
+    assert saved["input"]["rainfall_mm"] == 300
+    assert "bulls_per_100_cows" not in saved["input"]
+    assert saved["result"]["pasture_limit_cow_equivalents"] > 0
+
+    refs = saved["reference_values"]
+    assert refs["parameters"]["cow_equivalent_dm_intake_kg_year"] == 3285
+    assert refs["parameters"]["water_point_radius_km"] == 2.5
+    assert len(refs["animal_categories"]) == 5
+    cow_ref = next(c for c in refs["animal_categories"] if c["code"] == "cow")
+    assert cow_ref["cow_equivalent"] == 1.0
+
+
+def test_saved_calculation_does_not_change_when_reference_values_change(
+    api, session, saved_farm
+):
+    calc_input = saved_input(session)
+    saved = save_calculation(
+        api, saved_farm["unit_id"], saved_farm["season_id"], "simulation", calc_input
+    ).json()
+
+    # El administrador cambia parámetros y categorías después del guardado
+    session.execute(
+        update(Parameter)
+        .where(Parameter.key == "cow_equivalent_dm_intake_kg_year")
+        .values(value=6570)
+    )
+    session.execute(
+        update(AnimalCategory)
+        .where(AnimalCategory.code == "cow")
+        .values(cow_equivalent=2.0, name="Vaca editada")
+    )
+    session.flush()
+
+    # Un cálculo nuevo refleja los valores cambiados
+    fresh = api.post(
+        f"/production-units/{saved_farm['unit_id']}/carrying-capacity", json=calc_input
+    ).json()
+    assert fresh["carrying_capacity_ha_per_cow_equivalent"] == pytest.approx(
+        saved["result"]["carrying_capacity_ha_per_cow_equivalent"] * 2
+    )
+
+    # El cálculo guardado sigue intacto al consultarlo por ID y al listarlo
+    fetched = api.get(f"/carrying-capacity-calculations/{saved['id']}").json()
+    [listed] = api.get(
+        f"/production-units/{saved_farm['unit_id']}/carrying-capacity-calculations"
+    ).json()
+
+    for copy in (fetched, listed):
+        assert copy["result"] == saved["result"]
+        assert (
+            copy["reference_values"]["parameters"]["cow_equivalent_dm_intake_kg_year"]
+            == 3285
+        )
+        cow_ref = next(
+            c
+            for c in copy["reference_values"]["animal_categories"]
+            if c["code"] == "cow"
+        )
+        assert cow_ref["cow_equivalent"] == 1.0
+        assert cow_ref["name"] == "Vaca"
+
+
+def test_saving_new_season_result_demotes_previous_result_to_simulation(
+    api, session, saved_farm
+):
+    first = save_calculation(
+        api,
+        saved_farm["unit_id"],
+        saved_farm["season_id"],
+        "result",
+        saved_input(session),
+    ).json()
+    second = save_calculation(
+        api,
+        saved_farm["unit_id"],
+        saved_farm["season_id"],
+        "result",
+        saved_input(session, rainfall_mm=450),
+    ).json()
+
+    assert first["kind"] == "result"
+    assert second["kind"] == "result"
+
+    listed = api.get(
+        f"/production-units/{saved_farm['unit_id']}/carrying-capacity-calculations"
+    ).json()
+    assert [item["id"] for item in listed] == [second["id"], first["id"]]
+    assert [item["kind"] for item in listed] == ["result", "simulation"]
+
+
+def test_result_uniqueness_is_scoped_per_season(api, session, saved_farm):
+    other_season = Season(
+        scenario_id=saved_farm["scenario_id"],
+        start_date=date(2027, 7, 1),
+        end_date=date(2028, 6, 30),
+        rainfall_mm=320,
+    )
+    session.add(other_season)
+    session.flush()
+
+    first = save_calculation(
+        api,
+        saved_farm["unit_id"],
+        saved_farm["season_id"],
+        "result",
+        saved_input(session),
+    ).json()
+    other = save_calculation(
+        api,
+        saved_farm["unit_id"],
+        other_season.id,
+        "result",
+        saved_input(session, breeding_start="2027-11-01", breeding_end="2028-01-31"),
+    ).json()
+
+    assert (
+        api.get(f"/carrying-capacity-calculations/{first['id']}").json()["kind"]
+        == "result"
+    )
+    assert (
+        api.get(f"/carrying-capacity-calculations/{other['id']}").json()["kind"]
+        == "result"
+    )
+
+    filtered = api.get(
+        f"/production-units/{saved_farm['unit_id']}/carrying-capacity-calculations",
+        params={"season_id": other_season.id},
+    ).json()
+    assert [item["id"] for item in filtered] == [other["id"]]
+
+
+def test_delete_saved_calculation(api, session, saved_farm):
+    saved = save_calculation(
+        api,
+        saved_farm["unit_id"],
+        saved_farm["season_id"],
+        "simulation",
+        saved_input(session),
+    ).json()
+
+    delete_res = api.delete(f"/carrying-capacity-calculations/{saved['id']}")
+    assert delete_res.status_code == 204
+    assert api.get(f"/carrying-capacity-calculations/{saved['id']}").status_code == 404
+    assert (
+        api.delete(f"/carrying-capacity-calculations/{saved['id']}").status_code == 404
+    )
+    assert (
+        api.get(
+            f"/production-units/{saved_farm['unit_id']}/carrying-capacity-calculations"
+        ).json()
+        == []
+    )
+
+
+def test_cannot_access_or_delete_another_users_calculation(
+    api, session, saved_farm, other_user
+):
+    other_scenario = Scenario(user_id=other_user.id, name="Ajeno", is_main=True)
+    session.add(other_scenario)
+    session.flush()
+    other_season = Season(
+        scenario_id=other_scenario.id,
+        start_date=date(2026, 7, 1),
+        end_date=date(2027, 6, 30),
+    )
+    other_unit = ProductionUnit(
+        scenario_id=other_scenario.id,
+        name="Sector ajeno",
+        production_system=ProductionSystem.RAINFED,
+        polygon="SRID=4326;POLYGON((-68.09 -34.58,-68.08 -34.58,-68.08 -34.57,"
+        "-68.09 -34.57,-68.09 -34.58))",
+    )
+    session.add_all([other_season, other_unit])
+    session.flush()
+
+    # No puede guardar ni listar en un sector ajeno
+    assert (
+        save_calculation(
+            api, other_unit.id, other_season.id, "simulation", saved_input(session)
+        ).status_code
+        == 404
+    )
+    assert (
+        api.get(
+            f"/production-units/{other_unit.id}/carrying-capacity-calculations"
+        ).status_code
+        == 404
+    )
+    # Tampoco puede usar una campaña de otro escenario en su propio sector
+    assert (
+        save_calculation(
+            api,
+            saved_farm["unit_id"],
+            other_season.id,
+            "simulation",
+            saved_input(session),
+        ).status_code
+        == 404
+    )
+
+    # Cálculo persistido de otro usuario: 404 al consultar o borrar
+    other_calc = CarryingCapacityCalculation(
+        scenario_id=other_scenario.id,
+        season_id=other_season.id,
+        production_unit_id=other_unit.id,
+        kind="simulation",
+        input=saved_input(session),
+        reference_values={"parameters": {}, "animal_categories": []},
+        result={},
+    )
+    session.add(other_calc)
+    session.flush()
+
+    assert (
+        api.get(f"/carrying-capacity-calculations/{other_calc.id}").status_code == 404
+    )
+    assert (
+        api.delete(f"/carrying-capacity-calculations/{other_calc.id}").status_code
+        == 404
+    )
+
+
+def test_deleting_scenario_cascades_saved_calculations(api, session, saved_farm):
+    save_calculation(
+        api,
+        saved_farm["unit_id"],
+        saved_farm["season_id"],
+        "result",
+        saved_input(session),
+    )
+
+    session.execute(delete(Scenario).where(Scenario.id == saved_farm["scenario_id"]))
+
+    assert (
+        session.scalar(select(func.count()).select_from(CarryingCapacityCalculation))
+        == 0
+    )
+
+
+def test_update_season_true_is_rejected_until_implemented(api, session, saved_farm):
+    response = api.post(
+        f"/production-units/{saved_farm['unit_id']}/carrying-capacity-calculations",
+        json={
+            "season_id": saved_farm["season_id"],
+            "kind": "result",
+            "update_season": True,
+            "input": saved_input(session),
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_list_user_calculations_returns_summary_history(
+    api, session, saved_farm, other_user
+):
+    first = save_calculation(
+        api,
+        saved_farm["unit_id"],
+        saved_farm["season_id"],
+        "simulation",
+        saved_input(session, rainfall_mm=300),
+    ).json()
+    second = save_calculation(
+        api,
+        saved_farm["unit_id"],
+        saved_farm["season_id"],
+        "result",
+        saved_input(session, rainfall_mm=450, bulls_per_100_cows=6),
+    ).json()
+    assert second["input"]["bulls_per_100_cows"] == 6
+    assert "bulls_per_100_cows" not in second["reference_values"]["parameters"]
+    assert "bulls_per_100_cows" in first["reference_values"]["parameters"]
+
+    summary = api.get("/carrying-capacity-calculations").json()
+
+    assert [item["id"] for item in summary] == [second["id"], first["id"]]
+    assert summary[0]["scenario_name"] == "Campo"
+    assert summary[0]["production_unit_name"] == "Sector"
+    assert summary[0]["season_start_date"] == "2026-07-01"
+    assert summary[0]["season_end_date"] == "2027-06-30"
+    assert summary[0]["kind"] == "result"
+    assert summary[0]["rainfall_mm"] == 450
+    assert summary[0]["max_herd_cow_equivalents"] == pytest.approx(
+        second["result"]["max_herd"]["cow_equivalents"]
+    )
+    assert summary[0]["carrying_capacity_ha_per_cow_equivalent"] == pytest.approx(
+        second["result"]["carrying_capacity_ha_per_cow_equivalent"]
+    )
+
+
+def test_save_rejects_breeding_outside_season(api, session, saved_farm):
+    response = save_calculation(
+        api,
+        saved_farm["unit_id"],
+        saved_farm["season_id"],
+        "result",
+        saved_input(session, breeding_start="2025-11-01", breeding_end="2026-01-31"),
+    )
+
+    assert response.status_code == 422
