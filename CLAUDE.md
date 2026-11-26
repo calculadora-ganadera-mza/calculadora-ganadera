@@ -147,7 +147,6 @@ Traducción fija de los términos del dominio. El código usa la columna de la d
 - Levantar todo: `docker compose up`
 - Después de cambiar las dependencias del frontend, o de bajar cambios que las modifican: `docker compose up --build --renew-anon-volumes`. El volumen anónimo `/app/node_modules` conserva el `node_modules` viejo aunque `package.json` ya tenga el paquete nuevo. `--build` vuelve a armar la imagen con las dependencias nuevas, y `--renew-anon-volumes` descarta el volumen viejo para que se cree de nuevo desde esa imagen.
 - Migraciones: `docker compose run --rm backend alembic upgrade head`
-- Migraciones: `docker compose run --rm backend alembic upgrade head`
 - Primer administrador: `docker compose run --rm backend python -m app.commands.make_admin <correo>`
 - Pruebas: `docker compose run --rm backend pytest`
 - Formato: `ruff check . && ruff format .` dentro de `backend/`
