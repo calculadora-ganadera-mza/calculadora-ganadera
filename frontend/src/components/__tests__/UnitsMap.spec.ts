@@ -19,6 +19,7 @@ function unitBetween(id: number, [west, south]: Position, [east, north]: Positio
     name: `Sector ${id}`,
     area_ha: 100,
     usable_area_ha: 100,
+    refill_l_day: null,
     polygon: { type: 'Polygon', coordinates: [ring] },
   }
 }

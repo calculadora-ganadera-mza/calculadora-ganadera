@@ -1230,7 +1230,7 @@ components:
 
     ProductionUnit:
       type: object
-      required: [id, name, polygon, area_ha, usable_area_ha]
+      required: [id, name, polygon, area_ha, usable_area_ha, refill_l_day]
       properties:
         id:
           type: integer
@@ -1252,6 +1252,12 @@ components:
             Superficie del polígono, en hectáreas, dentro del alcance de alguna
             aguada propia o compartida de sectores vecinos. Las superposiciones se cuentan una sola vez. Es 0 si ninguna
             aguada alcanza el sector.
+        refill_l_day:
+          type: [number, "null"]
+          description: |
+            Litros por día que reponen las aguadas del sector, más la parte que le
+            toca de cada aguada compartida. Es `null` si ninguna aguada que cuenta
+            para el sector tiene litros cargados.
 
     MultiPolygonGeoJSON:
       type: object
@@ -1592,6 +1598,26 @@ components:
           type: string
           description: Texto genérico en español, sin cantidades.
 
+    CorrectionIndex:
+      type: object
+      required: [code, applies, value]
+      properties:
+        code:
+          type: string
+          enum: [range_condition, early_weaning, supplementation]
+          description: |
+            - `range_condition`: índice del estado del campo del rodeo.
+            - `early_weaning`: índice por destete precoz.
+            - `supplementation`: índice por suplementación.
+        applies:
+          type: boolean
+          description: |
+            Si corresponde aplicarlo. El del estado del campo siempre corresponde;
+            los otros dos, solo si su casilla está marcada.
+        value:
+          type: [number, "null"]
+          description: Valor del índice. Es `null` si todavía no se cargó.
+
     CarryingCapacityResult:
       type: object
       required:
@@ -1599,6 +1625,7 @@ components:
         - usable_area_ha
         - carrying_capacity_ha_per_cow_equivalent
         - pasture_limit_cow_equivalents
+        - pasture_breakdown
         - water
         - max_herd
         - max_breeding_herd
@@ -1618,6 +1645,31 @@ components:
         pasture_limit_cow_equivalents:
           type: number
           description: Límite por pasto, en EV.
+        pasture_breakdown:
+          type: object
+          description: Pasos del cálculo de la receptividad, para mostrar cómo se llegó a ella.
+          required:
+            - cow_equivalent_dm_intake_kg_year
+            - consumable_forage_kg_ha_year
+            - base_carrying_capacity_ha_per_cow_equivalent
+            - indices
+          properties:
+            cow_equivalent_dm_intake_kg_year:
+              type: number
+              description: Consumo anual de materia seca de un EV, en kg.
+            consumable_forage_kg_ha_year:
+              type: number
+              description: Forraje consumible, en kg de materia seca por hectárea por año.
+            base_carrying_capacity_ha_per_cow_equivalent:
+              type: number
+              description: Receptividad antes de corregir por los índices, en hectáreas por EV.
+            indices:
+              type: array
+              description: |
+                Los tres índices de corrección, siempre en este orden: estado del
+                campo, destete precoz y suplementación.
+              items:
+                $ref: "#/components/schemas/CorrectionIndex"
         water:
           type: object
           required:

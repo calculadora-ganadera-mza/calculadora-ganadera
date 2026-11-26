@@ -41,10 +41,12 @@ from app.schemas.carrying_capacity import (
     CalculationWarning,
     CarryingCapacityInput,
     CarryingCapacityResult,
+    CorrectionIndexRead,
     HerdQuantity,
     LoadThermometerRead,
     MaxBreedingHerdRead,
     MaxHerdRead,
+    PastureBreakdownRead,
     ScaledHerdQuantity,
     ScaledHerdRead,
     WarningCode,
@@ -148,13 +150,14 @@ def calculate(
     codes = {category.id: code for code, category in categories.items()}
     check_herd_rules(data, codes)
     unit = read_unit(session, unit_id)
+    pasture_parameters = read_pasture_parameters(session)
     pasture = calculate_pasture_limit(
         rainfall_mm=data.rainfall_mm,
         usable_area_ha=unit["usable_area_ha"],
         range_condition=data.range_condition,
         early_weaning=data.early_weaning,
         supplemented=data.supplemented,
-        parameters=read_pasture_parameters(session),
+        parameters=pasture_parameters,
     )
     pasture_limit = pasture.pasture_limit_cow_equivalents
     water = available_water(session, unit_id)
@@ -201,6 +204,21 @@ def calculate(
             pasture.carrying_capacity_ha_per_cow_equivalent
         ),
         pasture_limit_cow_equivalents=pasture_limit,
+        pasture_breakdown=PastureBreakdownRead(
+            cow_equivalent_dm_intake_kg_year=(
+                pasture_parameters.cow_equivalent_dm_intake_kg_year
+            ),
+            consumable_forage_kg_ha_year=pasture.consumable_forage_kg_ha_year,
+            base_carrying_capacity_ha_per_cow_equivalent=(
+                pasture.base_carrying_capacity_ha_per_cow_equivalent
+            ),
+            indices=[
+                CorrectionIndexRead(
+                    code=index.code, applies=index.applies, value=index.value
+                )
+                for index in pasture.indices
+            ],
+        ),
         water=water_read,
         max_herd=MaxHerdRead(
             cow_equivalents=max_cow_equivalents, limited_by=limited_by

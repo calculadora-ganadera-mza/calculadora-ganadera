@@ -2,7 +2,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from app.models.enums import LimitedBy, LoadStatus
+from app.models.enums import CorrectionIndexCode, LimitedBy, LoadStatus
 from app.schemas.herd import HerdData
 
 
@@ -67,6 +67,23 @@ class LoadThermometerRead(BaseModel):
     below_cow_equivalents: float
 
 
+class CorrectionIndexRead(BaseModel):
+    code: CorrectionIndexCode
+    applies: bool
+    # None si el índice todavía no se cargó
+    value: float | None
+
+
+class PastureBreakdownRead(BaseModel):
+    """Pasos del cálculo de la receptividad."""
+
+    cow_equivalent_dm_intake_kg_year: float
+    consumable_forage_kg_ha_year: float
+    base_carrying_capacity_ha_per_cow_equivalent: float
+    # Estado del campo, destete precoz y suplementación, en ese orden
+    indices: list[CorrectionIndexRead]
+
+
 class CarryingCapacityResult(BaseModel):
     """Resultado del cálculo."""
 
@@ -74,6 +91,7 @@ class CarryingCapacityResult(BaseModel):
     usable_area_ha: float
     carrying_capacity_ha_per_cow_equivalent: float
     pasture_limit_cow_equivalents: float
+    pasture_breakdown: PastureBreakdownRead
     water: WaterRead
     max_herd: MaxHerdRead
     # None si no hay vacas o si no entra ni una vaca con su toro

@@ -20,6 +20,7 @@ export const NORTH = {
   name: 'Potrero Norte',
   area_ha: 100,
   usable_area_ha: 60,
+  refill_l_day: null,
   polygon: { type: 'Polygon' as const, coordinates: [] },
 }
 export const SOUTH = { ...NORTH, id: 2, name: 'Potrero Sur', area_ha: 50, usable_area_ha: 50 }

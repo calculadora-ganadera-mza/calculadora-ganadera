@@ -3,7 +3,7 @@
 import math
 from dataclasses import dataclass
 
-from app.models.enums import RangeCondition
+from app.models.enums import CorrectionIndexCode, RangeCondition
 
 
 class NotCalculableError(ValueError):
@@ -32,7 +32,20 @@ class PastureParameters:
 
 
 @dataclass(frozen=True)
+class CorrectionIndex:
+    """Un índice de corrección: si corresponde aplicarlo y su valor, si se cargó."""
+
+    code: CorrectionIndexCode
+    applies: bool
+    value: float | None
+
+
+@dataclass(frozen=True)
 class PastureLimit:
+    consumable_forage_kg_ha_year: float
+    # Receptividad antes de corregir por los índices
+    base_carrying_capacity_ha_per_cow_equivalent: float
+    indices: list[CorrectionIndex]
     carrying_capacity_ha_per_cow_equivalent: float
     pasture_limit_cow_equivalents: float
     missing_index: bool
@@ -55,24 +68,36 @@ def consumable_forage_kg_ha_year(
     return (herbaceous + woody) * parameters.forage_use_factor
 
 
-def applicable_indices(
+def correction_indices(
     range_condition: RangeCondition,
     early_weaning: bool,
     supplemented: bool,
     parameters: PastureParameters,
-) -> list[float | None]:
-    """El índice del estado del campo y los de las casillas marcadas."""
+) -> list[CorrectionIndex]:
+    """Los tres índices. El del estado del campo siempre corresponde; los otros
+    dos, solo si su casilla está marcada."""
     range_condition_indices = {
         RangeCondition.FAIR: parameters.range_condition_index_fair,
         RangeCondition.GOOD: parameters.range_condition_index_good,
         RangeCondition.VERY_GOOD: parameters.range_condition_index_very_good,
     }
-    indices = [range_condition_indices[range_condition]]
-    if early_weaning:
-        indices.append(parameters.early_weaning_index)
-    if supplemented:
-        indices.append(parameters.supplementation_index)
-    return indices
+    return [
+        CorrectionIndex(
+            CorrectionIndexCode.RANGE_CONDITION,
+            True,
+            range_condition_indices[range_condition],
+        ),
+        CorrectionIndex(
+            CorrectionIndexCode.EARLY_WEANING,
+            early_weaning,
+            parameters.early_weaning_index,
+        ),
+        CorrectionIndex(
+            CorrectionIndexCode.SUPPLEMENTATION,
+            supplemented,
+            parameters.supplementation_index,
+        ),
+    ]
 
 
 def calculate_pasture_limit(
@@ -94,16 +119,19 @@ def calculate_pasture_limit(
         raise NotCalculableError("La lluvia debe ser mayor que 0.")
     if usable_area_ha <= 0:
         raise NotCalculableError("El sector no tiene superficie aprovechable.")
-    base = parameters.cow_equivalent_dm_intake_kg_year / consumable_forage_kg_ha_year(
-        rainfall_mm, parameters
-    )
-    indices = applicable_indices(
+    forage = consumable_forage_kg_ha_year(rainfall_mm, parameters)
+    base = parameters.cow_equivalent_dm_intake_kg_year / forage
+    indices = correction_indices(
         range_condition, early_weaning, supplemented, parameters
     )
-    loaded = [index for index in indices if index is not None]
+    applied = [index for index in indices if index.applies]
+    loaded = [index.value for index in applied if index.value is not None]
     carrying_capacity = base / math.prod(loaded)
     return PastureLimit(
+        consumable_forage_kg_ha_year=forage,
+        base_carrying_capacity_ha_per_cow_equivalent=base,
+        indices=indices,
         carrying_capacity_ha_per_cow_equivalent=carrying_capacity,
         pasture_limit_cow_equivalents=usable_area_ha / carrying_capacity,
-        missing_index=len(loaded) < len(indices),
+        missing_index=len(loaded) < len(applied),
     )

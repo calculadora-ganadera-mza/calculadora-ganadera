@@ -4,6 +4,7 @@ import { listScenarios, listSeasons, updateScenario } from '@/api/scenarios'
 import { listProductionUnits } from '@/api/productionUnits'
 import { listScenarioWaterPoints } from '@/api/waterPoints'
 import { createSeason, updateSeasonRainfall } from '@/api/seasons'
+import { listAnimalCategories, listHerds } from '@/api/herds'
 import { NORTH, SCENARIO, SOUTH, WELL, openAt, season } from './farmFixtures'
 
 vi.mock('@/api/scenarios', () => ({
@@ -17,6 +18,8 @@ vi.mock('@/api/productionUnits', async (original) => ({
 }))
 vi.mock('@/api/waterPoints', () => ({ listScenarioWaterPoints: vi.fn() }))
 vi.mock('@/api/seasons', () => ({ createSeason: vi.fn(), updateSeasonRainfall: vi.fn() }))
+// La calculadora se abre al volver: sin rodeos ni categorías
+vi.mock('@/api/herds', () => ({ listAnimalCategories: vi.fn(), listHerds: vi.fn() }))
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -24,6 +27,8 @@ beforeEach(() => {
   vi.mocked(listProductionUnits).mockResolvedValue([NORTH, SOUTH])
   vi.mocked(listSeasons).mockResolvedValue([season(11, 2025), season(12, 2026, true)])
   vi.mocked(listScenarioWaterPoints).mockResolvedValue([WELL, { ...WELL, id: 11 }])
+  vi.mocked(listAnimalCategories).mockResolvedValue([])
+  vi.mocked(listHerds).mockResolvedValue([])
 })
 
 // Elige una campaña en el selector y espera a que cambie la dirección
@@ -124,6 +129,30 @@ describe('Pantalla del escenario', () => {
 
     expect(updateSeasonRainfall).toHaveBeenCalledWith(11, 250)
     expect(wrapper.get<HTMLInputElement>('#rainfall-11').element.value).toBe('250')
+  })
+
+  it('desde la calculadora avisa el sector y al guardar vuelve con los mismos ids', async () => {
+    vi.mocked(updateSeasonRainfall).mockResolvedValue({ ...season(11, 2025), rainfall_mm: 250 })
+    const { router, wrapper } = await openAt('/farm/7?season=11&calculate=2')
+
+    expect(wrapper.get('.campaign .notice').text()).toContain('receptividad de Potrero Sur')
+    expect(wrapper.get('.campaign a').attributes('href')).toBe(
+      '/calculators/carrying-capacity?scenario=7&unit=2&season=11',
+    )
+    await wrapper.get('#rainfall-11').setValue(250)
+    await wrapper.get('.campaign form').trigger('submit')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe(
+      '/calculators/carrying-capacity?scenario=7&unit=2&season=11&rainfall=saved',
+    )
+  })
+
+  it('no muestra el aviso si el sector no es de este escenario', async () => {
+    const { wrapper } = await openAt('/farm/7?season=11&calculate=99')
+
+    expect(wrapper.find('.campaign .notice').exists()).toBe(false)
+    expect(wrapper.get('.campaign button[type="submit"]').text()).toBe('Guardar')
   })
 
   it('Cancelar cierra la ventana sin crear la campaña', async () => {

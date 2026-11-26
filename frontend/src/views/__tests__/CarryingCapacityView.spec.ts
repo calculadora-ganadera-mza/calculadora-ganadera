@@ -25,7 +25,30 @@ const unit = {
   name: 'Sector 1',
   area_ha: 100,
   usable_area_ha: 60,
+  refill_l_day: null,
   polygon: { type: 'Polygon' as const, coordinates: [] },
+}
+
+const COW = {
+  id: 1,
+  code: 'cow',
+  name: 'Vaca',
+  cow_equivalent: 1,
+  summer_water_l_day: 60,
+  winter_water_l_day: 40,
+}
+const HERD = {
+  id: 35,
+  season_id: 12,
+  production_unit_id: 2,
+  categories: [{ animal_category_id: 1, quantity: 20 }],
+  range_condition: 'good' as const,
+  replacement_rate: 0.2,
+  weaning_rate: 0.65,
+  early_weaning: false,
+  supplemented: false,
+  breeding_start: '2026-11-01',
+  breeding_end: '2027-01-31',
 }
 
 beforeEach(() => {
@@ -40,6 +63,7 @@ beforeEach(() => {
     season,
   ])
   vi.mocked(listProductionUnits).mockResolvedValue([unit, { ...unit, id: 3, name: 'Sector 2' }])
+  vi.mocked(listAnimalCategories).mockResolvedValue([COW])
 })
 afterEach(() => vi.unstubAllGlobals())
 
@@ -55,6 +79,7 @@ async function open(path: string) {
         name: 'carrying-capacity-result',
         component: CarryingCapacityResultView,
       },
+      { path: '/farm/:scenarioId', name: 'scenario', component: EmptyView },
       { path: '/farm/:scenarioId/sectors/:unitId', name: 'sector', component: EmptyView },
       { path: '/:other(.*)', component: EmptyView },
     ],
@@ -63,6 +88,15 @@ async function open(path: string) {
   const wrapper = mount(RouterView, { global: { plugins: [router, createPinia()] } })
   await flushPromises()
   return { router, wrapper }
+}
+
+// Dato, valor y enlace de cada fila de los datos del cálculo
+function dataRows(wrapper: Awaited<ReturnType<typeof open>>['wrapper']) {
+  return wrapper.findAll('.calculation-data .data-list > div').map((row) => ({
+    label: row.get('dt').text(),
+    value: row.get('dd').text(),
+    link: row.find('a').exists() ? row.get('a').attributes('href') : undefined,
+  }))
 }
 
 describe('Elegir qué calcular', () => {
@@ -78,9 +112,12 @@ describe('Elegir qué calcular', () => {
   })
 
   it('llega con todo elegido desde el sector y abre el resultado', async () => {
+    vi.mocked(listHerds).mockResolvedValue([{ ...HERD, season_id: 11, production_unit_id: 3 }])
     const { router, wrapper } = await open('/calc?scenario=8&unit=3&season=11')
 
     expect(listSeasons).toHaveBeenCalledWith(8)
+    expect(listHerds).toHaveBeenCalledWith(11)
+    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
@@ -96,6 +133,66 @@ describe('Elegir qué calcular', () => {
     expect(listProductionUnits).toHaveBeenLastCalledWith(8)
     expect((wrapper.findAll('select')[1]!.element as HTMLSelectElement).value).toBe('')
     expect(wrapper.find('button').attributes('disabled')).toBeDefined()
+  })
+
+  it('muestra los datos que va a usar el cálculo', async () => {
+    vi.mocked(listHerds).mockResolvedValue([HERD])
+    vi.mocked(listProductionUnits).mockResolvedValue([{ ...unit, refill_l_day: 4200 }])
+    const { wrapper } = await open('/calc?scenario=7&unit=2&season=12')
+
+    expect(dataRows(wrapper)).toEqual([
+      { label: 'Lluvia de la campaña anterior', value: '300 mm', link: undefined },
+      { label: 'Superficie aprovechable', value: '60,0 ha', link: undefined },
+      { label: 'Reposición de las aguadas', value: '4.200 L/día', link: undefined },
+      { label: 'Rodeo cargado', value: 'Vaca 20', link: undefined },
+      { label: 'Estado del campo', value: 'Bueno', link: undefined },
+    ])
+    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('marca lo que falta antes de calcular y enlaza a donde se carga', async () => {
+    vi.mocked(listSeasons).mockResolvedValue([{ ...season, rainfall_mm: null }])
+    const { wrapper } = await open('/calc?scenario=7&unit=2&season=12')
+
+    const sector = '/farm/7/sectors/2?season=12'
+    expect(dataRows(wrapper)).toEqual([
+      {
+        label: 'Lluvia de la campaña anterior',
+        value: 'Falta',
+        link: '/farm/7?season=12&calculate=2',
+      },
+      { label: 'Superficie aprovechable', value: '60,0 ha', link: undefined },
+      { label: 'Reposición de las aguadas', value: 'Falta', link: sector },
+      { label: 'Rodeo cargado', value: 'Falta', link: sector },
+      { label: 'Estado del campo', value: 'Falta', link: sector },
+    ])
+    expect(wrapper.get('.calculation-data a').text()).toBe('Cargar la lluvia')
+    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('al volver de guardar la lluvia avisa que ya se puede calcular', async () => {
+    vi.mocked(listHerds).mockResolvedValue([HERD])
+    const { wrapper } = await open('/calc?scenario=7&unit=2&season=12&rainfall=saved')
+
+    expect(wrapper.get('[role="status"]').text()).toBe('Lluvia guardada. Ya se puede calcular.')
+    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
+
+    // El aviso es de esa elección: al elegir otro sector desaparece
+    await wrapper.findAll('select')[1]!.setValue(3)
+    expect(wrapper.find('[role="status"]').exists()).toBe(false)
+  })
+
+  it('borra el error de los rodeos al elegir otra campaña que sí carga', async () => {
+    vi.mocked(listHerds).mockRejectedValueOnce(new Error('sin conexión'))
+    const { wrapper } = await open('/calc?scenario=7&unit=2&season=12')
+    expect(wrapper.get('[role="alert"]').text()).toBe(
+      'No se pudieron cargar los datos de la campaña.',
+    )
+
+    await wrapper.findAll('select')[2]!.setValue(11)
+    await flushPromises()
+
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
   })
 
   it('simula en la pantalla del resultado y permite volver al cálculo de la campaña', async () => {
@@ -130,6 +227,12 @@ describe('Elegir qué calcular', () => {
           area_ha: 100,
           carrying_capacity_ha_per_cow_equivalent: capacity,
           usable_area_ha: 60,
+          pasture_breakdown: {
+            cow_equivalent_dm_intake_kg_year: 3285,
+            consumable_forage_kg_ha_year: 217.8,
+            base_carrying_capacity_ha_per_cow_equivalent: capacity,
+            indices: [],
+          },
           pasture_limit_cow_equivalents: simulated ? 26 : 20,
           water: {
             evaluated: false,
@@ -183,7 +286,8 @@ describe('Elegir qué calcular', () => {
     expect(wrapper.get('button[type="submit"]').text()).toBe('Recalcular')
     expect(wrapper.findAll('form select')).toHaveLength(1)
     expect(listHerds).toHaveBeenCalledWith(11)
-    expect(listHerds).toHaveBeenCalledTimes(1)
+    // Una vez para elegir y otra en el resultado: simular no vuelve a pedirlos
+    expect(listHerds).toHaveBeenCalledTimes(2)
     expect(wrapper.get<HTMLInputElement>('#qty-simulation-1').element.value).toBe('20')
     expect(wrapper.get<HTMLInputElement>('#replacement-simulation').element.value).toBe('20')
 
@@ -221,9 +325,14 @@ describe('Elegir qué calcular', () => {
     })
     expect(wrapper.findAll('.kpis')).toHaveLength(1)
     expect(wrapper.get('.kpi .value').text()).toBe('12,9 ha/EV')
-    expect(wrapper.get('.kpi .sub').text()).toContain('350.5 mm de lluvia')
+    expect(wrapper.get('.kpi .sub').text()).toContain('350,5 mm de lluvia')
     expect(wrapper.get('.load .status').text()).toBe('Dentro')
     expect(wrapper.get('.water-need').text()).toContain('1.800')
+    // Los datos usados muestran lo simulado, sin enlaces para cambiarlo
+    const used = wrapper.get('.details .data-list').text()
+    expect(used).toContain('350,5 mm')
+    expect(used).toContain('Toros cada 100 vacas4')
+    expect(wrapper.findAll('.details .data-list a')).toHaveLength(0)
 
     const restoreButton = wrapper.get('.simulation-notice button')
     expect(restoreButton.text()).toBe('Volver a mis datos')

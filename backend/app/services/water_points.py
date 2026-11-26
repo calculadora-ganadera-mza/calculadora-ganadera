@@ -3,9 +3,7 @@ from dataclasses import dataclass
 from geoalchemy2 import Geography, Geometry, WKBElement
 from sqlalchemy import (
     JSON,
-    ColumnElement,
     and_,
-    case,
     cast,
     func,
     select,
@@ -19,6 +17,7 @@ from app.schemas.water_point import WaterPointInput
 from app.services.production_units import get_user_unit
 from app.services.spatial import (
     WATER_POINT_EDGE_TOLERANCE_M,
+    litres_share,
     supplies_sector,
     water_point_reach,
     within_sector,
@@ -41,41 +40,6 @@ class AvailableWater:
     refill_l_day: float | None
     # Hay aguadas que cuenta para el sector y no tienen litros cargados
     partial: bool
-
-
-def litres_share(
-    owner: type[ProductionUnit], sector: type[ProductionUnit]
-) -> ColumnElement[float]:
-    """Parte de los litros de la aguada que le toca al sector.
-
-    Una aguada no compartida le da todo a su sector. Una compartida reparte
-    según la parte de su alcance que cae en cada sector que abastece. Cada
-    parte se divide por la suma de todas, así que entre los sectores reciben
-    exactamente los litros de la aguada, aunque se superpongan.
-    """
-    supplied = aliased(ProductionUnit)
-    reach = water_point_reach(WaterPoint.location)
-    sector_area = func.ST_Area(
-        func.ST_Intersection(reach, cast(sector.polygon, Geography(srid=4326)))
-    )
-    supplied_area = (
-        select(
-            func.sum(
-                func.ST_Area(
-                    func.ST_Intersection(
-                        reach, cast(supplied.polygon, Geography(srid=4326))
-                    )
-                )
-            )
-        )
-        .where(supplies_sector(WaterPoint, owner, supplied))
-        .correlate(WaterPoint, owner)
-        .scalar_subquery()
-    )
-    return case(
-        (WaterPoint.shared.is_(True), sector_area / func.nullif(supplied_area, 0)),
-        else_=1.0,
-    )
 
 
 def available_water(session: Session, unit_id: int) -> AvailableWater:

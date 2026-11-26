@@ -47,5 +47,7 @@ class ProductionUnitRead(BaseModel):
     polygon: PolygonGeoJSON
     area_ha: float
     usable_area_ha: float
+    # None si ninguna aguada que abastece al sector tiene litros cargados
+    refill_l_day: float | None
 
     usable_geometry: MultiPolygonGeoJSON | None = None

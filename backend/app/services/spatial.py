@@ -1,9 +1,19 @@
-"""Predicados espaciales compartidos por sectores y aguadas."""
+"""Predicados y cuentas espaciales compartidos por sectores y aguadas."""
 
 from typing import Any
 
 from geoalchemy2 import Geography, WKBElement
-from sqlalchemy import ColumnElement, SQLColumnExpression, and_, cast, func, or_
+from sqlalchemy import (
+    ColumnElement,
+    SQLColumnExpression,
+    and_,
+    case,
+    cast,
+    func,
+    or_,
+    select,
+)
+from sqlalchemy.orm import aliased
 
 from app.models import ProductionUnit, WaterPoint
 from app.services.parameters import select_parameter
@@ -44,4 +54,55 @@ def supplies_sector(
             owner.scenario_id == sector.scenario_id,
             within_sector(point.location, sector.polygon),
         ),
+    )
+
+
+def litres_share(
+    owner: type[ProductionUnit], sector: type[ProductionUnit]
+) -> ColumnElement[float]:
+    """Parte de los litros de la aguada que le toca al sector.
+
+    Una aguada no compartida le da todo a su sector. Una compartida reparte
+    según la parte de su alcance que cae en cada sector que abastece. Cada
+    parte se divide por la suma de todas, así que entre los sectores reciben
+    exactamente los litros de la aguada, aunque se superpongan.
+    """
+    supplied = aliased(ProductionUnit)
+    reach = water_point_reach(WaterPoint.location)
+    sector_area = func.ST_Area(
+        func.ST_Intersection(reach, cast(sector.polygon, Geography(srid=4326)))
+    )
+    supplied_area = (
+        select(
+            func.sum(
+                func.ST_Area(
+                    func.ST_Intersection(
+                        reach, cast(supplied.polygon, Geography(srid=4326))
+                    )
+                )
+            )
+        )
+        .where(supplies_sector(WaterPoint, owner, supplied))
+        .correlate(WaterPoint, owner)
+        .scalar_subquery()
+    )
+    return case(
+        (WaterPoint.shared.is_(True), sector_area / func.nullif(supplied_area, 0)),
+        else_=1.0,
+    )
+
+
+def sector_refill_l_day(sector: type[ProductionUnit]) -> ColumnElement[float | None]:
+    """Litros por día que le tocan al sector, como subconsulta correlacionada.
+
+    Es None si ninguna aguada que lo abastece tiene litros cargados.
+    """
+    owner = aliased(ProductionUnit)
+    return (
+        select(func.sum(WaterPoint.refill_l_day * litres_share(owner, sector)))
+        .select_from(WaterPoint)
+        .join(owner, owner.id == WaterPoint.production_unit_id)
+        .where(supplies_sector(WaterPoint, owner, sector))
+        .correlate(sector)
+        .scalar_subquery()
     )

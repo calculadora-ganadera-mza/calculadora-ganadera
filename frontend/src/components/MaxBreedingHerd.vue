@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { CalculationWarning, MaxBreedingHerd } from '@/api/carryingCapacity'
+import { upToOneDecimal } from '@/utils/format'
 
 const props = defineProps<{
   herd: MaxBreedingHerd | null
   warnings: CalculationWarning[]
 }>()
-
-const oneDecimal = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 })
 
 // "1 macho", "3 machos"
 const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
@@ -30,7 +29,7 @@ const herdWarnings = computed(() =>
           EV, puede quedar por encima del rodeo máximo.
         </span>
       </h2>
-      <span v-if="herd" class="total">{{ oneDecimal.format(herd.cow_equivalents) }} EV</span>
+      <span v-if="herd" class="total">{{ upToOneDecimal.format(herd.cow_equivalents) }} EV</span>
     </div>
 
     <ul v-if="herdWarnings.length" class="warnings">

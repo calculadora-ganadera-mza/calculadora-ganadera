@@ -37,6 +37,19 @@ const selectedId = computed({
   get: () => selected.value?.id,
   set: (id) => void router.replace({ query: { season: id } }),
 })
+// Si se llegó desde la calculadora (?calculate=), el sector que espera la
+// lluvia. Solo vale un sector de este escenario. La vuelta se arma con los ids,
+// nunca con una dirección que llega en la URL.
+const calculator = computed(() => {
+  const unit = data.value?.units.find((item) => item.id === routeId(route.query.calculate))
+  if (!unit || !data.value || !selected.value) return undefined
+  const query = { scenario: data.value.scenario.id, unit: unit.id, season: selected.value.id }
+  return {
+    unitName: unit.name,
+    afterSave: { name: 'carrying-capacity', query: { ...query, rainfall: 'saved' } },
+    back: { name: 'carrying-capacity', query },
+  }
+})
 // El servidor las da de la más vieja a la más nueva
 const newestFirst = computed(() => [...seasons.value].reverse())
 const totalArea = computed(() =>
@@ -221,6 +234,7 @@ watch(() => route.params.scenarioId, load, { immediate: true })
               :key="selected.id"
               :season-id="selected.id"
               :rainfall-mm="selected.rainfall_mm"
+              :calculator="calculator"
               @saved="onRainfallSaved"
             />
           </template>

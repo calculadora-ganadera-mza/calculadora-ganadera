@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import type { ScaledHerd } from '@/api/carryingCapacity'
+import { upToOneDecimal } from '@/utils/format'
 
 defineProps<{ herd: ScaledHerd | null; currentCowEquivalents: number }>()
-
-const oneDecimal = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 })
 </script>
 
 <template>
@@ -28,8 +27,8 @@ const oneDecimal = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 })
       <tfoot>
         <tr>
           <th scope="row">Total</th>
-          <td>{{ oneDecimal.format(currentCowEquivalents) }} EV</td>
-          <td>{{ oneDecimal.format(herd.cow_equivalents) }} EV</td>
+          <td>{{ upToOneDecimal.format(currentCowEquivalents) }} EV</td>
+          <td>{{ upToOneDecimal.format(herd.cow_equivalents) }} EV</td>
         </tr>
       </tfoot>
     </table>

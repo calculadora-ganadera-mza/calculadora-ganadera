@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { AnimalCategory, HerdData, RangeCondition } from '@/api/herds'
+import { RANGE_CONDITION_LABELS } from '@/utils/herd'
 
 const props = defineProps<{
   categories: AnimalCategory[]
@@ -19,11 +20,10 @@ const HELP: Record<string, string> = {
   heifer: 'Las de más de un año que todavía no se entoraron.',
 }
 
-const RANGE_CONDITIONS: { value: RangeCondition; label: string }[] = [
-  { value: 'fair', label: 'Regular' },
-  { value: 'good', label: 'Bueno' },
-  { value: 'very_good', label: 'Muy bueno' },
-]
+const RANGE_CONDITIONS = Object.entries(RANGE_CONDITION_LABELS).map(([value, label]) => ({
+  value: value as RangeCondition,
+  label,
+}))
 
 const validationError = ref('')
 const initial = props.initial

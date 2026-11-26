@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { calculateCarryingCapacity, type CarryingCapacityResult } from '@/api/carryingCapacity'
 import { ApiError } from '@/api/errors'
+import CalculationDetails from '@/components/CalculationDetails.vue'
 import CarryingCapacityResults from '@/components/CarryingCapacityResults.vue'
 import HerdDataForm from '@/components/HerdDataForm.vue'
 import { listAnimalCategories, listHerds, type AnimalCategory, type HerdData } from '@/api/herds'
@@ -15,19 +16,42 @@ const scenario = ref<Scenario>()
 const season = ref<Season>()
 const unit = ref<ProductionUnit>()
 const campaignHerd = ref<HerdData>()
+const categories = ref<AnimalCategory[]>([])
 // Dato de la campaña que falta cargar antes de calcular
 const missing = ref<'rainfall' | 'herd'>()
 const result = ref<CarryingCapacityResult>()
 const loading = ref(true)
 const error = ref('')
 const simulation = ref<{
-  categories?: AnimalCategory[]
   rainfallMm: number | ''
   bullsPer100Cows: number | ''
   busy: boolean
   error: string
-  calculated?: { result: CarryingCapacityResult; rainfallMm: number }
+  calculated?: {
+    result: CarryingCapacityResult
+    rainfallMm: number
+    herd: HerdData
+    bullsPer100Cows?: number
+  }
 }>()
+
+// Dónde se cambia cada dato usado. Con valores simulados no hay enlaces,
+// porque esos valores no están guardados.
+const links = computed(() => {
+  if (simulation.value?.calculated || !scenario.value || !unit.value || !season.value) return
+  return {
+    rainfall: {
+      name: 'scenario',
+      params: { scenarioId: scenario.value.id },
+      query: { season: season.value.id },
+    },
+    sector: {
+      name: 'sector',
+      params: { scenarioId: scenario.value.id, unitId: unit.value.id },
+      query: { season: season.value.id },
+    },
+  }
+})
 
 async function load() {
   loading.value = true
@@ -40,12 +64,14 @@ async function load() {
   const unitId = Number(route.params.unitId)
   const seasonId = Number(route.params.seasonId)
   try {
-    const [scenarios, seasons, units, herds] = await Promise.all([
+    const [scenarios, seasons, units, herds, animalCategories] = await Promise.all([
       listScenarios(),
       listSeasons(scenarioId),
       listProductionUnits(scenarioId),
       listHerds(seasonId),
+      listAnimalCategories(),
     ])
+    categories.value = animalCategories
     scenario.value = scenarios.find((item) => item.id === scenarioId)
     season.value = seasons.find((item) => item.id === seasonId)
     unit.value = units.find((item) => item.id === unitId)
@@ -70,19 +96,13 @@ async function load() {
   }
 }
 
-async function startSimulation() {
+function startSimulation() {
   if (!season.value?.rainfall_mm) return
   simulation.value = {
     rainfallMm: season.value.rainfall_mm,
     bullsPer100Cows: '',
     busy: false,
     error: '',
-  }
-  const draft = simulation.value
-  try {
-    draft.categories = await listAnimalCategories()
-  } catch {
-    draft.error = 'No se pudieron cargar las categorías de animales.'
   }
 }
 
@@ -106,7 +126,12 @@ async function recalculate(herd: HerdData) {
       rainfall_mm: rainfallMm,
       ...(bullsPer100Cows === '' ? {} : { bulls_per_100_cows: bullsPer100Cows }),
     })
-    draft.calculated = { result, rainfallMm }
+    draft.calculated = {
+      result,
+      rainfallMm,
+      herd,
+      ...(bullsPer100Cows === '' ? {} : { bullsPer100Cows }),
+    }
   } catch (err) {
     draft.error = err instanceof ApiError ? err.message : 'No se pudo simular. Probá de nuevo.'
   } finally {
@@ -192,9 +217,8 @@ onMounted(load)
       <section v-if="simulation" class="simulation-panel" aria-labelledby="simulation-title">
         <h2 id="simulation-title">Valores simulados</h2>
         <HerdDataForm
-          v-if="simulation.categories"
           class="simulation-form"
-          :categories="simulation.categories"
+          :categories="categories"
           id-prefix="simulation"
           :initial="campaignHerd"
           :busy="simulation.busy"
@@ -221,15 +245,19 @@ onMounted(load)
             </label>
           </fieldset>
         </HerdDataForm>
-        <div v-else-if="simulation.error" class="error" role="alert">
-          <p>{{ simulation.error }}</p>
-          <button type="button" @click="startSimulation">Reintentar</button>
-        </div>
-        <p v-else role="status">Cargando categorías de animales…</p>
       </section>
       <CarryingCapacityResults
         :result="simulation?.calculated?.result ?? result"
         :rainfall-mm="simulation?.calculated?.rainfallMm ?? season.rainfall_mm"
+      />
+      <CalculationDetails
+        v-if="campaignHerd"
+        :result="simulation?.calculated?.result ?? result"
+        :rainfall-mm="simulation?.calculated?.rainfallMm ?? season.rainfall_mm"
+        :herd="simulation?.calculated?.herd ?? campaignHerd"
+        :categories="categories"
+        :bulls-per100-cows="simulation?.calculated?.bullsPer100Cows"
+        :links="links"
       />
     </template>
   </section>

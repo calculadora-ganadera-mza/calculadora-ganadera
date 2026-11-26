@@ -66,11 +66,28 @@ export interface CalculationWarning {
   message: string
 }
 
+// Índice de corrección: si corresponde aplicarlo y su valor (null si no se cargó)
+export interface CorrectionIndex {
+  code: 'range_condition' | 'early_weaning' | 'supplementation'
+  applies: boolean
+  value: number | null
+}
+
+// Pasos del cálculo de la receptividad
+export interface PastureBreakdown {
+  cow_equivalent_dm_intake_kg_year: number
+  consumable_forage_kg_ha_year: number
+  base_carrying_capacity_ha_per_cow_equivalent: number
+  // Estado del campo, destete precoz y suplementación, en ese orden
+  indices: CorrectionIndex[]
+}
+
 export interface CarryingCapacityResult {
   area_ha: number
   usable_area_ha: number
   carrying_capacity_ha_per_cow_equivalent: number
   pasture_limit_cow_equivalents: number
+  pasture_breakdown: PastureBreakdown
   water: WaterResult
   max_herd: MaxHerd
   // null si no hay vacas o si no entra ni una vaca con su toro
