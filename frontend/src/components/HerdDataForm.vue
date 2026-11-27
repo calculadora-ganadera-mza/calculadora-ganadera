@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import type { AnimalCategory, HerdData, RangeCondition } from '@/api/herds'
 import { RANGE_CONDITION_LABELS } from '@/utils/herd'
+import { formatDate } from '@/utils/season'
 
 const props = defineProps<{
   categories: AnimalCategory[]
@@ -11,6 +12,8 @@ const props = defineProps<{
   disabled?: boolean
   error: string
   action: string
+  // Campaña del rodeo: el entore tiene que caer dentro de ella
+  season?: { start_date: string; end_date: string }
 }>()
 const emit = defineEmits<{ attempt: []; submit: [data: HerdData] }>()
 
@@ -67,6 +70,15 @@ function validate(): string {
   if (breedingStart.value && breedingEnd.value <= breedingStart.value) {
     breedingField.value = 'end'
     return 'El fin del entore tiene que ser posterior al inicio.'
+  }
+  const season = props.season
+  if (season && breedingStart.value && breedingStart.value < season.start_date) {
+    breedingField.value = 'start'
+    return `El entore tiene que empezar desde el ${formatDate(season.start_date)}, cuando empieza la campaña.`
+  }
+  if (season && breedingEnd.value && breedingEnd.value > season.end_date) {
+    breedingField.value = 'end'
+    return `El entore tiene que terminar hasta el ${formatDate(season.end_date)}, cuando termina la campaña.`
   }
   const cow = formCategories.value.find((c) => c.code === 'cow')
   const cows = cow ? Number(quantities.value[cow.id] || 0) : 0

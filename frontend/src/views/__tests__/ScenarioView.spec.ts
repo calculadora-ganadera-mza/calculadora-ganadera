@@ -64,7 +64,7 @@ describe('Pantalla del escenario', () => {
     ])
     const { wrapper } = await openAt('/farm/7')
 
-    expect(wrapper.get('.map-legend').text()).toBe('')
+    expect(wrapper.find('.map-legend').exists()).toBe(false)
   })
 
   it('lista las campañas de la más nueva a la más vieja y arranca en la actual', async () => {

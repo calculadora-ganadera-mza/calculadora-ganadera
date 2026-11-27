@@ -50,6 +50,10 @@ const calculator = computed(() => {
     back: { name: 'carrying-capacity', query },
   }
 })
+// La leyenda muestra la superficie aprovechable solo si algún sector la tiene
+const hasCoverage = computed(() =>
+  (data.value?.units ?? []).some((unit) => unit.usable_area_ha > 0),
+)
 // El servidor las da de la más vieja a la más nueva
 const newestFirst = computed(() => [...seasons.value].reverse())
 const totalArea = computed(() =>
@@ -219,10 +223,8 @@ watch(() => route.params.scenarioId, load, { immediate: true })
             show-labels
             @select-unit="openSector"
           />
-          <div class="map-legend">
-            <span v-if="data.units.some((unit) => unit.usable_area_ha > 0)">
-              <i class="coverage-key"></i>Superficie aprovechable
-            </span>
+          <div v-if="hasCoverage || data.waterPoints.length" class="map-legend">
+            <span v-if="hasCoverage"><i class="coverage-key"></i>Superficie aprovechable</span>
             <span v-if="data.waterPoints.length"><i class="water-key"></i>Aguada</span>
           </div>
         </div>

@@ -315,6 +315,7 @@ onMounted(load)
           :categories="categories"
           id-prefix="simulation"
           :initial="campaignHerd"
+          :season="season"
           :busy="simulation.busy"
           :action="simulation.busy ? 'Recalculando…' : 'Recalcular'"
           :error="simulation.error"

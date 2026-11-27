@@ -317,7 +317,7 @@ watch(
           read-only
           @reshape="reshaped = $event"
         />
-        <div class="map-legend">
+        <div v-if="!withoutWater || unit.usable_area_ha > 0 || neighbors.length" class="map-legend">
           <span v-if="!withoutWater"><i class="water-key"></i>Aguada</span>
           <span v-if="unit.usable_area_ha > 0">
             <i class="coverage-key"></i>Superficie aprovechable
@@ -397,7 +397,7 @@ watch(
             season ? ` ${seasonName(season.start_date, season.end_date)}` : ''
           }}
         </h2>
-        <HerdForm v-if="season" :key="season.id" :season-id="season.id" :unit-id="unit.id" />
+        <HerdForm v-if="season" :key="season.id" :season="season" :unit-id="unit.id" />
         <p v-else class="hint">El escenario no tiene una campaña para cargar el rodeo.</p>
 
         <div class="danger-zone">

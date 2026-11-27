@@ -42,9 +42,18 @@ const HERD: Herd = {
   breeding_end: '2027-01-31',
 }
 
+const SEASON = {
+  id: 5,
+  start_year: 2026,
+  start_date: '2026-07-01',
+  end_date: '2027-06-30',
+  rainfall_mm: null,
+  is_current: true,
+}
+
 // El formulario se abre solo al montarse
 async function openForm() {
-  const wrapper = mount(HerdForm, { props: { seasonId: 5, unitId: 3 } })
+  const wrapper = mount(HerdForm, { props: { season: SEASON, unitId: 3 } })
   await flushPromises()
   return wrapper
 }
@@ -135,6 +144,30 @@ describe('HerdForm', () => {
     expect(error.element.parentElement).toBe(end.element.parentElement)
     expect(input(wrapper, 'breeding-start-3').attributes('aria-invalid')).toBeUndefined()
     expect(wrapper.findAll('[role="alert"]')).toHaveLength(1)
+    expect(createHerd).not.toHaveBeenCalled()
+  })
+
+  it('marca el campo del entore que queda fuera de la campaña', async () => {
+    const wrapper = await openForm()
+    await input(wrapper, 'range-3').setValue('good')
+    await input(wrapper, 'breeding-start-3').setValue('2026-06-15')
+    await input(wrapper, 'breeding-end-3').setValue('2026-08-01')
+    await wrapper.find('form').trigger('submit')
+
+    expect(input(wrapper, 'breeding-start-3').attributes('aria-invalid')).toBe('true')
+    expect(wrapper.text()).toContain(
+      'El entore tiene que empezar desde el 1/7/2026, cuando empieza la campaña.',
+    )
+
+    await input(wrapper, 'breeding-start-3').setValue('2027-05-01')
+    await input(wrapper, 'breeding-end-3').setValue('2027-07-15')
+    await wrapper.find('form').trigger('submit')
+
+    expect(input(wrapper, 'breeding-start-3').attributes('aria-invalid')).toBeUndefined()
+    expect(input(wrapper, 'breeding-end-3').attributes('aria-invalid')).toBe('true')
+    expect(wrapper.text()).toContain(
+      'El entore tiene que terminar hasta el 30/6/2027, cuando termina la campaña.',
+    )
     expect(createHerd).not.toHaveBeenCalled()
   })
 

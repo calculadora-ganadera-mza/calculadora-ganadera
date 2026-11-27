@@ -58,7 +58,10 @@ describe('Pantalla del sector', () => {
     expect(map.props('units')).toEqual([NORTH])
     expect(map.props('referenceUnits')).toEqual([SOUTH])
     expect(map.props('waterPoints')).toEqual([WELL])
-    expect(wrapper.getComponent({ name: 'HerdForm' }).props()).toEqual({ seasonId: 12, unitId: 1 })
+    expect(wrapper.getComponent({ name: 'HerdForm' }).props()).toEqual({
+      season: season(12, 2026, true),
+      unitId: 1,
+    })
     const links = wrapper.findAll('.breadcrumb a').map((a) => a.attributes('href'))
     expect(links).toEqual(['/farm/scenarios', '/farm/7'])
   })
@@ -76,7 +79,7 @@ describe('Pantalla del sector', () => {
     const { wrapper } = await openAt('/farm/7/sectors/1?season=11')
 
     expect(wrapper.get('.season-meta').text()).toContain('Campaña 2025/26')
-    expect(wrapper.getComponent({ name: 'HerdForm' }).props()).toEqual({ seasonId: 11, unitId: 1 })
+    expect(wrapper.getComponent({ name: 'HerdForm' }).props('season').id).toBe(11)
     const links = wrapper.findAll('.breadcrumb a').map((a) => a.attributes('href'))
     expect(links).toEqual(['/farm/scenarios', '/farm/7?season=11'])
     expect(href(wrapper, 'Cambiar campaña')).toBe('/farm/7?season=11')
@@ -94,7 +97,7 @@ describe('Pantalla del sector', () => {
     const { wrapper } = await openAt('/farm/7/sectors/1?season=99')
 
     expect(wrapper.get('.season-meta').text()).toContain('Campaña 2026/27')
-    expect(wrapper.getComponent({ name: 'HerdForm' }).props('seasonId')).toBe(12)
+    expect(wrapper.getComponent({ name: 'HerdForm' }).props('season').id).toBe(12)
   })
 
   it('carga el rodeo de otra campaña al cambiar la dirección', async () => {
@@ -104,7 +107,7 @@ describe('Pantalla del sector', () => {
     await router.push('/farm/7/sectors/1?season=12')
     await flushPromises()
 
-    expect(wrapper.getComponent({ name: 'HerdForm' }).props('seasonId')).toBe(12)
+    expect(wrapper.getComponent({ name: 'HerdForm' }).props('season').id).toBe(12)
   })
 
   it('avisa si el sector no tiene aguadas o si alguna no tiene los litros', async () => {
