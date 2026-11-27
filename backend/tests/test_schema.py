@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models import (
     AnimalCategory,
+    CarryingCapacityCalculation,
     HerdCategory,
     HerdSeason,
     Parameter,
@@ -16,7 +17,7 @@ from app.models import (
     User,
     WaterPoint,
 )
-from app.models.enums import ProductionSystem, RangeCondition
+from app.models.enums import CalculationKind, ProductionSystem, RangeCondition
 
 # Cuadrado de 1km de lado en UTM 19S (Mendoza), pasado a WGS 84.
 SQUARE_1KM = func.ST_Transform(
@@ -140,11 +141,91 @@ def test_herd_category_is_unique_per_herd_and_category(
 
 def test_deleting_scenario_cascades(session: Session, cows: HerdCategory):
     herd = session.get_one(HerdSeason, cows.herd_season_id)
+    session.add(
+        CarryingCapacityCalculation(
+            scenario_id=herd.scenario_id,
+            season_id=herd.season_id,
+            production_unit_id=herd.production_unit_id,
+            kind=CalculationKind.RESULT,
+            input={},
+            reference_values={},
+            result={},
+        )
+    )
+    session.flush()
 
     session.execute(delete(Scenario).where(Scenario.id == herd.scenario_id))
 
-    for model in (ProductionUnit, WaterPoint, Season, HerdSeason, HerdCategory):
+    for model in (
+        ProductionUnit,
+        WaterPoint,
+        Season,
+        HerdSeason,
+        HerdCategory,
+        CarryingCapacityCalculation,
+    ):
         assert session.scalar(select(func.count()).select_from(model)) == 0
+
+
+def test_carrying_capacity_result_is_unique_per_unit_and_season(
+    session: Session, herd: HerdSeason
+):
+    base = {
+        "scenario_id": herd.scenario_id,
+        "season_id": herd.season_id,
+        "production_unit_id": herd.production_unit_id,
+        "input": {},
+        "reference_values": {},
+        "result": {},
+    }
+    session.add_all(
+        [
+            CarryingCapacityCalculation(**base, kind=CalculationKind.RESULT),
+            CarryingCapacityCalculation(**base, kind=CalculationKind.SIMULATION),
+            CarryingCapacityCalculation(**base, kind=CalculationKind.SIMULATION),
+        ]
+    )
+    session.flush()
+
+    with (
+        pytest.raises(
+            IntegrityError, match="uq_carrying_capacity_result_per_unit_season"
+        ),
+        session.begin_nested(),
+    ):
+        session.add(CarryingCapacityCalculation(**base, kind=CalculationKind.RESULT))
+
+
+def test_carrying_capacity_calculation_requires_same_scenario(
+    session: Session, herd: HerdSeason
+):
+    scenario = session.get_one(Scenario, herd.scenario_id)
+    other_scenario = Scenario(user_id=scenario.user_id, name="Otro campo")
+    session.add(other_scenario)
+    session.flush()
+    other_season = Season(
+        scenario_id=other_scenario.id,
+        start_date=date(2025, 7, 1),
+        end_date=date(2026, 6, 30),
+    )
+    session.add(other_season)
+    session.flush()
+
+    with (
+        pytest.raises(IntegrityError, match="fk_carrying_capacity_calc_season"),
+        session.begin_nested(),
+    ):
+        session.add(
+            CarryingCapacityCalculation(
+                scenario_id=herd.scenario_id,
+                season_id=other_season.id,
+                production_unit_id=herd.production_unit_id,
+                kind=CalculationKind.SIMULATION,
+                input={},
+                reference_values={},
+                result={},
+            )
+        )
 
 
 @pytest.mark.parametrize(

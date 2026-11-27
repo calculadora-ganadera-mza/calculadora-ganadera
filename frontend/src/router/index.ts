@@ -78,6 +78,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: 'Receptividad' },
   },
   {
+    path: '/calculators/carrying-capacity/calculations/:calculationId',
+    name: 'carrying-capacity-saved',
+    component: () => import('../views/SavedCalculationView.vue'),
+    meta: { title: 'Cálculo guardado' },
+  },
+  {
     path: '/tracking',
     name: 'tracking',
     component: () => import('../views/TrackingView.vue'),

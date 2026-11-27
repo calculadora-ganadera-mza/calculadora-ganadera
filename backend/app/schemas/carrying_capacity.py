@@ -1,8 +1,17 @@
+from datetime import date, datetime
 from enum import StrEnum
+from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+)
 
-from app.models.enums import CorrectionIndexCode, LimitedBy, LoadStatus
+from app.models.enums import CalculationKind, CorrectionIndexCode, LimitedBy, LoadStatus
+from app.schemas.animal_category import AnimalCategoryRead
 from app.schemas.herd import HerdData
 
 
@@ -12,6 +21,14 @@ class CarryingCapacityInput(HerdData):
     rainfall_mm: float = Field(gt=0, allow_inf_nan=False)
     # Si se omite, se usa el parámetro bulls_per_100_cows
     bulls_per_100_cows: float | None = Field(default=None, gt=0, allow_inf_nan=False)
+
+    @model_serializer(mode="wrap")
+    def _serialize(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        # En el contrato, bulls_per_100_cows se omite cuando no se informó
+        data = handler(self)
+        if data.get("bulls_per_100_cows") is None:
+            data.pop("bulls_per_100_cows", None)
+        return data
 
 
 class WarningCode(StrEnum):
@@ -121,3 +138,56 @@ class MaxHerdRead(BaseModel):
 
     cow_equivalents: float
     limited_by: LimitedBy
+
+
+class CarryingCapacityCalculationCreate(BaseModel):
+    """Pedido para guardar un resultado de la campaña o una simulación."""
+
+    season_id: int
+    kind: CalculationKind
+    update_season: bool = False
+    input: CarryingCapacityInput
+
+
+class ReferenceValuesRead(BaseModel):
+    """Valores de referencia con los que se hizo el cálculo."""
+
+    parameters: dict[str, float | None]
+    animal_categories: list[AnimalCategoryRead]
+
+
+class CarryingCapacityCalculationSummaryRead(BaseModel):
+    """Resumen liviano de un cálculo guardado para el historial."""
+
+    id: int
+    production_unit_id: int
+    season_id: int
+    scenario_name: str
+    production_unit_name: str
+    season_start_date: date
+    season_end_date: date
+    kind: CalculationKind
+    created_at: datetime
+    rainfall_mm: float
+    carrying_capacity_ha_per_cow_equivalent: float
+    max_herd_cow_equivalents: float
+
+
+class CarryingCapacityCalculationRead(BaseModel):
+    """Cálculo guardado, con sus datos, valores de referencia y resultado."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    production_unit_id: int
+    season_id: int
+    scenario_name: str
+    production_unit_name: str
+    season_start_date: date
+    season_end_date: date
+    kind: CalculationKind
+    created_at: datetime
+    season_updated: bool
+    input: CarryingCapacityInput
+    reference_values: ReferenceValuesRead
+    result: CarryingCapacityResult
