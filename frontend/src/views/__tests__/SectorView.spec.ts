@@ -126,6 +126,18 @@ describe('Pantalla del sector', () => {
     expect(single.wrapper.get('.cards').text()).toContain('Falta cargar los litros de la aguada.')
   })
 
+  it('sin aguadas explica por qué no hay superficie aprovechable y no muestra su leyenda', async () => {
+    vi.mocked(listScenarioWaterPoints).mockResolvedValue([])
+    vi.mocked(listProductionUnits).mockResolvedValue([{ ...NORTH, usable_area_ha: 0 }, SOUTH])
+    const { wrapper } = await openAt('/farm/7/sectors/1?season=12')
+
+    const card = wrapper.findAll('.cards > div')[1]!
+    expect(card.text()).toContain('Sin aguadas no hay superficie aprovechable')
+    expect(card.get('a').text()).toBe('Ubicar aguada')
+    expect(card.get('a').attributes('href')).toBe('/farm/7/sectors/1/water-points/new?season=12')
+    expect(wrapper.get('.map-legend').text()).toBe('Sector vecino')
+  })
+
   it('muestra las aguadas propias y como referencia las compartidas por vecinos', async () => {
     const neighbor = {
       ...WELL,

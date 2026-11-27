@@ -49,6 +49,8 @@ const sharedPoints = computed(() =>
       point.neighbor_unit_ids.includes(unitId.value),
   ),
 )
+// Sin aguadas propias ni compartidas no hay superficie aprovechable
+const withoutWater = computed(() => ownPoints.value.length + sharedPoints.value.length === 0)
 const usablePercent = computed(() =>
   unit.value && unit.value.area_ha > 0
     ? Math.round((unit.value.usable_area_ha / unit.value.area_ha) * 100)
@@ -88,7 +90,7 @@ async function load(refresh = false) {
     data.value = loaded ?? undefined
     season.value = pickSeason(seasons, route.query.season)
   } catch {
-    if (version === loadVersion) error.value = 'No se pudo cargar el sector. Intentá de nuevo.'
+    if (version === loadVersion) error.value = 'No se pudo cargar el sector. Volver a intentar.'
   } finally {
     if (version === loadVersion) loading.value = false
   }
@@ -270,7 +272,19 @@ watch(
         <div>
           <p class="card-label">Superficie aprovechable</p>
           <p class="card-value">{{ hectares(unit.usable_area_ha) }} <small>ha</small></p>
-          <p class="hint">{{ usablePercent }} % del total</p>
+          <p v-if="withoutWater" class="hint">
+            Sin aguadas no hay superficie aprovechable: se mide dentro del alcance de cada aguada.
+            <RouterLink
+              :to="{
+                name: 'new-water-point',
+                params: { scenarioId: data.scenario.id, unitId: unit.id },
+                query: keepSeason(route.query),
+              }"
+            >
+              Ubicar aguada
+            </RouterLink>
+          </p>
+          <p v-else class="hint">{{ usablePercent }} % del total</p>
         </div>
         <div>
           <p class="card-label">Reposición de las aguadas</p>
@@ -284,7 +298,7 @@ watch(
 
       <div class="map-box panel" :class="{ editing: editingShape }">
         <div v-if="editingShape" class="shape-bar">
-          <p>Arrastrá las esquinas. Tocar un borde agrega una esquina.</p>
+          <p>Arrastrar las esquinas. Tocar un borde agrega una esquina.</p>
           <button type="button" class="btn btn-primary" :disabled="saving" @click="saveShape">
             {{ saving ? 'Guardando…' : 'Guardar contorno' }}
           </button>
@@ -304,9 +318,11 @@ watch(
           @reshape="reshaped = $event"
         />
         <div class="map-legend">
-          <span><i class="water-key"></i>Aguada</span>
-          <span><i class="coverage-key"></i>Superficie aprovechable</span>
-          <span><i class="neighbor-key"></i>Sector vecino</span>
+          <span v-if="!withoutWater"><i class="water-key"></i>Aguada</span>
+          <span v-if="unit.usable_area_ha > 0">
+            <i class="coverage-key"></i>Superficie aprovechable
+          </span>
+          <span v-if="neighbors.length"><i class="neighbor-key"></i>Sector vecino</span>
         </div>
       </div>
       <p v-if="actionError" class="error" role="alert">{{ actionError }}</p>

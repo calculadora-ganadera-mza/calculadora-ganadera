@@ -80,7 +80,7 @@ async function load() {
     data.value = loaded
     seasons.value = loadedSeasons
   } catch {
-    if (version === loadVersion) error.value = 'No se pudo cargar el escenario. Intentá de nuevo.'
+    if (version === loadVersion) error.value = 'No se pudo cargar el escenario. Volver a intentar.'
   } finally {
     if (version === loadVersion) loading.value = false
   }
@@ -186,8 +186,12 @@ watch(() => route.params.scenarioId, load, { immediate: true })
           </div>
           <p v-if="mainError" class="error" role="alert">{{ mainError }}</p>
           <p class="summary">
-            Sectores <strong>{{ data.units.length }}</strong> · Superficie
-            <strong>{{ hectares(totalArea) }} ha</strong>
+            <span
+              >Sectores <strong>{{ data.units.length }}</strong></span
+            >
+            <span
+              >Superficie <strong>{{ hectares(totalArea) }} ha</strong></span
+            >
           </p>
         </div>
         <div class="season-bar">
@@ -216,8 +220,10 @@ watch(() => route.params.scenarioId, load, { immediate: true })
             @select-unit="openSector"
           />
           <div class="map-legend">
-            <span><i class="coverage-key"></i>Superficie aprovechable</span>
-            <span><i class="water-key"></i>Aguada</span>
+            <span v-if="data.units.some((unit) => unit.usable_area_ha > 0)">
+              <i class="coverage-key"></i>Superficie aprovechable
+            </span>
+            <span v-if="data.waterPoints.length"><i class="water-key"></i>Aguada</span>
           </div>
         </div>
 
@@ -285,7 +291,7 @@ watch(() => route.params.scenarioId, load, { immediate: true })
           </tbody>
         </table>
       </div>
-      <p v-else class="hint">Todavía no hay sectores. Dibujá el primero.</p>
+      <p v-else class="hint">Todavía no hay sectores. Para empezar, dibujar el primero.</p>
 
       <AppModal v-if="addingSeason" title="Nueva campaña" @close="addingSeason = false">
         <AddSeason :scenario-id="data.scenario.id" :seasons="seasons" @created="onSeasonCreated">
@@ -345,6 +351,9 @@ h2 {
 }
 
 .summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
   margin: 4px 0 0;
   color: var(--color-text-muted);
   font-size: 0.85rem;

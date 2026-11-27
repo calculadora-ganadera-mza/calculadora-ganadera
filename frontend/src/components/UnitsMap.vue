@@ -55,6 +55,33 @@ watch(
       map?.pm.enableDraw('Marker', { snappable: true, snapDistance: 20 })
   },
 )
+// Pantallas táctiles: un dedo baja la página y el mapa se mueve con dos
+const touchScreen = window.matchMedia?.('(pointer: coarse)').matches ?? false
+
+// Pane de los nombres de los sectores: arriba de los polígonos (400) y abajo de
+// los marcadores (600), para que el nombre no tape las aguadas
+const LABEL_PANE = 'sectorLabels'
+
+// Textos de la barra de dibujo en impersonal. La traducción de Geoman está en
+// tuteo; solo se reemplazan los textos que muestra esta barra.
+const DRAW_TEXTS = {
+  tooltips: {
+    placeMarker: 'Tocar el mapa para ubicar la aguada',
+    placeMarkerTouch: 'Tocar el mapa para ubicar la aguada',
+    firstVertex: 'Tocar el mapa para marcar la primera esquina',
+    continueLine: 'Tocar el mapa para marcar la siguiente esquina',
+    finishPoly: 'Tocar la primera esquina para cerrar el contorno',
+  },
+  actions: {
+    finish: 'Terminar',
+    cancel: 'Cancelar',
+    removeLastVertex: 'Borrar la última esquina',
+  },
+  buttonTitles: {
+    drawPolyButton: 'Dibujar el contorno',
+  },
+}
+
 // Vista inicial cuando todavía no hay sectores: la provincia de Mendoza
 const MENDOZA_CENTER: L.LatLngTuple = [-34.6, -68.5]
 const MENDOZA_ZOOM = 7
@@ -147,6 +174,7 @@ function showUnits() {
       permanent: props.showLabels,
       direction: 'center',
       className: 'sector-label',
+      pane: LABEL_PANE,
     })
     unitsLayer.addLayer(layer)
     if (editing) {
@@ -180,7 +208,7 @@ function showWater() {
       fillOpacity: 0.12,
       pmIgnore: true,
     } as L.CircleMarkerOptions)
-      .bindTooltip(textTooltip(`${point.name} · Compartida desde otro sector`))
+      .bindTooltip(textTooltip(`${point.name}, compartida desde otro sector`))
       .addTo(waterLayer)
   }
   for (const point of props.waterPoints ?? []) {
@@ -235,7 +263,15 @@ watch(
   showWater,
 )
 onMounted(() => {
-  map = L.map(container.value!)
+  map = L.map(container.value!, {
+    // La rueda baja la página; el zoom queda con + y − y con doble clic
+    scrollWheelZoom: false,
+    // En pantallas táctiles el mapa se mueve con dos dedos
+    dragging: !touchScreen,
+  })
+  const labelPane = map.createPane(LABEL_PANE)
+  labelPane.style.zIndex = '450'
+  labelPane.style.pointerEvents = 'none'
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution:
@@ -247,7 +283,7 @@ onMounted(() => {
   unitsLayer.addTo(map)
   draftLayer.addTo(map)
 
-  map.pm.setLang('es')
+  map.pm.setLang('impersonal' as L.PM.SupportLocales, DRAW_TEXTS as L.PM.Translations, 'es')
   map.pm.setGlobalOptions({ allowSelfIntersection: false })
   if (!props.readOnly)
     map.pm.addControls({
@@ -300,7 +336,10 @@ watch(() => props.draft, showDraft)
 </script>
 
 <template>
-  <div ref="container" class="units-map"></div>
+  <div>
+    <div ref="container" class="units-map"></div>
+    <p v-if="touchScreen" class="touch-hint">Usar dos dedos para mover el mapa.</p>
+  </div>
 </template>
 
 <style scoped>
@@ -326,6 +365,15 @@ watch(() => props.draft, showDraft)
   .units-map {
     height: 310px;
   }
+}
+/* Arrastrar una aguada o una esquina no baja la página */
+:deep(.leaflet-marker-icon) {
+  touch-action: none;
+}
+.touch-hint {
+  margin: 6px 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
 }
 :deep(.aguada-pin) {
   background: #087fbb;
