@@ -88,6 +88,14 @@ class AuthService:
             .values(revoked=True)
         )
 
+    def revoke_all_for_user(self, user_id: int) -> None:
+        """Revoca todas las sesiones de renovación abiertas del usuario."""
+        self.session.execute(
+            update(RefreshSession)
+            .where(RefreshSession.user_id == user_id)
+            .values(revoked=True)
+        )
+
     def refresh(self, token: str) -> tuple[str, str]:
         record = self.find_locked(token)
         if record is None:

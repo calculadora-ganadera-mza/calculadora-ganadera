@@ -109,6 +109,7 @@ Traducción fija de los términos del dominio. El código usa la columna de la d
 | rol: productor / técnico / administrador | `role`: `producer` / `technician` / `admin` |
 | correo verificado | `email_verified` |
 | código de verificación del correo | `email_verification_code` |
+| código de recuperación de contraseña | `password_reset_code` |
 | categoría animal | `animal_category` |
 | EV (equivalente vaca) | `cow_equivalent` |
 | consumo anual de materia seca (MS) de un EV | `cow_equivalent_dm_intake_kg_year` |

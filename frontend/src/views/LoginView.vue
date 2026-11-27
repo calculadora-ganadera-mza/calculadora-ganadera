@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { login, register } from '../api/auth'
 
 const router = useRouter()
@@ -73,6 +73,9 @@ async function submit() {
       <button :disabled="busy" type="button" @click="toggleMode">
         {{ creating ? 'Ya tengo cuenta' : 'Crear una cuenta' }}
       </button>
+      <RouterLink v-if="!creating" to="/forgot-password" class="forgot-link">
+        Olvidé mi contraseña
+      </RouterLink>
     </form>
   </section>
 </template>
@@ -108,5 +111,10 @@ button:disabled {
 }
 [role='alert'] {
   color: var(--color-danger);
+}
+.forgot-link {
+  justify-self: center;
+  color: var(--color-primary);
+  font-size: 0.9rem;
 }
 </style>

@@ -6,6 +6,7 @@ Modelo de datos vigente, generado a partir de los modelos de `backend/app/models
 erDiagram
     app_user ||--o{ refresh_session : "abre"
     app_user ||--o{ email_verification_code : "recibe"
+    app_user ||--o{ password_reset_code : "recibe"
     app_user ||--o{ scenario : "registra"
     scenario ||--o{ season : "tiene"
     scenario ||--o{ production_unit : "se divide en"
@@ -44,6 +45,16 @@ erDiagram
         string code_hash
         timestamptz expires_at
         int attempts "intentos fallidos, por defecto 0"
+        timestamptz created_at
+    }
+
+    password_reset_code {
+        int id PK
+        int user_id FK "se borra con el usuario"
+        string code_hash
+        timestamptz expires_at
+        int attempts "intentos fallidos, por defecto 0"
+        bool used "por defecto false"
         timestamptz created_at
     }
 
@@ -154,3 +165,4 @@ erDiagram
 - **Valores de referencia:** todo valor de `parameter` es mayor que 0, y solo los índices pueden quedar sin valor (`ck_parameter_value_positive`).
 - **Tablas sueltas:** `parameter` no se relaciona con otras tablas. La consulta el motor de cálculo por su `key`.
 - **Códigos de verificación del correo:** solo vale el más reciente de cada usuario, porque uno nuevo anula los anteriores. `code_hash` usa el mismo hash que `refresh_session.token_hash` y no es único, porque dos usuarios pueden recibir el mismo código.
+- **Códigos de recuperación de contraseña:** solo vale el más reciente de cada usuario, porque uno nuevo anula los anteriores. Se marca `used` al cambiar la contraseña para que no se reutilice sin borrar la fila que cuenta para el límite por hora. `code_hash` usa el mismo hash que `refresh_session.token_hash` y no es único.

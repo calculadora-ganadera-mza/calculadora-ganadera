@@ -34,9 +34,19 @@ describe('aplicación con sesión iniciada', () => {
       expect(router.currentRoute.value.path).toBe('/login')
     }
 
+    const forgotLink = wrapper.find('a[href="/forgot-password"]')
+    expect(forgotLink.text()).toBe('Olvidé mi contraseña')
+    await forgotLink.trigger('click')
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/forgot-password'))
+    expect(wrapper.text()).toContain('Recuperar contraseña')
+    expect(wrapper.find('.app-nav').exists()).toBe(false)
+
     await login('test@example.com', 'password123')
     await router.push('/')
     await router.push('/login')
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/')
+    await router.push('/forgot-password')
     await flushPromises()
     expect(router.currentRoute.value.path).toBe('/')
     expect(wrapper.find('.app-nav').exists()).toBe(true)

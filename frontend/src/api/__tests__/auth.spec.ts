@@ -1,5 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { useAuthStore } from '../../stores/auth'
+import { ApiError } from '../errors'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const tokenResponse = (token: string) =>
@@ -62,5 +63,59 @@ describe('cliente de autenticación', () => {
     expect((await auth.authenticatedFetch('/private')).status).toBe(401)
     expect(useAuthStore().authenticationRequired).toBe(true)
     expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('pide el código para recuperar la contraseña', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 202 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const auth = await import('../auth')
+
+    await auth.requestPasswordReset('ana@example.com')
+
+    const [url, init] = fetchMock.mock.calls[0]!
+    expect(url).toMatch(/\/auth\/forgot-password$/)
+    expect(init.method).toBe('POST')
+    expect(init.credentials).toBeUndefined()
+    expect(JSON.parse(init.body)).toEqual({ email: 'ana@example.com' })
+  })
+
+  it('cambia la contraseña y traduce el rechazo del código en ApiError', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ detail: 'El código no es válido. Revisalo o pedí uno nuevo.' }),
+          {
+            status: 422,
+          },
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    const auth = await import('../auth')
+
+    await auth.resetPassword({
+      email: 'ana@example.com',
+      code: '123456',
+      password: 'new-password-456',
+    })
+
+    const [url, init] = fetchMock.mock.calls[0]!
+    expect(url).toMatch(/\/auth\/reset-password$/)
+    expect(init.method).toBe('POST')
+    expect(init.credentials).toBeUndefined()
+    expect(JSON.parse(init.body)).toEqual({
+      email: 'ana@example.com',
+      code: '123456',
+      password: 'new-password-456',
+    })
+
+    await expect(
+      auth.resetPassword({
+        email: 'ana@example.com',
+        code: '000000',
+        password: 'new-password-456',
+      }),
+    ).rejects.toEqual(new ApiError('El código no es válido. Revisalo o pedí uno nuevo.'))
   })
 })
