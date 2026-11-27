@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { ref, watch } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { login, register } from '../api/auth'
 
+const route = useRoute()
 const router = useRouter()
 const email = ref('')
 const password = ref('')
@@ -10,15 +11,25 @@ const name = ref('')
 const creating = ref(false)
 const busy = ref(false)
 const error = ref('')
+const resetNotice = ref(route.query.reset === '1')
+
+watch(
+  () => route.query.reset,
+  (value) => {
+    resetNotice.value = value === '1'
+  },
+)
 
 function toggleMode() {
   creating.value = !creating.value
   error.value = ''
+  resetNotice.value = false
 }
 
 async function submit() {
   busy.value = true
   error.value = ''
+  resetNotice.value = false
   try {
     if (creating.value) {
       await register({
@@ -44,6 +55,9 @@ async function submit() {
   <section class="auth-form">
     <h1>{{ creating ? 'Crear cuenta' : 'Iniciar sesión' }}</h1>
     <form @submit.prevent="submit">
+      <p v-if="!creating && resetNotice" class="notice" role="status">
+        La contraseña se actualizó. Ingresá con la nueva.
+      </p>
       <template v-if="creating">
         <label
           >Nombre y apellido<input
@@ -111,6 +125,10 @@ button:disabled {
 }
 [role='alert'] {
   color: var(--color-danger);
+}
+.notice {
+  margin: 0;
+  color: var(--color-success);
 }
 .forgot-link {
   justify-self: center;

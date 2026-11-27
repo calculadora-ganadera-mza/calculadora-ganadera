@@ -58,6 +58,13 @@ describe('aplicación con sesión iniciada', () => {
     expect(wrapper.find('.auth-form').exists()).toBe(true)
     await router.push('/farm')
     expect(router.currentRoute.value.path).toBe('/login')
+
+    await router.push('/login?reset=1')
+    await flushPromises()
+    expect(wrapper.find('[role="status"]').text()).toContain('La contraseña se actualizó')
+    await wrapper.find('button[type="button"]').trigger('click')
+    expect(wrapper.find('[role="status"]').exists()).toBe(false)
+
     wrapper.unmount()
   })
 })

@@ -60,7 +60,7 @@ describe('ForgotPasswordView', () => {
 
   it('muestra el error del backend cuando el código no sirve', async () => {
     vi.mocked(resetPassword).mockRejectedValue(
-      new ApiError('El código no es válido. Revisalo o pedí uno nuevo.'),
+      new ApiError('El código no es válido. Hay que revisarlo o pedir uno nuevo.'),
     )
     const { wrapper } = await mountView()
     await wrapper.find('button[type="button"]').trigger('click')
@@ -72,7 +72,7 @@ describe('ForgotPasswordView', () => {
     await flushPromises()
 
     expect(wrapper.find('[role="alert"]').text()).toBe(
-      'El código no es válido. Revisalo o pedí uno nuevo.',
+      'El código no es válido. Hay que revisarlo o pedir uno nuevo.',
     )
   })
 
@@ -93,6 +93,7 @@ describe('ForgotPasswordView', () => {
     })
     expect(useAuthStore().isAuthenticated).toBe(false)
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/login'))
+    expect(router.currentRoute.value.query.reset).toBe('1')
   })
 
   it('limpia un error previo al pasar a «Ya tengo un código»', async () => {

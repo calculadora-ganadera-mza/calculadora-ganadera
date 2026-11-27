@@ -85,7 +85,9 @@ describe('cliente de autenticación', () => {
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(
         new Response(
-          JSON.stringify({ detail: 'El código no es válido. Revisalo o pedí uno nuevo.' }),
+          JSON.stringify({
+            detail: 'El código no es válido. Hay que revisarlo o pedir uno nuevo.',
+          }),
           {
             status: 422,
           },
@@ -116,6 +118,6 @@ describe('cliente de autenticación', () => {
         code: '000000',
         password: 'new-password-456',
       }),
-    ).rejects.toEqual(new ApiError('El código no es válido. Revisalo o pedí uno nuevo.'))
+    ).rejects.toEqual(new ApiError('El código no es válido. Hay que revisarlo o pedir uno nuevo.'))
   })
 })

@@ -10,7 +10,9 @@ from app.core.password import hash_password
 from app.models import PasswordResetCode, User
 from app.services.auth import AuthService, token_hash
 
-INVALID_RESET_CODE_MESSAGE = "El código no es válido. Revisalo o pedí uno nuevo."
+INVALID_RESET_CODE_MESSAGE = (
+    "El código no es válido. Hay que revisarlo o pedir uno nuevo."
+)
 
 
 class InvalidPasswordResetCodeError(ValueError):
@@ -27,8 +29,8 @@ def send_password_reset_code(sender: EmailSender, to: str, code: str) -> None:
         to,
         "Código para recuperar la contraseña",
         f"El código para cambiar la contraseña es {code}.\n\n"
-        f"Vence en {settings.password_reset_code_minutes} minutos. Si no pediste "
-        "recuperar la contraseña, podés ignorar este mensaje.",
+        f"Vence en {settings.password_reset_code_minutes} minutos. Si no se pidió "
+        "recuperar la contraseña, se puede ignorar este mensaje.",
     )
 
 

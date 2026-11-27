@@ -59,7 +59,7 @@ async function submitReset() {
       code: code.value,
       password: password.value,
     })
-    await router.replace('/login')
+    await router.replace({ name: 'login', query: { reset: '1' } })
   } catch (err) {
     error.value =
       err instanceof ApiError
