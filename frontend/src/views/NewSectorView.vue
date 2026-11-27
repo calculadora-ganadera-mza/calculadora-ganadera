@@ -42,7 +42,7 @@ async function load() {
     if (!loaded) missing.value = 'No se encontró el escenario.'
     else data.value = loaded
   } catch {
-    if (version === loadVersion) error.value = 'No se pudo cargar el escenario. Intentá de nuevo.'
+    if (version === loadVersion) error.value = 'No se pudo cargar el escenario. Volver a intentar.'
   } finally {
     if (version === loadVersion) loading.value = false
   }
@@ -57,7 +57,7 @@ async function save() {
   if (!data.value) return
   const trimmed = name.value.trim()
   if (!draft.value) {
-    saveError.value = 'Dibujá el contorno del sector en el mapa.'
+    saveError.value = 'Falta dibujar el contorno del sector en el mapa.'
     return
   }
   if (!trimmed) {
@@ -109,7 +109,8 @@ watch(() => route.params.scenarioId, load, { immediate: true })
     <div v-else-if="data" class="layout">
       <div class="map-box panel">
         <p class="hint">
-          Tocá el ícono del polígono y marcá en el mapa cada esquina. Para cerrar, tocá la primera.
+          Tocar el ícono del polígono y marcar en el mapa cada esquina. Para cerrar, tocar la
+          primera.
         </p>
         <UnitsMap
           :units="NO_UNITS"

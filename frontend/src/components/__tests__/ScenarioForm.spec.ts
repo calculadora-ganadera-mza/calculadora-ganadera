@@ -46,7 +46,7 @@ describe('ScenarioForm', () => {
     await wrapper.find('input').setValue('   ')
     await wrapper.find('form').trigger('submit')
 
-    expect(wrapper.text()).toContain('Ingresá el nombre del escenario.')
+    expect(wrapper.text()).toContain('Falta el nombre del escenario.')
     expect(createScenario).not.toHaveBeenCalled()
   })
 

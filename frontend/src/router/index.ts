@@ -123,9 +123,8 @@ router.beforeEach(async (to) => {
 })
 
 router.afterEach((to) => {
-  document.title = to.meta.title
-    ? `${to.meta.title} · Calculadora ganadera`
-    : 'Calculadora ganadera'
+  // Solo el nombre de la página
+  document.title = to.meta.title ?? 'Calculadora ganadera'
 })
 
 export default router

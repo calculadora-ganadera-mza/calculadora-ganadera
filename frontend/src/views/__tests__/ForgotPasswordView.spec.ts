@@ -104,7 +104,7 @@ describe('ForgotPasswordView', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
     expect(wrapper.find('[role="alert"]').text()).toBe(
-      'No se pudo pedir el código. Revisá el correo e intentá de nuevo.',
+      'No se pudo pedir el código. Revisar el correo y volver a intentar.',
     )
 
     await wrapper.find('button[type="button"]').trigger('click')

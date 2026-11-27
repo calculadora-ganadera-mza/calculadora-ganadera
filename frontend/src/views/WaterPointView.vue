@@ -77,15 +77,15 @@ async function load() {
       refill.value = ''
     }
   } catch {
-    if (version === loadVersion) error.value = 'No se pudo cargar la aguada. Intentá de nuevo.'
+    if (version === loadVersion) error.value = 'No se pudo cargar la aguada. Volver a intentar.'
   } finally {
     if (version === loadVersion) loading.value = false
   }
 }
 
 function validate(coordinates: Position | undefined): string {
-  if (!coordinates) return 'Marcá la ubicación de la aguada en el sector.'
-  if (!name.value.trim()) return 'Completá el nombre de la aguada.'
+  if (!coordinates) return 'Falta marcar la ubicación de la aguada en el sector.'
+  if (!name.value.trim()) return 'Falta el nombre de la aguada.'
   if (refill.value !== '' && (!Number.isFinite(Number(refill.value)) || Number(refill.value) <= 0))
     return 'Los litros deben ser mayores que cero.'
   return ''
@@ -166,8 +166,8 @@ watch(() => [route.params.scenarioId, route.params.unitId, route.params.waterPoi
         <p class="hint">
           {{
             isNew
-              ? 'Tocá el mapa dentro del sector. Después podés arrastrar el punto para ajustarlo.'
-              : 'Arrastrá el punto para mover la aguada.'
+              ? 'Tocar el mapa dentro del sector. Después se puede arrastrar el punto para ajustarlo.'
+              : 'Arrastrar el punto para mover la aguada.'
           }}
         </p>
         <UnitsMap

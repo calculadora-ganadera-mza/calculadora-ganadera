@@ -296,7 +296,9 @@ describe('Elegir qué calcular', () => {
     for (const invalidRainfall of ['', 0, -1]) {
       await rainfall!.setValue(invalidRainfall)
       await wrapper.get('form').trigger('submit')
-      expect(wrapper.get('[role="alert"]').text()).toContain('lluvia mayor que cero')
+      expect(wrapper.get('[role="alert"]').text()).toContain(
+        'La lluvia tiene que ser mayor que cero.',
+      )
     }
     expect(fetchMock).toHaveBeenCalledTimes(1)
 

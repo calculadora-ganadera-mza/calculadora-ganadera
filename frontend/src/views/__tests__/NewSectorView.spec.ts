@@ -52,7 +52,9 @@ describe('Dibujar sector', () => {
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.get('[role="alert"]').text()).toBe('Dibujá el contorno del sector en el mapa.')
+    expect(wrapper.get('[role="alert"]').text()).toBe(
+      'Falta dibujar el contorno del sector en el mapa.',
+    )
     expect(createProductionUnit).not.toHaveBeenCalled()
     const cancel = wrapper.findAll('a').find((a) => a.text() === 'Cancelar')!
     expect(cancel.attributes('href')).toBe('/farm/7')

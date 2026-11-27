@@ -23,7 +23,7 @@ onMounted(async () => {
     options.value = await fetchFirstSeasonYears()
     year.value = options.value[0]?.start_year ?? null
   } catch {
-    formError.value = 'No se pudieron cargar los años de campaña. Probá de nuevo más tarde.'
+    formError.value = 'No se pudieron cargar los años de campaña. Volver a intentar más tarde.'
   }
 })
 
@@ -32,7 +32,7 @@ async function submit() {
   formError.value = ''
   const trimmed = name.value.trim()
   if (!trimmed) {
-    nameError.value = 'Ingresá el nombre del escenario.'
+    nameError.value = 'Falta el nombre del escenario.'
     return
   }
   if (year.value === null) return
@@ -44,7 +44,7 @@ async function submit() {
   } catch (err) {
     // Si el backend explica por qué no se pudo, se muestra su mensaje
     formError.value =
-      err instanceof ApiError ? err.message : 'No se pudo crear el escenario. Probá de nuevo.'
+      err instanceof ApiError ? err.message : 'No se pudo crear el escenario. Volver a intentar.'
   } finally {
     saving.value = false
   }

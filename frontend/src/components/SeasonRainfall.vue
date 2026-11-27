@@ -29,7 +29,7 @@ async function save() {
   }
   // La calculadora necesita una lluvia mayor que 0: volver sin ella no sirve
   if (props.calculator && (rainfall.value === '' || rainfall.value <= 0)) {
-    error.value = 'Ingresá una lluvia mayor que 0 para poder calcular.'
+    error.value = 'Para calcular, la lluvia tiene que ser mayor que 0.'
     return
   }
   saving.value = true
@@ -46,7 +46,7 @@ async function save() {
     saved.value = true
   } catch (err) {
     error.value =
-      err instanceof ApiError ? err.message : 'No se pudo guardar la lluvia. Probá de nuevo.'
+      err instanceof ApiError ? err.message : 'No se pudo guardar la lluvia. Volver a intentar.'
   } finally {
     saving.value = false
   }
@@ -81,7 +81,7 @@ async function save() {
       </button>
       <RouterLink :to="calculator.back">Volver sin guardar</RouterLink>
     </div>
-    <p v-else class="hint">Es opcional: la calculadora la pide al calcular.</p>
+    <p v-else class="hint">Se puede cargar después, pero hace falta para calcular.</p>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
     <p v-if="saved" class="saved" role="status">Lluvia guardada.</p>
   </form>

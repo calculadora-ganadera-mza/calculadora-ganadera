@@ -59,7 +59,7 @@ async function save(data: HerdData) {
     saved.value = true
   } catch (err) {
     error.value =
-      err instanceof ApiError ? err.message : 'No se pudieron guardar los datos. Probá de nuevo.'
+      err instanceof ApiError ? err.message : 'No se pudieron guardar los datos. Volver a intentar.'
   } finally {
     saving.value = false
   }
