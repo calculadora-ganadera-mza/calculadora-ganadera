@@ -5,6 +5,7 @@ from app.models.email_verification_code import EmailVerificationCode
 from app.models.herd_category import HerdCategory
 from app.models.herd_season import HerdSeason
 from app.models.parameter import Parameter
+from app.models.password_reset_code import PasswordResetCode
 from app.models.production_unit import ProductionUnit
 from app.models.refresh_session import RefreshSession
 from app.models.scenario import Scenario
@@ -21,6 +22,7 @@ __all__ = [
     "HerdCategory",
     "HerdSeason",
     "Parameter",
+    "PasswordResetCode",
     "ProductionUnit",
     "Scenario",
     "Season",

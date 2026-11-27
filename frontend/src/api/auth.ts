@@ -1,3 +1,4 @@
+import { responseError } from './errors'
 import { useAuthStore } from '../stores/auth'
 
 const API_BASE = '/api'
@@ -73,6 +74,28 @@ export async function logout(): Promise<void> {
   if (!response.ok) throw new Error('No se pudo cerrar la sesión; intentá de nuevo')
   useAuthStore().accessToken = null
   useAuthStore().authenticationRequired = false
+}
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+  if (!response.ok) throw await responseError(response)
+}
+
+export async function resetPassword(data: {
+  email: string
+  code: string
+  password: string
+}): Promise<void> {
+  const response = await fetch(`${API_BASE}/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!response.ok) throw await responseError(response)
 }
 
 /** Ruta relativa de la API; reintenta una vez y comparte la renovación entre pedidos simultáneos. */

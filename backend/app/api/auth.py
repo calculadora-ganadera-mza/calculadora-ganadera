@@ -12,7 +12,12 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.deps import CurrentUser, EmailSenderDep, SessionDep
 from app.core.config import settings
-from app.schemas.auth import EmailVerificationInput, Token
+from app.schemas.auth import (
+    EmailVerificationInput,
+    ForgotPasswordInput,
+    ResetPasswordInput,
+    Token,
+)
 from app.schemas.user import UserCreate, UserRead
 from app.services.auth import AuthService
 from app.services.email_verification import (
@@ -21,6 +26,11 @@ from app.services.email_verification import (
     InvalidVerificationCodeError,
     TooManyCodesError,
     send_verification_code,
+)
+from app.services.password_reset import (
+    InvalidPasswordResetCodeError,
+    PasswordResetService,
+    send_password_reset_code,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -141,3 +151,41 @@ def resend_verification(
         raise HTTPException(429, str(err)) from err
     session.commit()
     background_tasks.add_task(send_verification_code, sender, user.email, code)
+
+
+@router.post(
+    "/forgot-password",
+    status_code=202,
+    response_class=Response,
+    dependencies=[Depends(check_origin)],
+)
+def forgot_password(
+    data: ForgotPasswordInput,
+    session: SessionDep,
+    background_tasks: BackgroundTasks,
+    sender: EmailSenderDep,
+) -> None:
+    """Recibe el pedido y manda el código en segundo plano si corresponde."""
+    result = PasswordResetService(session).request_code(str(data.email))
+    if result is not None:
+        to_email, code = result
+        session.commit()
+        background_tasks.add_task(send_password_reset_code, sender, to_email, code)
+
+
+@router.post(
+    "/reset-password",
+    status_code=204,
+    dependencies=[Depends(check_origin)],
+)
+def reset_password(data: ResetPasswordInput, session: SessionDep) -> None:
+    """Cambia la contraseña con el último código vigente y cierra las sesiones."""
+    try:
+        PasswordResetService(session).reset_password(
+            str(data.email), data.code, data.password
+        )
+    except InvalidPasswordResetCodeError as err:
+        # Guarda el intento fallido antes de responder.
+        session.commit()
+        raise HTTPException(422, str(err)) from err
+    session.commit()

@@ -218,6 +218,58 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /auth/forgot-password:
+    post:
+      tags: [auth]
+      operationId: forgotPassword
+      summary: Pedir un código para recuperar la contraseña.
+      description: |
+        Responde siempre 202, exista o no una cuenta con ese correo y aunque no
+        haya pasado la espera o se haya llegado al máximo por hora, para no
+        revelar qué correos están registrados. Si corresponde, genera un código
+        nuevo que anula el anterior y lo envía en segundo plano.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPasswordInput"
+      responses:
+        '202':
+          description: Pedido recibido. Si corresponde, el código se envía en segundo plano.
+        '403':
+          $ref: "#/components/responses/OriginNotAllowed"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+
+  /auth/reset-password:
+    post:
+      tags: [auth]
+      operationId: resetPassword
+      summary: Cambiar la contraseña con el código recibido.
+      description: |
+        Cambia la contraseña si el código coincide con el último enviado a ese
+        correo y sigue vigente, marca el correo como verificado y cierra todas
+        las sesiones abiertas de la cuenta sin iniciar sesión. Un código
+        incorrecto suma un intento fallido. Responde 422 con el mismo mensaje si
+        la cuenta no existe o si el código es incorrecto, venció, ya fue usado o
+        quedó anulado por intentos.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordInput"
+      responses:
+        '204':
+          description: Contraseña actualizada.
+        '403':
+          $ref: "#/components/responses/OriginNotAllowed"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+
   /scenarios:
     get:
       tags: [scenarios]
@@ -1228,6 +1280,34 @@ components:
           type: string
           pattern: "^[0-9]{6}$"
           description: Código de 6 dígitos enviado al correo.
+
+    ForgotPasswordInput:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 5
+          maxLength: 100
+
+    ResetPasswordInput:
+      type: object
+      required: [email, code, password]
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 5
+          maxLength: 100
+        code:
+          type: string
+          pattern: "^[0-9]{6}$"
+          description: Código de 6 dígitos enviado al correo.
+        password:
+          type: string
+          minLength: 8
+          maxLength: 100
 
     Scenario:
       type: object

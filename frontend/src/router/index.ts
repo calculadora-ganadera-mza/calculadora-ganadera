@@ -9,7 +9,13 @@ export const routes: RouteRecordRaw[] = [
     path: '/login',
     name: 'login',
     component: () => import('../views/LoginView.vue'),
-    meta: { title: 'Iniciar sesión' },
+    meta: { title: 'Iniciar sesión', public: true },
+  },
+  {
+    path: '/forgot-password',
+    name: 'forgot-password',
+    component: () => import('../views/ForgotPasswordView.vue'),
+    meta: { title: 'Recuperar contraseña', public: true },
   },
   {
     path: '/',
@@ -110,8 +116,8 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
-  if (!auth.isAuthenticated && to.name !== 'login') return { name: 'login', replace: true }
-  if (auth.isAuthenticated && to.name === 'login') return { name: 'home', replace: true }
+  if (!auth.isAuthenticated && !to.meta.public) return { name: 'login', replace: true }
+  if (auth.isAuthenticated && to.meta.public) return { name: 'home', replace: true }
   if (auth.isAuthenticated && auth.user === null) await loadCurrentUser()
   if (to.meta.adminOnly && !auth.isAdmin) return { name: 'home', replace: true }
 })

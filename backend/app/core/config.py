@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     verification_code_max_attempts: int = 5
     verification_code_resend_seconds: int = 60
     verification_codes_per_hour: int = 5
+    password_reset_code_minutes: int = 15
+    password_reset_code_max_attempts: int = 5
+    password_reset_code_resend_seconds: int = 60
+    password_reset_codes_per_hour: int = 5
 
 
 settings = Settings()

@@ -7,6 +7,8 @@ import 'vue-router'
 declare module 'vue-router' {
   interface RouteMeta {
     title?: string
+    // Accesible sin iniciar sesión; con sesión iniciada redirige a Inicio
+    public?: boolean
     // Solo la ven los administradores
     adminOnly?: boolean
   }
