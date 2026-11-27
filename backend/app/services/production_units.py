@@ -194,7 +194,7 @@ def update_unit(
         raise InvalidPolygonError(
             "El contorno deja afuera estas aguadas: "
             + ", ".join(outside)
-            + ". Borrá esas aguadas primero."
+            + ". Hay que borrar esas aguadas primero."
         )
     unit.name = name
     unit.polygon = geometry
