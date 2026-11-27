@@ -6,6 +6,7 @@ TABLES = {
     "animal_category",
     "app_user",
     "email_verification_code",
+    "carrying_capacity_calculation",
     "refresh_session",
     "herd_category",
     "herd_season",

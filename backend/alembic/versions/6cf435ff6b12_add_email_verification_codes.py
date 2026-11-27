@@ -1,7 +1,7 @@
 """add email verification codes
 
 Revision ID: 6cf435ff6b12
-Revises: d31d050c6bd5
+Revises: 7f4a2e9c1b08
 Create Date: 2026-11-26 23:11:37.954257
 
 """
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "6cf435ff6b12"
-down_revision: str | Sequence[str] | None = "d31d050c6bd5"
+down_revision: str | Sequence[str] | None = "7f4a2e9c1b08"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

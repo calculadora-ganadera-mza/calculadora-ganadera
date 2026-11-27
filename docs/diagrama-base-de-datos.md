@@ -14,6 +14,8 @@ erDiagram
     production_unit ||--o{ herd_season : "tiene uno por campaña"
     herd_season ||--o{ herd_category : "se compone de"
     animal_category ||--o{ herd_category : "clasifica"
+    season ||--o{ carrying_capacity_calculation : "registra"
+    production_unit ||--o{ carrying_capacity_calculation : "guarda"
 
     app_user {
         int id PK
@@ -124,11 +126,25 @@ erDiagram
         string unit
         bool producer_editable "por defecto false"
     }
+
+    carrying_capacity_calculation {
+        int id PK
+        int scenario_id FK "parte de las dos claves compuestas"
+        int season_id FK "con scenario_id, apunta a season"
+        int production_unit_id FK "con scenario_id, apunta a production_unit"
+        calculation_kind kind "result o simulation; un solo result por sector y campaña"
+        bool season_updated "por defecto false"
+        jsonb input "datos con los que se calculó"
+        jsonb reference_values "parámetros y categorías usadas al calcular"
+        jsonb result "resultado guardado"
+        timestamptz created_at
+    }
 ```
 
 ## Reglas que el diagrama no muestra
 
 - **Un establecimiento principal por usuario:** índice único parcial `uq_scenario_main_per_user` sobre `user_id` cuando `is_main` es verdadero.
+- **Un resultado de receptividad por sector y campaña:** índice único parcial `uq_carrying_capacity_result_per_unit_season` sobre `production_unit_id` y `season_id` cuando `kind` es `result`. Al guardar uno nuevo, el anterior pasa a `simulation`.
 - **Campañas sin superposición:** dentro de un mismo establecimiento, dos campañas no pueden compartir días (`ex_season_no_overlap`, restricción de exclusión con GiST).
 - **Rodeo de la campaña dentro del mismo establecimiento:** `herd_season` apunta a `season` y a `production_unit` con claves compuestas que incluyen `scenario_id`. Así la campaña y el sector siempre son del mismo establecimiento. Hay un solo rodeo por campaña y sector.
 - **Aguadas compartidas:** cada aguada pertenece a un solo sector. Si `shared` es verdadero, también abastece a los sectores del mismo establecimiento que están a 5 m o menos de ella, y los litros se reparten según la parte del alcance que cae en cada uno.
