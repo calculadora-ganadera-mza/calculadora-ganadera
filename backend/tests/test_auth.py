@@ -27,7 +27,7 @@ def client(monkeypatch, session):
         ) as client:
             yield client, session
     finally:
-        app.dependency_overrides.clear()
+        app.dependency_overrides.pop(get_session, None)
 
 
 def register(client):

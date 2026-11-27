@@ -1,4 +1,5 @@
 import smtplib
+import ssl
 from email.message import EmailMessage
 from typing import Protocol
 
@@ -23,7 +24,8 @@ class SmtpEmailSender:
         # Sin límite de espera, un servidor que no responde deja la tarea colgada.
         with smtplib.SMTP(settings.mail_host, settings.mail_port, timeout=10) as smtp:
             if settings.mail_starttls:
-                smtp.starttls()
+                # Sin contexto, Python no verifica el certificado del servidor.
+                smtp.starttls(context=ssl.create_default_context())
             if settings.mail_username:
                 smtp.login(settings.mail_username, settings.mail_password)
             smtp.send_message(message)

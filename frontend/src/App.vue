@@ -12,7 +12,7 @@ const { isAuthenticated } = storeToRefs(useAuthStore())
 <template>
   <AppNav v-if="isAuthenticated" />
   <main class="content" :class="{ 'login-content': !isAuthenticated }">
-    <EmailVerificationBanner />
+    <EmailVerificationBanner v-if="isAuthenticated" />
     <RouterView v-if="isAuthenticated" />
     <LoginView v-else />
   </main>

@@ -32,7 +32,7 @@ def admin_api(monkeypatch, session: Session, admin: User):
     try:
         yield TestClient(app, headers={"Authorization": f"Bearer {token}"})
     finally:
-        app.dependency_overrides.clear()
+        app.dependency_overrides.pop(get_session, None)
 
 
 def category_id(session: Session, code: str) -> int:

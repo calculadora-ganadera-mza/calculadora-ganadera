@@ -55,6 +55,16 @@ def test_code_is_annulled_after_max_attempts(api, session, user):
     assert verify(api).status_code == 422
 
 
+def test_last_failed_attempt_says_attempts_ran_out(api, session, user):
+    add_code(session, user)
+    for _ in range(settings.verification_code_max_attempts - 1):
+        verify(api, OTHER_CODE)
+
+    response = verify(api, OTHER_CODE)
+    assert response.status_code == 422
+    assert "agotaron" in response.json()["detail"]
+
+
 def test_malformed_code_does_not_count_as_attempt(api, session, user):
     record = add_code(session, user)
 

@@ -98,6 +98,11 @@ class EmailVerificationService:
             )
         if not secrets.compare_digest(latest.code_hash, token_hash(code)):
             latest.attempts += 1
+            if latest.attempts >= settings.verification_code_max_attempts:
+                raise InvalidVerificationCodeError(
+                    "El código no es correcto y se agotaron los intentos. "
+                    "Hay que pedir un código nuevo."
+                )
             raise InvalidVerificationCodeError("El código no es correcto.")
         user.email_verified = True
 
