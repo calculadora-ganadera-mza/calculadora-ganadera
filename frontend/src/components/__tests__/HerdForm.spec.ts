@@ -118,7 +118,34 @@ describe('HerdForm', () => {
     const wrapper = await openForm()
     await wrapper.find('form').trigger('submit')
 
-    expect(wrapper.text()).toContain('Elegí el estado del campo.')
+    expect(wrapper.text()).toContain('Falta elegir el estado del campo.')
+  })
+
+  it('marca el fin del entore si queda antes del inicio, con el error debajo', async () => {
+    const wrapper = await openForm()
+    await input(wrapper, 'range-3').setValue('good')
+    await input(wrapper, 'breeding-start-3').setValue('2026-12-01')
+    await input(wrapper, 'breeding-end-3').setValue('2026-11-01')
+    await wrapper.find('form').trigger('submit')
+
+    const end = input(wrapper, 'breeding-end-3')
+    expect(end.attributes('aria-invalid')).toBe('true')
+    const error = wrapper.get(`#${end.attributes('aria-describedby')}`)
+    expect(error.text()).toBe('El fin del entore tiene que ser posterior al inicio.')
+    expect(error.element.parentElement).toBe(end.element.parentElement)
+    expect(input(wrapper, 'breeding-start-3').attributes('aria-invalid')).toBeUndefined()
+    expect(wrapper.findAll('[role="alert"]')).toHaveLength(1)
+    expect(createHerd).not.toHaveBeenCalled()
+  })
+
+  it('marca el campo del entore que falta', async () => {
+    const wrapper = await openForm()
+    await input(wrapper, 'range-3').setValue('good')
+    await input(wrapper, 'breeding-end-3').setValue('2027-01-31')
+    await wrapper.find('form').trigger('submit')
+
+    expect(input(wrapper, 'breeding-start-3').attributes('aria-invalid')).toBe('true')
+    expect(wrapper.text()).toContain('El entore se carga con inicio y fin, o sin ninguno.')
   })
 
   it('crea el rodeo con los porcentajes como fracción', async () => {
