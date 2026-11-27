@@ -10,7 +10,7 @@ import { useAuthStore } from '../../stores/auth'
 async function mountAt(path: string, role: 'producer' | 'admin' = 'producer') {
   const pinia = createPinia()
   setActivePinia(pinia)
-  useAuthStore().role = role
+  useAuthStore().user = { id: 1, name: 'Ana', email: 'ana@example.com', role, email_verified: true }
   const router = createRouter({ history: createMemoryHistory(), routes })
   await router.push(path)
   await router.isReady()

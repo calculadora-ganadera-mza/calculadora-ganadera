@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
 import AppNav from './components/AppNav.vue'
+import EmailVerificationBanner from './components/EmailVerificationBanner.vue'
 import LoginView from './views/LoginView.vue'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from './stores/auth'
@@ -11,6 +12,7 @@ const { isAuthenticated } = storeToRefs(useAuthStore())
 <template>
   <AppNav v-if="isAuthenticated" />
   <main class="content" :class="{ 'login-content': !isAuthenticated }">
+    <EmailVerificationBanner />
     <RouterView v-if="isAuthenticated" />
     <LoginView v-else />
   </main>

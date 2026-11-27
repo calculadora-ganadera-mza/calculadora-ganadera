@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import { useAuthStore } from '../stores/auth'
-import { loadRole } from '../api/users'
+import { loadCurrentUser } from '../api/users'
 
 // Secciones de la app. El título se muestra en la pestaña del navegador.
 export const routes: RouteRecordRaw[] = [
@@ -106,7 +106,7 @@ router.beforeEach(async (to) => {
   const auth = useAuthStore()
   if (!auth.isAuthenticated && to.name !== 'login') return { name: 'login', replace: true }
   if (auth.isAuthenticated && to.name === 'login') return { name: 'home', replace: true }
-  if (auth.isAuthenticated && auth.role === null) await loadRole()
+  if (auth.isAuthenticated && auth.user === null) await loadCurrentUser()
   if (to.meta.adminOnly && !auth.isAdmin) return { name: 'home', replace: true }
 })
 
