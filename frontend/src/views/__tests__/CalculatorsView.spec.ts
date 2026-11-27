@@ -69,14 +69,15 @@ describe('Calculadoras', () => {
     expect(listUserCarryingCapacityCalculations).toHaveBeenCalledTimes(1)
     const items = wrapper.findAll('.history-item')
     expect(items).toHaveLength(2)
-    expect(items[0]!.text()).toContain('La Esperanza · Potrero Norte')
-    expect(items[0]!.text()).toContain('campaña 2026/27')
+    expect(items[0]!.text()).toContain('Potrero Norte')
+    expect(items[0]!.text()).toContain('La Esperanza')
+    expect(items[0]!.text()).toContain('Campaña 2026/27')
     expect(items[0]!.text()).toContain('Resultado de la campaña')
     expect(items[0]!.get('a').attributes('href')).toBe(
       '/calculators/carrying-capacity/calculations/20',
     )
     expect(items[0]!.get('a').text()).toContain(
-      'cálculo de La Esperanza, Potrero Norte, campaña 2026/27',
+      'cálculo de Potrero Norte en La Esperanza para la campaña 2026/27',
     )
     expect(items[1]!.text()).toContain('Simulación')
 

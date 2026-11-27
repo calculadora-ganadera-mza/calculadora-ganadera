@@ -123,7 +123,9 @@ describe('Cálculo guardado', () => {
 
     expect(getCarryingCapacityCalculation).toHaveBeenCalledWith(20)
     expect(wrapper.text()).toContain('Resultado de la campaña')
-    expect(wrapper.text()).toContain('La Esperanza · Potrero Norte · campaña 2026/27')
+    expect(wrapper.text()).toContain('La Esperanza')
+    expect(wrapper.text()).toContain('Potrero Norte')
+    expect(wrapper.text()).toContain('2026/27')
     expect(wrapper.text()).toContain('Vaca histórica')
 
     const refText = wrapper.get('details.reference-values').text()

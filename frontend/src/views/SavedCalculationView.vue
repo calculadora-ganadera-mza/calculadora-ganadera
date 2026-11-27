@@ -35,13 +35,6 @@ const kindLabel = computed(() =>
   calculation.value?.kind === 'result' ? 'Resultado de la campaña' : 'Simulación',
 )
 
-const contextLabel = computed(() => {
-  const saved = calculation.value
-  if (!saved) return ''
-  const season = seasonLabel(saved.season_start_date, saved.season_end_date)
-  return `${saved.scenario_name} · ${saved.production_unit_name} · campaña ${season}`
-})
-
 const savedAtLabel = computed(() =>
   calculation.value ? dateTimeFormat.format(new Date(calculation.value.created_at)) : '',
 )
@@ -148,8 +141,24 @@ watch(
               {{ kindLabel }}
             </span>
           </div>
-          <p class="subtitle">{{ contextLabel }}</p>
-          <p class="subtitle">Guardado el {{ savedAtLabel }}</p>
+          <dl class="context-list">
+            <div>
+              <dt>Escenario</dt>
+              <dd>{{ calculation.scenario_name }}</dd>
+            </div>
+            <div>
+              <dt>Sector</dt>
+              <dd>{{ calculation.production_unit_name }}</dd>
+            </div>
+            <div>
+              <dt>Campaña</dt>
+              <dd>{{ seasonLabel(calculation.season_start_date, calculation.season_end_date) }}</dd>
+            </div>
+            <div>
+              <dt>Guardado</dt>
+              <dd>{{ savedAtLabel }}</dd>
+            </div>
+          </dl>
         </div>
         <button class="btn danger-button" type="button" :disabled="deleting" @click="askDelete">
           Borrar cálculo
@@ -225,7 +234,7 @@ watch(
 
       <AppModal v-if="confirmingDelete" title="Borrar cálculo guardado" @close="cancelDelete">
         <p>
-          ¿Querés borrar
+          ¿Borrar
           {{ calculation.kind === 'result' ? 'este resultado de la campaña' : 'esta simulación' }}?
           Esta acción no se puede deshacer.
         </p>
@@ -283,10 +292,21 @@ watch(
   background: var(--color-primary-soft);
   color: var(--color-primary);
 }
-.subtitle {
-  margin: 4px 0 0;
+.context-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 6px 0 0;
   color: var(--color-text-muted);
   font-size: 0.9rem;
+}
+.context-list > div {
+  display: flex;
+  gap: 4px;
+}
+.context-list dd {
+  margin: 0;
+  color: var(--color-text);
 }
 .danger-button {
   min-height: 44px;

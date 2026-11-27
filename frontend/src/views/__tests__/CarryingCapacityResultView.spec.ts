@@ -485,7 +485,7 @@ describe('Resultado de receptividad', () => {
       'Guardar como simulación',
     ])
     expect(saveButtons().every((button) => button.attributes('disabled') !== undefined)).toBe(true)
-    expect(wrapper.text()).toContain('Recalculá la simulación para poder guardarla.')
+    expect(wrapper.text()).toContain('Para guardar la simulación, primero hay que recalcularla.')
 
     const [rainfallInput, bullsInput] = wrapper.findAll('.simulation-inputs input')
     await rainfallInput!.setValue('450')

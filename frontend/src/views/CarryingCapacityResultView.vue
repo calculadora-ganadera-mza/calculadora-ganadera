@@ -359,7 +359,9 @@ onMounted(load)
             {{ savingKind === 'simulation' ? 'Guardando…' : 'Guardar como simulación' }}
           </button>
         </div>
-        <p v-if="!canSave" class="hint save-hint">Recalculá la simulación para poder guardarla.</p>
+        <p v-if="!canSave" class="hint save-hint">
+          Para guardar la simulación, primero hay que recalcularla.
+        </p>
         <p v-if="saveMessage" class="saved-notice" role="status">{{ saveMessage }}</p>
         <p v-if="saveError" class="error" role="alert">{{ saveError }}</p>
       </div>

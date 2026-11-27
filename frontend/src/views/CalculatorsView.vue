@@ -25,7 +25,7 @@ const dateTimeFormat = new Intl.DateTimeFormat('es-AR', {
 
 function itemContext(item: CarryingCapacityCalculationSummary): string {
   const season = seasonName(item.season_start_date, item.season_end_date)
-  return `${item.scenario_name}, ${item.production_unit_name}, campaña ${season}`
+  return `${item.production_unit_name} en ${item.scenario_name} para la campaña ${season}`
 }
 
 async function loadHistory() {
@@ -91,28 +91,44 @@ onMounted(loadHistory)
         <p class="error">{{ error }}</p>
         <button class="btn" type="button" @click="loadHistory">Reintentar</button>
       </div>
-      <p v-else-if="!history.length" class="hint">Todavía no guardaste cálculos de receptividad.</p>
+      <p v-else-if="!history.length" class="hint">
+        Todavía no hay cálculos de receptividad guardados.
+      </p>
       <template v-else>
         <p v-if="deleteError && !pendingDelete" class="error" role="alert">{{ deleteError }}</p>
         <ul class="history-list">
           <li v-for="item in history" :key="item.id" class="history-item">
             <div class="history-main">
               <div class="history-title">
-                <strong>{{ item.scenario_name }} · {{ item.production_unit_name }}</strong>
+                <strong>{{ item.production_unit_name }}</strong>
+                <span class="muted">{{ item.scenario_name }}</span>
                 <span class="muted">
-                  · campaña {{ seasonName(item.season_start_date, item.season_end_date) }}
+                  Campaña {{ seasonName(item.season_start_date, item.season_end_date) }}
                 </span>
                 <span class="tag" :class="{ result: item.kind === 'result' }">
                   {{ item.kind === 'result' ? 'Resultado de la campaña' : 'Simulación' }}
                 </span>
               </div>
-              <p class="history-meta">
-                {{ dateTimeFormat.format(new Date(item.created_at)) }} · Rodeo máximo:
-                {{ oneDecimal.format(item.max_herd_cow_equivalents) }} EV · Receptividad:
-                {{ oneDecimal.format(item.carrying_capacity_ha_per_cow_equivalent) }}
-                ha/EV · Lluvia:
-                {{ upToOneDecimal.format(item.rainfall_mm) }} mm
-              </p>
+              <dl class="history-meta">
+                <div>
+                  <dt>Guardado</dt>
+                  <dd>{{ dateTimeFormat.format(new Date(item.created_at)) }}</dd>
+                </div>
+                <div>
+                  <dt>Rodeo máximo</dt>
+                  <dd>{{ oneDecimal.format(item.max_herd_cow_equivalents) }} EV</dd>
+                </div>
+                <div>
+                  <dt>Receptividad</dt>
+                  <dd>
+                    {{ oneDecimal.format(item.carrying_capacity_ha_per_cow_equivalent) }} ha/EV
+                  </dd>
+                </div>
+                <div>
+                  <dt>Lluvia</dt>
+                  <dd>{{ upToOneDecimal.format(item.rainfall_mm) }} mm</dd>
+                </div>
+              </dl>
             </div>
             <div class="history-actions">
               <RouterLink
@@ -141,14 +157,12 @@ onMounted(loadHistory)
 
     <AppModal v-if="pendingDelete" title="Borrar cálculo guardado" @close="cancelDelete">
       <p>
-        ¿Querés borrar
+        ¿Borrar
         {{ pendingDelete.kind === 'result' ? 'este resultado de la campaña' : 'esta simulación' }}
-        de
-        <strong
-          >{{ pendingDelete.scenario_name }} · {{ pendingDelete.production_unit_name }}</strong
-        >
-        (campaña {{ seasonName(pendingDelete.season_start_date, pendingDelete.season_end_date) }})?
-        Esta acción no se puede deshacer.
+        de <strong>{{ pendingDelete.production_unit_name }}</strong> en
+        <strong>{{ pendingDelete.scenario_name }}</strong> (campaña
+        {{ seasonName(pendingDelete.season_start_date, pendingDelete.season_end_date) }})? Esta
+        acción no se puede deshacer.
       </p>
       <p v-if="deleteError" class="error modal-error" role="alert">{{ deleteError }}</p>
       <div class="modal-actions">
@@ -237,7 +251,7 @@ onMounted(loadHistory)
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 6px 12px;
 }
 .muted {
   color: var(--color-text-muted);
@@ -247,10 +261,21 @@ onMounted(loadHistory)
   color: var(--color-primary);
 }
 .history-meta {
-  margin: 4px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 6px 0 0;
   color: var(--color-text-muted);
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
+}
+.history-meta > div {
+  display: flex;
+  gap: 4px;
+}
+.history-meta dd {
+  margin: 0;
+  color: var(--color-text);
 }
 .history-actions {
   display: flex;

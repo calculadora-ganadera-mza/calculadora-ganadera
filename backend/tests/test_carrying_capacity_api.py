@@ -769,6 +769,31 @@ def test_saving_new_season_result_demotes_previous_result_to_simulation(
     assert [item["kind"] for item in listed] == ["result", "simulation"]
 
 
+def test_saving_simulation_keeps_existing_season_result(api, session, saved_farm):
+    season_result = save_calculation(
+        api,
+        saved_farm["unit_id"],
+        saved_farm["season_id"],
+        "result",
+        saved_input(session),
+    ).json()
+    simulation = save_calculation(
+        api,
+        saved_farm["unit_id"],
+        saved_farm["season_id"],
+        "simulation",
+        saved_input(session, rainfall_mm=450),
+    ).json()
+
+    listed = api.get(
+        f"/production-units/{saved_farm['unit_id']}/carrying-capacity-calculations"
+    ).json()
+    assert [(item["id"], item["kind"]) for item in listed] == [
+        (simulation["id"], "simulation"),
+        (season_result["id"], "result"),
+    ]
+
+
 def test_result_uniqueness_is_scoped_per_season(api, session, saved_farm):
     other_season = Season(
         scenario_id=saved_farm["scenario_id"],
