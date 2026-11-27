@@ -52,7 +52,7 @@ class AuthService:
         self.session.commit()
         return tokens
 
-    def register(self, data: UserCreate) -> tuple[str, str]:
+    def register(self, data: UserCreate) -> tuple[User, tuple[str, str]]:
         user = User(
             name=data.name,
             email=str(data.email).lower(),
@@ -63,7 +63,7 @@ class AuthService:
             self.session.flush()
             tokens = self.issue(user)
             self.session.commit()
-            return tokens
+            return user, tokens
         except IntegrityError:
             self.session.rollback()
             raise HTTPException(409, "El correo ya está registrado") from None

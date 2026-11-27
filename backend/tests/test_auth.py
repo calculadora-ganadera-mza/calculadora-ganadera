@@ -1,3 +1,4 @@
+import re
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -176,4 +177,21 @@ def test_me_returns_current_user_with_role(client):
         "name": "Test User",
         "email": "test@example.com",
         "role": "producer",
+        "email_verified": False,
     }
+
+
+def test_register_sends_verification_code(client, outbox):
+    browser, _ = client
+    token = register(browser).json()["access_token"]
+
+    [(to, _, text)] = outbox
+    [code] = re.findall(r"\b\d{6}\b", text)
+    response = browser.post(
+        "/auth/verify-email",
+        json={"code": code},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert to == "test@example.com"
+    assert response.status_code == 204

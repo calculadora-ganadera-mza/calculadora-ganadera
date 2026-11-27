@@ -50,7 +50,7 @@ App de seguimiento del ciclo ganadero: cría, recría y engorde.
    uvx pre-commit install
    ```
 
-Con eso la app queda en http://localhost:5173 y la API en http://localhost:8000. La documentación interactiva está en http://localhost:8000/docs y el estado del servicio en http://localhost:8000/health.
+Con eso la app queda en http://localhost:5173 y la API en http://localhost:8000. La documentación interactiva está en http://localhost:8000/docs, el estado del servicio en http://localhost:8000/health y los correos de desarrollo en http://localhost:8025.
 
 ### Uso diario
 
