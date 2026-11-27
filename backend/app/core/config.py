@@ -27,6 +27,18 @@ class Settings(BaseSettings):
     auth_allowed_origins: list[str]
     # Zona horaria para saber qué día es hoy (por ejemplo, para la campaña actual)
     app_timezone: str = "America/Argentina/Mendoza"
+    # Servidor de correo (SMTP). En desarrollo, Mailpit.
+    mail_host: str
+    mail_port: int
+    mail_from: str
+    mail_username: str = ""
+    mail_password: str = ""
+    mail_starttls: bool = False
+    # Códigos que se mandan por correo
+    verification_code_minutes: int = 15
+    verification_code_max_attempts: int = 5
+    verification_code_resend_seconds: int = 60
+    verification_codes_per_hour: int = 5
 
 
 settings = Settings()

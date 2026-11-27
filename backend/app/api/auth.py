@@ -1,13 +1,27 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Request,
+    Response,
+)
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.api.deps import CurrentUser, SessionDep
+from app.api.deps import CurrentUser, EmailSenderDep, SessionDep
 from app.core.config import settings
-from app.schemas.auth import Token
+from app.schemas.auth import EmailVerificationInput, Token
 from app.schemas.user import UserCreate, UserRead
 from app.services.auth import AuthService
+from app.services.email_verification import (
+    EmailAlreadyVerifiedError,
+    EmailVerificationService,
+    InvalidVerificationCodeError,
+    TooManyCodesError,
+    send_verification_code,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 COOKIE = "refresh_token"
@@ -51,8 +65,19 @@ def login(
     status_code=201,
     dependencies=[Depends(check_origin)],
 )
-def register(user: UserCreate, session: SessionDep, response: Response) -> Token:
-    return token_response(response, AuthService(session).register(user))
+def register(
+    user: UserCreate,
+    session: SessionDep,
+    response: Response,
+    background_tasks: BackgroundTasks,
+    sender: EmailSenderDep,
+) -> Token:
+    """Crea la cuenta e inicia la sesión. El código se manda después de responder."""
+    new_user, tokens = AuthService(session).register(user)
+    code = EmailVerificationService(session).create_code(new_user)
+    session.commit()
+    background_tasks.add_task(send_verification_code, sender, new_user.email, code)
+    return token_response(response, tokens)
 
 
 @router.post("/refresh", response_model=Token, dependencies=[Depends(check_origin)])
@@ -82,3 +107,37 @@ def logout(request: Request, response: Response, session: SessionDep) -> None:
 def me(user: CurrentUser) -> UserRead:
     """Datos del usuario con la sesión iniciada."""
     return UserRead.model_validate(user)
+
+
+@router.post("/verify-email", status_code=204)
+def verify_email(
+    data: EmailVerificationInput, user: CurrentUser, session: SessionDep
+) -> None:
+    """Verifica el correo con el último código que se envió."""
+    try:
+        EmailVerificationService(session).verify(user, data.code)
+    except EmailAlreadyVerifiedError as err:
+        raise HTTPException(409, str(err)) from err
+    except InvalidVerificationCodeError as err:
+        # Guarda el intento fallido antes de responder.
+        session.commit()
+        raise HTTPException(422, str(err)) from err
+    session.commit()
+
+
+@router.post("/resend-verification", status_code=202, response_class=Response)
+def resend_verification(
+    user: CurrentUser,
+    session: SessionDep,
+    background_tasks: BackgroundTasks,
+    sender: EmailSenderDep,
+) -> None:
+    """Genera otro código y lo envía por correo después de responder."""
+    try:
+        code = EmailVerificationService(session).resend(user)
+    except EmailAlreadyVerifiedError as err:
+        raise HTTPException(409, str(err)) from err
+    except TooManyCodesError as err:
+        raise HTTPException(429, str(err)) from err
+    session.commit()
+    background_tasks.add_task(send_verification_code, sender, user.email, code)

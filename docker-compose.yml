@@ -44,5 +44,11 @@ services:
     depends_on:
       - backend
 
+  mailpit:
+    image: axllent/mailpit:v1.34.0
+    ports:
+      # Bandeja de los correos de desarrollo. El backend usa el SMTP por la red de Docker.
+      - "8025:8025"
+
 volumes:
   db_data:

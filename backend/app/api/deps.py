@@ -6,12 +6,14 @@ from fastapi import Depends, HTTPException
 # no depende de api. Se importa en este módulo para que las rutas tomen todas
 # las dependencias de deps.
 from app.core.db import SessionDep
+from app.core.email import EmailSender, get_email_sender
 from app.core.jwt import get_current_user
 from app.models import Scenario, User
 from app.models.enums import Role
 from app.services.scenarios import get_user_scenario
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+EmailSenderDep = Annotated[EmailSender, Depends(get_email_sender)]
 
 
 def get_owned_scenario(

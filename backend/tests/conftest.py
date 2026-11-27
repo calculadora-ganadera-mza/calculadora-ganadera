@@ -91,4 +91,26 @@ def api(monkeypatch, session: Session, user: User):
     try:
         yield TestClient(app, headers={"Authorization": f"Bearer {token}"})
     finally:
-        app.dependency_overrides.clear()
+        app.dependency_overrides.pop(get_session, None)
+
+
+class FakeEmailSender:
+    """Guarda los correos en una lista en lugar de mandarlos."""
+
+    def __init__(self) -> None:
+        self.sent: list[tuple[str, str, str]] = []
+
+    def send(self, to: str, subject: str, text: str) -> None:
+        self.sent.append((to, subject, text))
+
+
+@pytest.fixture(autouse=True)
+def outbox() -> Iterator[list[tuple[str, str, str]]]:
+    """Correos que mandaría la app. Ninguna prueba manda correos de verdad."""
+    from app.core.email import get_email_sender
+    from app.main import app
+
+    sender = FakeEmailSender()
+    app.dependency_overrides[get_email_sender] = lambda: sender
+    yield sender.sent
+    app.dependency_overrides.pop(get_email_sender, None)

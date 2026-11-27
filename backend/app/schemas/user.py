@@ -21,3 +21,4 @@ class UserRead(BaseModel):
     name: str
     email: str
     role: Role
+    email_verified: bool

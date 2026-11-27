@@ -5,6 +5,7 @@ Modelo de datos vigente, generado a partir de los modelos de `backend/app/models
 ```mermaid
 erDiagram
     app_user ||--o{ refresh_session : "abre"
+    app_user ||--o{ email_verification_code : "recibe"
     app_user ||--o{ scenario : "registra"
     scenario ||--o{ season : "tiene"
     scenario ||--o{ production_unit : "se divide en"
@@ -34,6 +35,15 @@ erDiagram
         string family_id "agrupa los tokens de una misma sesión"
         timestamptz expires_at
         bool revoked
+        timestamptz created_at
+    }
+
+    email_verification_code {
+        int id PK
+        int user_id FK "se borra con el usuario"
+        string code_hash
+        timestamptz expires_at
+        int attempts "intentos fallidos, por defecto 0"
         timestamptz created_at
     }
 
@@ -143,3 +153,4 @@ erDiagram
 - **Borrado en cascada:** al borrar un usuario se borra todo lo suyo. Lo mismo pasa con un establecimiento, un sector, una campaña o un rodeo: arrastran lo que depende de ellos. Una categoría animal en uso no se puede borrar.
 - **Valores de referencia:** todo valor de `parameter` es mayor que 0, y solo los índices pueden quedar sin valor (`ck_parameter_value_positive`).
 - **Tablas sueltas:** `parameter` no se relaciona con otras tablas. La consulta el motor de cálculo por su `key`.
+- **Códigos de verificación del correo:** solo vale el más reciente de cada usuario, porque uno nuevo anula los anteriores. `code_hash` usa el mismo hash que `refresh_session.token_hash` y no es único, porque dos usuarios pueden recibir el mismo código.

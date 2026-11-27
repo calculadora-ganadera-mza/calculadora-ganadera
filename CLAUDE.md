@@ -28,6 +28,7 @@ Si algo no está definido en esos documentos, no inventarlo: preguntar.
 | Mapas | Leaflet + Geoman |
 | Gráficos | Chart.js, con vue-chartjs |
 | Avisos | Web Push (pywebpush) y una tarea diaria programada |
+| Correo | SMTP (smtplib), con Mailpit en desarrollo |
 | Pruebas | pytest en el backend y Vitest en el frontend |
 | Formato | ruff en el backend; eslint y prettier en el frontend |
 | Dependencias del backend | uv, con `pyproject.toml` |
@@ -106,6 +107,8 @@ Traducción fija de los términos del dominio. El código usa la columna de la d
 |---|---|
 | usuario | `app_user` (clase `User`; `user` es palabra reservada en Postgres) |
 | rol: productor / técnico / administrador | `role`: `producer` / `technician` / `admin` |
+| correo verificado | `email_verified` |
+| código de verificación del correo | `email_verification_code` |
 | categoría animal | `animal_category` |
 | EV (equivalente vaca) | `cow_equivalent` |
 | consumo anual de materia seca (MS) de un EV | `cow_equivalent_dm_intake_kg_year` |
@@ -148,6 +151,7 @@ Traducción fija de los términos del dominio. El código usa la columna de la d
 - Después de cambiar las dependencias del frontend, o de bajar cambios que las modifican: `docker compose up --build --renew-anon-volumes`. El volumen anónimo `/app/node_modules` conserva el `node_modules` viejo aunque `package.json` ya tenga el paquete nuevo. `--build` vuelve a armar la imagen con las dependencias nuevas, y `--renew-anon-volumes` descarta el volumen viejo para que se cree de nuevo desde esa imagen.
 - Migraciones: `docker compose run --rm backend alembic upgrade head`
 - Primer administrador: `docker compose run --rm backend python -m app.commands.make_admin <correo>`
+- Correos en desarrollo: Mailpit en `http://localhost:8025`
 - Pruebas: `docker compose run --rm backend pytest`
 - Formato: `ruff check . && ruff format .` dentro de `backend/`
 - Pruebas del frontend: `npm run test:unit` dentro de `frontend/`
