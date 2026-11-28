@@ -8,12 +8,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.dates import today
+from app.exceptions import InvalidFirstSeasonYearError, SeasonExistsError
 from app.main import app
 from app.models import Parameter, Scenario, Season, User
 from app.schemas.scenario import ScenarioCreate
 from app.services.scenarios import (
-    InvalidFirstSeasonYearError,
-    SeasonExistsError,
     create_scenario,
     create_season,
     current_season_id,

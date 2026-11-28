@@ -12,6 +12,11 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.deps import CurrentUser, EmailSenderDep, SessionDep
 from app.core.config import settings
+from app.exceptions import (
+    ExpiredOrRevokedRefreshTokenError,
+    InvalidPasswordResetCodeError,
+    InvalidVerificationCodeError,
+)
 from app.schemas.auth import (
     EmailVerificationInput,
     ForgotPasswordInput,
@@ -21,14 +26,10 @@ from app.schemas.auth import (
 from app.schemas.user import UserCreate, UserRead
 from app.services.auth import AuthService
 from app.services.email_verification import (
-    EmailAlreadyVerifiedError,
     EmailVerificationService,
-    InvalidVerificationCodeError,
-    TooManyCodesError,
     send_verification_code,
 )
 from app.services.password_reset import (
-    InvalidPasswordResetCodeError,
     PasswordResetService,
     send_password_reset_code,
 )
@@ -97,7 +98,7 @@ def refresh(request: Request, response: Response, session: SessionDep) -> Token:
         raise HTTPException(401, "Falta el token de renovación")
     try:
         tokens = AuthService(session).refresh(token)
-    except HTTPException:
+    except ExpiredOrRevokedRefreshTokenError:
         # Guarda la revocación de la familia si el token venció o fue reusado.
         session.commit()
         raise
@@ -134,12 +135,10 @@ def verify_email(
     """Verifica el correo con el último código que se envió."""
     try:
         EmailVerificationService(session).verify(user, data.code)
-    except EmailAlreadyVerifiedError as err:
-        raise HTTPException(409, str(err)) from err
-    except InvalidVerificationCodeError as err:
+    except InvalidVerificationCodeError:
         # Guarda el intento fallido antes de responder.
         session.commit()
-        raise HTTPException(422, str(err)) from err
+        raise
     session.commit()
 
 
@@ -151,12 +150,7 @@ def resend_verification(
     sender: EmailSenderDep,
 ) -> None:
     """Genera otro código y lo envía por correo después de responder."""
-    try:
-        code = EmailVerificationService(session).resend(user)
-    except EmailAlreadyVerifiedError as err:
-        raise HTTPException(409, str(err)) from err
-    except TooManyCodesError as err:
-        raise HTTPException(429, str(err)) from err
+    code = EmailVerificationService(session).resend(user)
     session.commit()
     background_tasks.add_task(send_verification_code, sender, user.email, code)
 
@@ -192,8 +186,8 @@ def reset_password(data: ResetPasswordInput, session: SessionDep) -> None:
         PasswordResetService(session).reset_password(
             str(data.email), data.code, data.password
         )
-    except InvalidPasswordResetCodeError as err:
+    except InvalidPasswordResetCodeError:
         # Guarda el intento fallido antes de responder.
         session.commit()
-        raise HTTPException(422, str(err)) from err
+        raise
     session.commit()

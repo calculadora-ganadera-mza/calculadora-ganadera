@@ -3,11 +3,8 @@
 import math
 from dataclasses import dataclass
 
+from app.exceptions import NotCalculableError
 from app.models.enums import CorrectionIndexCode, RangeCondition
-
-
-class NotCalculableError(ValueError):
-    """Faltan datos para calcular la receptividad."""
 
 
 @dataclass(frozen=True)

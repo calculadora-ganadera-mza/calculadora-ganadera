@@ -3,7 +3,6 @@ import secrets
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-from fastapi import HTTPException
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -12,6 +11,12 @@ from app.core.config import settings
 from app.core.db import violated_constraint
 from app.core.jwt import create_access_token
 from app.core.password import hash_password, verify_password
+from app.exceptions import (
+    EmailAlreadyRegisteredError,
+    ExpiredOrRevokedRefreshTokenError,
+    InvalidCredentialsError,
+    InvalidRefreshTokenError,
+)
 from app.models.refresh_session import RefreshSession
 from app.models.user import User
 from app.schemas.user import UserCreate
@@ -48,7 +53,7 @@ class AuthService:
     def login(self, email: str, password: str) -> tuple[str, str]:
         user = self.session.scalar(select(User).where(User.email == email.lower()))
         if not user or not verify_password(password, user.password_hash):
-            raise HTTPException(401, "Credenciales inválidas")
+            raise InvalidCredentialsError("Credenciales inválidas")
         return self.issue(user)
 
     def register(self, data: UserCreate) -> tuple[User, tuple[str, str]]:
@@ -64,7 +69,7 @@ class AuthService:
         except IntegrityError as err:
             if violated_constraint(err) != "uq_app_user_email":
                 raise
-            raise HTTPException(409, "El correo ya está registrado") from err
+            raise EmailAlreadyRegisteredError("El correo ya está registrado") from err
         tokens = self.issue(user)
         return user, tokens
 
@@ -99,14 +104,16 @@ class AuthService:
     def refresh(self, token: str) -> tuple[str, str]:
         record = self.find_locked(token)
         if record is None:
-            raise HTTPException(401, "Token de renovación inválido")
+            raise InvalidRefreshTokenError("Token de renovación inválido")
         user = self.session.get(User, record.user_id)
         expiry = record.expires_at
         if expiry.tzinfo is None:
             expiry = expiry.replace(tzinfo=UTC)
         if record.revoked or expiry <= datetime.now(UTC) or not user:
             self.revoke_family(record.family_id)
-            raise HTTPException(401, "La sesión de renovación venció o fue revocada")
+            raise ExpiredOrRevokedRefreshTokenError(
+                "La sesión de renovación venció o fue revocada"
+            )
         record.revoked = True
         return self.issue(user, record.family_id, record.expires_at)
 

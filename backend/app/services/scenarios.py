@@ -5,20 +5,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.db import violated_constraint
+from app.exceptions import InvalidFirstSeasonYearError, SeasonExistsError
 from app.models import Scenario, Season, User
 from app.schemas.scenario import SeasonRead
 from app.services.parameters import select_parameter
 
 # Años que se pueden elegir para la primera campaña: el actual y los siguientes
 FIRST_SEASON_YEARS_AHEAD = 2
-
-
-class InvalidFirstSeasonYearError(ValueError):
-    """El año elegido para la primera campaña no está entre los permitidos."""
-
-
-class SeasonExistsError(ValueError):
-    """El establecimiento ya tiene una campaña para ese año."""
 
 
 def season_dates(start_year: int, start_month: int) -> tuple[date, date]:

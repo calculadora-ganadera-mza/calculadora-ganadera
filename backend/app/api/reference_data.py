@@ -1,12 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from app.api.deps import AdminUser, CurrentUser, SessionDep
 from app.schemas.animal_category import AnimalCategoryRead, AnimalCategoryUpdate
 from app.schemas.parameter import ParameterRead, ParameterUpdate
 from app.services.reference_data import (
-    DuplicateCategoryNameError,
-    InvalidReferenceValueError,
-    ReferenceNotFoundError,
     list_animal_categories,
     list_parameters,
     update_animal_category,
@@ -29,12 +26,7 @@ def edit_parameter(
     key: str, data: ParameterUpdate, session: SessionDep, admin: AdminUser
 ) -> ParameterRead:
     """Cambia el valor de un parámetro. El próximo cálculo usa el valor nuevo."""
-    try:
-        parameter = update_parameter(session, key, data.value)
-    except ReferenceNotFoundError as err:
-        raise HTTPException(404, str(err)) from err
-    except InvalidReferenceValueError as err:
-        raise HTTPException(422, str(err)) from err
+    parameter = update_parameter(session, key, data.value)
     session.commit()
     return ParameterRead.model_validate(parameter)
 
@@ -58,13 +50,6 @@ def edit_animal_category(
     admin: AdminUser,
 ) -> AnimalCategoryRead:
     """Cambia el nombre, el EV o el agua de una categoría. El código no cambia."""
-    try:
-        category = update_animal_category(session, animal_category_id, data)
-    except ReferenceNotFoundError as err:
-        raise HTTPException(404, str(err)) from err
-    except InvalidReferenceValueError as err:
-        raise HTTPException(422, str(err)) from err
-    except DuplicateCategoryNameError as err:
-        raise HTTPException(409, str(err)) from err
+    category = update_animal_category(session, animal_category_id, data)
     session.commit()
     return AnimalCategoryRead.model_validate(category)

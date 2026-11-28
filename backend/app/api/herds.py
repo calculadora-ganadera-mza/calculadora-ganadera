@@ -6,9 +6,6 @@ from app.models import Season
 from app.schemas.herd import HerdCreate, HerdData, HerdRead
 from app.schemas.scenario import SeasonRead, SeasonUpdate
 from app.services.herds import (
-    HerdExistsError,
-    InvalidHerdError,
-    UnitNotFoundError,
     create_herd,
     get_user_herd,
     herd_read,
@@ -56,14 +53,7 @@ def register_herd(
 ) -> HerdRead:
     """Registra el rodeo de un sector en la campaña."""
     season = owned_season(session, user, season_id)
-    try:
-        herd = create_herd(session, season, data.production_unit_id, data)
-    except InvalidHerdError as err:
-        raise HTTPException(422, str(err)) from err
-    except UnitNotFoundError as err:
-        raise HTTPException(404, str(err)) from err
-    except HerdExistsError as err:
-        raise HTTPException(409, str(err)) from err
+    herd = create_herd(session, season, data.production_unit_id, data)
     session.commit()
     return herd_read(session, herd)
 
@@ -76,9 +66,6 @@ def replace_herd(
     herd = get_user_herd(session, user.id, herd_id)
     if herd is None:
         raise HTTPException(404, "Rodeo no encontrado.")
-    try:
-        update_herd(session, herd, data)
-    except InvalidHerdError as err:
-        raise HTTPException(422, str(err)) from err
+    update_herd(session, herd, data)
     session.commit()
     return herd_read(session, herd)

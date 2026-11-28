@@ -7,16 +7,13 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.email import EmailSender
 from app.core.password import hash_password
+from app.exceptions import InvalidPasswordResetCodeError
 from app.models import PasswordResetCode, User
 from app.services.auth import AuthService, token_hash
 
 INVALID_RESET_CODE_MESSAGE = (
     "El código no es válido. Hay que revisarlo o pedir uno nuevo."
 )
-
-
-class InvalidPasswordResetCodeError(ValueError):
-    """El código no coincide, venció, ya fue usado o se le agotaron los intentos."""
 
 
 def send_password_reset_code(sender: EmailSender, to: str, code: str) -> None:

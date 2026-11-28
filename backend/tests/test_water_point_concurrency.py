@@ -9,6 +9,7 @@ import pytest
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
+from app.exceptions import InvalidPolygonError, InvalidWaterPointError
 from app.models import ProductionUnit, Scenario, User, WaterPoint
 from app.schemas.production_unit import PolygonGeoJSON
 from app.schemas.water_point import WaterPointInput
@@ -130,8 +131,8 @@ def test_water_and_contour_changes_are_serialized(
                 session.commit()
                 return "saved"
             except (
-                production_units.InvalidPolygonError,
-                water_points.InvalidWaterPointError,
+                InvalidPolygonError,
+                InvalidWaterPointError,
             ):
                 session.rollback()
                 return "invalid"

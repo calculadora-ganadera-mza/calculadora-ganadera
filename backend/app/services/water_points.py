@@ -12,6 +12,7 @@ from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.engine import RowMapping
 from sqlalchemy.orm import Session, aliased
 
+from app.exceptions import InvalidWaterPointError, WaterPointNotFoundError
 from app.models import ProductionUnit, WaterPoint
 from app.schemas.water_point import WaterPointInput
 from app.services.production_units import get_user_unit
@@ -22,14 +23,6 @@ from app.services.spatial import (
     water_point_reach,
     within_sector,
 )
-
-
-class InvalidWaterPointError(ValueError):
-    """Ubicación de aguada fuera de la tolerancia del sector."""
-
-
-class WaterPointNotFoundError(ValueError):
-    """El recurso no existe o no pertenece al usuario."""
 
 
 @dataclass(frozen=True)
