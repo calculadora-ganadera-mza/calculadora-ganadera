@@ -4,21 +4,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.db import violated_constraint
+from app.exceptions import (
+    DuplicateCategoryNameError,
+    InvalidReferenceValueError,
+    ReferenceNotFoundError,
+)
 from app.models import AnimalCategory, Parameter
 from app.schemas.animal_category import AnimalCategoryUpdate
 from app.services.carrying_capacity import check_calculation_parameters
-
-
-class ReferenceNotFoundError(LookupError):
-    """El parámetro o la categoría no existe."""
-
-
-class InvalidReferenceValueError(ValueError):
-    """El valor no cumple una regla de los valores de referencia."""
-
-
-class DuplicateCategoryNameError(ValueError):
-    """Ya existe otra categoría con ese nombre."""
 
 
 def list_parameters(session: Session) -> list[Parameter]:

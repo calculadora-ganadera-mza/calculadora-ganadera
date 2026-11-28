@@ -40,6 +40,7 @@ Si algo no está definido en esos documentos, no inventarlo: preguntar.
 - Ningún valor de referencia va escrito en el código: todo sale de la tabla `parametro` o de las tablas de referencia, porque el administrador los cambia sin tocar el código.
 - Cada cálculo guardado registra los parámetros con los que se hizo.
 - Superficies y distancias se calculan con PostGIS sobre `geography`, no en Python.
+- Los servicios (`backend/app/services/`) no conocen HTTP ni hacen `commit()`: lanzan excepciones propias (`backend/app/exceptions/`), la ruta confirma la transacción y los manejadores globales (`backend/app/core/exception_handler.py`) las traducen a códigos HTTP.
 
 ## Principios de programación
 
@@ -69,9 +70,10 @@ backend/
     models/         tablas (SQLAlchemy)
     schemas/        entrada y salida (Pydantic)
     services/       lógica que usa la base, separada de las rutas
+    exceptions/     excepciones propias del dominio
     commands/       comandos que se corren a mano, como dar el rol de administrador
     calculators/    motor de cálculo, funciones puras
-    core/           configuración, seguridad, conexión
+    core/           configuración, seguridad, conexión, manejo de errores
   alembic/
   tests/
   pyproject.toml

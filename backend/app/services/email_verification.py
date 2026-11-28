@@ -6,20 +6,13 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.email import EmailSender
+from app.exceptions import (
+    EmailAlreadyVerifiedError,
+    InvalidVerificationCodeError,
+    TooManyCodesError,
+)
 from app.models import EmailVerificationCode, User
 from app.services.auth import token_hash
-
-
-class EmailAlreadyVerifiedError(ValueError):
-    """El correo del usuario ya está verificado."""
-
-
-class InvalidVerificationCodeError(ValueError):
-    """El código no coincide, venció o se le agotaron los intentos."""
-
-
-class TooManyCodesError(ValueError):
-    """Se pidió un código antes de la espera o por encima del máximo por hora."""
 
 
 def send_verification_code(sender: EmailSender, to: str, code: str) -> None:

@@ -36,6 +36,12 @@ from app.calculators.water import (
     water_limit,
     water_need,
 )
+from app.exceptions import (
+    CalculationNotFoundError,
+    SeasonNotFoundError,
+    UnitNotFoundError,
+    UnsupportedSeasonUpdateError,
+)
 from app.models import (
     AnimalCategory,
     CarryingCapacityCalculation,
@@ -66,7 +72,6 @@ from app.schemas.carrying_capacity import (
     WeanedCalves,
 )
 from app.services.herds import (
-    UnitNotFoundError,
     check_breeding_in_season,
     check_herd_rules,
 )
@@ -627,18 +632,6 @@ def scaled_read(
     )
 
 
-class CalculationNotFoundError(LookupError):
-    """El cálculo guardado no existe o no pertenece al usuario."""
-
-
-class SeasonNotFoundError(LookupError):
-    """La campaña no existe o no pertenece al establecimiento del sector."""
-
-
-class UnsupportedSeasonUpdateError(ValueError):
-    """La actualización de campaña al guardar todavía no está implementada."""
-
-
 def _calculation_read(
     calculation: CarryingCapacityCalculation,
     *,
@@ -715,7 +708,7 @@ def save_calculation(
         result=result.model_dump(mode="json"),
     )
     session.add(calculation)
-    session.commit()
+    session.flush()
     session.refresh(calculation)
     return _calculation_read(
         calculation,
@@ -862,4 +855,4 @@ def delete_calculation(session: Session, user_id: int, calculation_id: int) -> N
     if calculation is None:
         raise CalculationNotFoundError("Cálculo no encontrado.")
     session.delete(calculation)
-    session.commit()
+    session.flush()

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from app.api.deps import CurrentUser, OwnedScenario, SessionDep
 from app.core.dates import today
@@ -11,8 +11,6 @@ from app.schemas.scenario import (
     SeasonYearOption,
 )
 from app.services.scenarios import (
-    InvalidFirstSeasonYearError,
-    SeasonExistsError,
     create_scenario,
     create_season,
     first_season_years,
@@ -57,12 +55,9 @@ def register_scenario(
     data: ScenarioCreate, session: SessionDep, user: CurrentUser
 ) -> ScenarioRead:
     """Registra un establecimiento del usuario, con su primera campaña."""
-    try:
-        scenario, _ = create_scenario(
-            session, user.id, data.name, data.first_season_start_year, today()
-        )
-    except InvalidFirstSeasonYearError as err:
-        raise HTTPException(422, str(err)) from err
+    scenario, _ = create_scenario(
+        session, user.id, data.name, data.first_season_start_year, today()
+    )
     session.commit()
     return ScenarioRead.model_validate(scenario)
 
@@ -92,10 +87,7 @@ def add_season(
     data: SeasonCreate, scenario: OwnedScenario, session: SessionDep
 ) -> SeasonRead:
     """Crea una campaña sin datos para un año que el establecimiento no tiene."""
-    try:
-        season = create_season(session, scenario.id, data.start_year)
-    except SeasonExistsError as err:
-        raise HTTPException(409, str(err)) from err
+    season = create_season(session, scenario.id, data.start_year)
     session.commit()
     # is_current depende de las demás campañas del establecimiento
     reads = season_reads(list_seasons(session, scenario.id), today())

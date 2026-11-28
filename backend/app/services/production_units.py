@@ -14,6 +14,7 @@ from sqlalchemy import (
 from sqlalchemy.engine import RowMapping
 from sqlalchemy.orm import Session, aliased
 
+from app.exceptions import InvalidPolygonError
 from app.models import ProductionUnit, Scenario, WaterPoint
 from app.models.enums import ProductionSystem
 from app.schemas.production_unit import PolygonGeoJSON
@@ -26,10 +27,6 @@ from app.services.spatial import (
 
 # Una franja de unos 10 cm a lo largo de 1 km de alambrado.
 SECTOR_OVERLAP_TOLERANCE_M2 = 100.0
-
-
-class InvalidPolygonError(ValueError):
-    """El contorno no cumple las reglas para guardar un sector."""
 
 
 def to_geometry(session: Session, polygon: PolygonGeoJSON) -> ColumnElement[Any]:

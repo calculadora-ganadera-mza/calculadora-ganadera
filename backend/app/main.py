@@ -11,8 +11,10 @@ from app.api import (
     scenarios,
     water_points,
 )
+from app.core.exception_handler import register_exception_handlers
 
 app = FastAPI(title="Calculadora Ganadera")
+register_exception_handlers(app)
 
 app.include_router(health.router)
 app.include_router(auth.router)

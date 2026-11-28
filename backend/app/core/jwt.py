@@ -2,12 +2,13 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, HTTPException
+from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import ValidationError
 
 from app.core.config import settings
 from app.core.db import SessionDep
+from app.exceptions import InvalidAccessTokenError, TokenUserNotFoundError
 from app.models.user import User
 from app.schemas.auth import TokenData
 
@@ -34,13 +35,13 @@ def get_current_user(
         payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
         if user_id is None:
-            raise HTTPException(
-                401, "El token no contiene el identificador del usuario"
+            raise InvalidAccessTokenError(
+                "El token no contiene el identificador del usuario"
             )
         token_data = TokenData(id=user_id)
     except (jwt.InvalidTokenError, ValidationError) as err:
-        raise HTTPException(401, "Token inválido") from err
+        raise InvalidAccessTokenError("Token inválido") from err
     user = session.get(User, token_data.id)
     if user is None:
-        raise HTTPException(401, "Usuario inexistente")
+        raise TokenUserNotFoundError("Usuario inexistente")
     return user

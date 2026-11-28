@@ -5,10 +5,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.exceptions import InvalidHerdError
 from app.models import AnimalCategory, ProductionUnit, Season, User
 from app.models.enums import ProductionSystem, RangeCondition
 from app.schemas.herd import HerdCategoryInput, HerdData
-from app.services.herds import InvalidHerdError, check_herd_rules, create_herd
+from app.services.herds import check_herd_rules, create_herd
 from app.services.scenarios import create_scenario
 
 TODAY = date(2026, 11, 5)

@@ -3,7 +3,6 @@ from fastapi import APIRouter, HTTPException
 from app.api.deps import CurrentUser, OwnedScenario, SessionDep
 from app.schemas.production_unit import ProductionUnitInput, ProductionUnitRead
 from app.services.production_units import (
-    InvalidPolygonError,
     create_unit,
     get_user_unit,
     list_units,
@@ -30,10 +29,7 @@ def draw_unit(
     data: ProductionUnitInput, scenario: OwnedScenario, session: SessionDep
 ) -> ProductionUnitRead:
     """Dibuja un sector en el establecimiento."""
-    try:
-        unit = create_unit(session, scenario.id, data.name, data.polygon)
-    except InvalidPolygonError as err:
-        raise HTTPException(422, str(err)) from err
+    unit = create_unit(session, scenario.id, data.name, data.polygon)
     session.commit()
     return ProductionUnitRead.model_validate(read_unit(session, unit.id))
 
@@ -49,10 +45,7 @@ def edit_unit(
     unit = get_user_unit(session, user.id, production_unit_id)
     if unit is None:
         raise HTTPException(404, "Sector no encontrado.")
-    try:
-        update_unit(session, unit, data.name, data.polygon)
-    except InvalidPolygonError as err:
-        raise HTTPException(422, str(err)) from err
+    update_unit(session, unit, data.name, data.polygon)
     session.commit()
     return ProductionUnitRead.model_validate(read_unit(session, unit.id))
 

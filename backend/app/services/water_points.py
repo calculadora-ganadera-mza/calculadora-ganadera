@@ -12,6 +12,7 @@ from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.engine import RowMapping
 from sqlalchemy.orm import Session, aliased
 
+from app.exceptions import InvalidWaterPointError, WaterPointNotFoundError
 from app.models import ProductionUnit, WaterPoint
 from app.schemas.water_point import WaterPointInput
 from app.services.production_units import get_user_unit
@@ -22,14 +23,6 @@ from app.services.spatial import (
     water_point_reach,
     within_sector,
 )
-
-
-class InvalidWaterPointError(ValueError):
-    """Ubicación de aguada fuera de la tolerancia del sector."""
-
-
-class WaterPointNotFoundError(ValueError):
-    """El recurso no existe o no pertenece al usuario."""
 
 
 @dataclass(frozen=True)
@@ -185,7 +178,7 @@ def create_point(
     point = WaterPoint(production_unit_id=unit_id)
     assign(point, data)
     session.add(point)
-    session.commit()
+    session.flush()
     return next(row for row in read_points(session, unit_id) if row["id"] == point.id)
 
 
@@ -195,7 +188,7 @@ def update_point(
     point, unit = owned_point(session, user_id, point_id, for_update=True)
     validate_location(session, data, unit.polygon)
     assign(point, data)
-    session.commit()
+    session.flush()
     return next(
         row
         for row in read_points(session, point.production_unit_id)
@@ -206,4 +199,4 @@ def update_point(
 def delete_point(session: Session, user_id: int, point_id: int) -> None:
     point, _ = owned_point(session, user_id, point_id)
     session.delete(point)
-    session.commit()
+    session.flush()

@@ -3,11 +3,11 @@ from dataclasses import replace
 import pytest
 
 from app.calculators.carrying_capacity import (
-    NotCalculableError,
     PastureParameters,
     calculate_pasture_limit,
     consumable_forage_kg_ha_year,
 )
+from app.exceptions import NotCalculableError
 from app.models.enums import CorrectionIndexCode, RangeCondition
 
 # Valores de la migración inicial, sin índices cargados.

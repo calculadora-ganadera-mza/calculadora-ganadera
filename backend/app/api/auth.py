@@ -12,6 +12,11 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.deps import CurrentUser, EmailSenderDep, SessionDep
 from app.core.config import settings
+from app.exceptions import (
+    ExpiredOrRevokedRefreshTokenError,
+    InvalidPasswordResetCodeError,
+    InvalidVerificationCodeError,
+)
 from app.schemas.auth import (
     EmailVerificationInput,
     ForgotPasswordInput,
@@ -21,14 +26,10 @@ from app.schemas.auth import (
 from app.schemas.user import UserCreate, UserRead
 from app.services.auth import AuthService
 from app.services.email_verification import (
-    EmailAlreadyVerifiedError,
     EmailVerificationService,
-    InvalidVerificationCodeError,
-    TooManyCodesError,
     send_verification_code,
 )
 from app.services.password_reset import (
-    InvalidPasswordResetCodeError,
     PasswordResetService,
     send_password_reset_code,
 )
@@ -64,9 +65,9 @@ def login(
     session: SessionDep,
     response: Response,
 ) -> Token:
-    return token_response(
-        response, AuthService(session).login(form_data.username, form_data.password)
-    )
+    tokens = AuthService(session).login(form_data.username, form_data.password)
+    session.commit()
+    return token_response(response, tokens)
 
 
 @router.post(
@@ -95,7 +96,14 @@ def refresh(request: Request, response: Response, session: SessionDep) -> Token:
     token = request.cookies.get(COOKIE)
     if not token:
         raise HTTPException(401, "Falta el token de renovación")
-    return token_response(response, AuthService(session).refresh(token))
+    try:
+        tokens = AuthService(session).refresh(token)
+    except ExpiredOrRevokedRefreshTokenError:
+        # Guarda la revocación de la familia si el token venció o fue reusado.
+        session.commit()
+        raise
+    session.commit()
+    return token_response(response, tokens)
 
 
 @router.post("/logout", status_code=204, dependencies=[Depends(check_origin)])
@@ -103,6 +111,7 @@ def logout(request: Request, response: Response, session: SessionDep) -> None:
     token = request.cookies.get(COOKIE)
     if token:
         AuthService(session).logout(token)
+        session.commit()
     response.delete_cookie(
         COOKIE,
         path="/",
@@ -126,12 +135,10 @@ def verify_email(
     """Verifica el correo con el último código que se envió."""
     try:
         EmailVerificationService(session).verify(user, data.code)
-    except EmailAlreadyVerifiedError as err:
-        raise HTTPException(409, str(err)) from err
-    except InvalidVerificationCodeError as err:
+    except InvalidVerificationCodeError:
         # Guarda el intento fallido antes de responder.
         session.commit()
-        raise HTTPException(422, str(err)) from err
+        raise
     session.commit()
 
 
@@ -143,12 +150,7 @@ def resend_verification(
     sender: EmailSenderDep,
 ) -> None:
     """Genera otro código y lo envía por correo después de responder."""
-    try:
-        code = EmailVerificationService(session).resend(user)
-    except EmailAlreadyVerifiedError as err:
-        raise HTTPException(409, str(err)) from err
-    except TooManyCodesError as err:
-        raise HTTPException(429, str(err)) from err
+    code = EmailVerificationService(session).resend(user)
     session.commit()
     background_tasks.add_task(send_verification_code, sender, user.email, code)
 
@@ -184,8 +186,8 @@ def reset_password(data: ResetPasswordInput, session: SessionDep) -> None:
         PasswordResetService(session).reset_password(
             str(data.email), data.code, data.password
         )
-    except InvalidPasswordResetCodeError as err:
+    except InvalidPasswordResetCodeError:
         # Guarda el intento fallido antes de responder.
         session.commit()
-        raise HTTPException(422, str(err)) from err
+        raise
     session.commit()

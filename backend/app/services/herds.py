@@ -3,6 +3,7 @@ from datetime import date
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from app.exceptions import HerdExistsError, InvalidHerdError, UnitNotFoundError
 from app.models import (
     AnimalCategory,
     HerdCategory,
@@ -20,18 +21,6 @@ CALF = "calf"
 # Límite técnico: más allá, el calendario del rodeo se pasa del último año
 # que maneja Python
 LAST_BREEDING_DATE = date(2100, 12, 31)
-
-
-class InvalidHerdError(ValueError):
-    """Los datos del rodeo no cumplen una regla del contrato."""
-
-
-class HerdExistsError(ValueError):
-    """El sector ya tiene un rodeo en esa campaña."""
-
-
-class UnitNotFoundError(LookupError):
-    """El sector no existe o no es del establecimiento de la campaña."""
 
 
 def check_herd_rules(data: HerdData, codes: dict[int, str]) -> None:
