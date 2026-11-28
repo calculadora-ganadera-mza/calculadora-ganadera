@@ -127,7 +127,7 @@ def test_water_and_contour_changes_are_serialized(
                     if first == "shape":
                         first_locked.set()
                         assert release.wait(10)
-                    session.commit()
+                session.commit()
                 return "saved"
             except (
                 production_units.InvalidPolygonError,

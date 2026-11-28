@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.db import violated_constraint
 from app.core.jwt import create_access_token
 from app.core.password import hash_password, verify_password
 from app.models.refresh_session import RefreshSession
@@ -48,9 +49,7 @@ class AuthService:
         user = self.session.scalar(select(User).where(User.email == email.lower()))
         if not user or not verify_password(password, user.password_hash):
             raise HTTPException(401, "Credenciales inválidas")
-        tokens = self.issue(user)
-        self.session.commit()
-        return tokens
+        return self.issue(user)
 
     def register(self, data: UserCreate) -> tuple[User, tuple[str, str]]:
         user = User(
@@ -58,15 +57,16 @@ class AuthService:
             email=str(data.email).lower(),
             password_hash=hash_password(data.password),
         )
-        self.session.add(user)
         try:
-            self.session.flush()
-            tokens = self.issue(user)
-            self.session.commit()
-            return user, tokens
-        except IntegrityError:
-            self.session.rollback()
-            raise HTTPException(409, "El correo ya está registrado") from None
+            with self.session.begin_nested():
+                self.session.add(user)
+                self.session.flush()
+        except IntegrityError as err:
+            if violated_constraint(err) != "uq_app_user_email":
+                raise
+            raise HTTPException(409, "El correo ya está registrado") from err
+        tokens = self.issue(user)
+        return user, tokens
 
     def find_locked(self, token: str) -> RefreshSession | None:
         record = self.session.scalar(
@@ -106,15 +106,11 @@ class AuthService:
             expiry = expiry.replace(tzinfo=UTC)
         if record.revoked or expiry <= datetime.now(UTC) or not user:
             self.revoke_family(record.family_id)
-            self.session.commit()
             raise HTTPException(401, "La sesión de renovación venció o fue revocada")
         record.revoked = True
-        tokens = self.issue(user, record.family_id, record.expires_at)
-        self.session.commit()
-        return tokens
+        return self.issue(user, record.family_id, record.expires_at)
 
     def logout(self, token: str) -> None:
         record = self.find_locked(token)
         if record:
             self.revoke_family(record.family_id)
-            self.session.commit()

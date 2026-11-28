@@ -704,7 +704,7 @@ def save_calculation(
         result=result.model_dump(mode="json"),
     )
     session.add(calculation)
-    session.commit()
+    session.flush()
     session.refresh(calculation)
     return _calculation_read(
         calculation,
@@ -851,4 +851,4 @@ def delete_calculation(session: Session, user_id: int, calculation_id: int) -> N
     if calculation is None:
         raise CalculationNotFoundError("Cálculo no encontrado.")
     session.delete(calculation)
-    session.commit()
+    session.flush()

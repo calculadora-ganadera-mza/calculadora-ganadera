@@ -185,7 +185,7 @@ def create_point(
     point = WaterPoint(production_unit_id=unit_id)
     assign(point, data)
     session.add(point)
-    session.commit()
+    session.flush()
     return next(row for row in read_points(session, unit_id) if row["id"] == point.id)
 
 
@@ -195,7 +195,7 @@ def update_point(
     point, unit = owned_point(session, user_id, point_id, for_update=True)
     validate_location(session, data, unit.polygon)
     assign(point, data)
-    session.commit()
+    session.flush()
     return next(
         row
         for row in read_points(session, point.production_unit_id)
@@ -206,4 +206,4 @@ def update_point(
 def delete_point(session: Session, user_id: int, point_id: int) -> None:
     point, _ = owned_point(session, user_id, point_id)
     session.delete(point)
-    session.commit()
+    session.flush()

@@ -35,6 +35,7 @@ def create_point(
         raise HTTPException(422, str(err)) from err
     except service.WaterPointNotFoundError as err:
         raise HTTPException(404, str(err)) from err
+    session.commit()
     return WaterPointRead.model_validate(row)
 
 
@@ -48,6 +49,7 @@ def update_point(
         raise HTTPException(422, str(err)) from err
     except service.WaterPointNotFoundError as err:
         raise HTTPException(404, str(err)) from err
+    session.commit()
     return WaterPointRead.model_validate(row)
 
 
@@ -57,6 +59,7 @@ def delete_point(water_point_id: int, session: SessionDep, user: CurrentUser) ->
         service.delete_point(session, user.id, water_point_id)
     except service.WaterPointNotFoundError as err:
         raise HTTPException(404, str(err)) from err
+    session.commit()
 
 
 @router.get("/scenarios/{scenario_id}/water-points")

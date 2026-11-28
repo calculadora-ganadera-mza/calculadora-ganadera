@@ -72,11 +72,13 @@ def save_calculation(
 ) -> CarryingCapacityCalculationRead:
     """Calcula con los datos recibidos y guarda el resultado o la simulación."""
     try:
-        return service.save_calculation(session, user.id, production_unit_id, data)
+        saved = service.save_calculation(session, user.id, production_unit_id, data)
     except (UnitNotFoundError, SeasonNotFoundError) as err:
         raise HTTPException(404, str(err)) from err
     except (InvalidHerdError, NotCalculableError, UnsupportedSeasonUpdateError) as err:
         raise HTTPException(422, str(err)) from err
+    session.commit()
+    return saved
 
 
 @router.get("/carrying-capacity-calculations/{calculation_id}")
@@ -103,3 +105,4 @@ def delete_calculation(
         service.delete_calculation(session, user.id, calculation_id)
     except CalculationNotFoundError as err:
         raise HTTPException(404, str(err)) from err
+    session.commit()

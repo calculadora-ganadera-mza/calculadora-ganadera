@@ -64,9 +64,9 @@ def login(
     session: SessionDep,
     response: Response,
 ) -> Token:
-    return token_response(
-        response, AuthService(session).login(form_data.username, form_data.password)
-    )
+    tokens = AuthService(session).login(form_data.username, form_data.password)
+    session.commit()
+    return token_response(response, tokens)
 
 
 @router.post(
@@ -95,7 +95,14 @@ def refresh(request: Request, response: Response, session: SessionDep) -> Token:
     token = request.cookies.get(COOKIE)
     if not token:
         raise HTTPException(401, "Falta el token de renovación")
-    return token_response(response, AuthService(session).refresh(token))
+    try:
+        tokens = AuthService(session).refresh(token)
+    except HTTPException:
+        # Guarda la revocación de la familia si el token venció o fue reusado.
+        session.commit()
+        raise
+    session.commit()
+    return token_response(response, tokens)
 
 
 @router.post("/logout", status_code=204, dependencies=[Depends(check_origin)])
@@ -103,6 +110,7 @@ def logout(request: Request, response: Response, session: SessionDep) -> None:
     token = request.cookies.get(COOKIE)
     if token:
         AuthService(session).logout(token)
+        session.commit()
     response.delete_cookie(
         COOKIE,
         path="/",
