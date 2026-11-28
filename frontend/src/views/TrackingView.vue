@@ -57,7 +57,7 @@ async function load() {
         listSeasons(scenario.value.id),
       ])
   } catch {
-    error.value = 'No se pudo cargar el seguimiento. Intentá de nuevo.'
+    error.value = 'No se pudo cargar el seguimiento. Volver a intentar.'
   } finally {
     loading.value = false
   }
@@ -123,12 +123,12 @@ onMounted(load)
       <button type="button" class="btn" @click="load">Reintentar</button>
     </div>
     <p v-else-if="!scenario" class="hint">
-      Todavía no tenés un escenario. <RouterLink to="/farm">Crealo en Mi campo</RouterLink>.
+      Todavía no hay un escenario. <RouterLink to="/farm">Crearlo en Mi campo</RouterLink>.
     </p>
     <p v-else-if="!selected" class="hint">
       El escenario todavía no tiene sectores.
       <RouterLink :to="{ name: 'scenario', params: { scenarioId: scenario.id } }">
-        Dibujá uno en Mi campo
+        Dibujar uno en Mi campo
       </RouterLink>
       .
     </p>
@@ -181,8 +181,8 @@ onMounted(load)
       </template>
 
       <section class="panel load-season">
-        <h2>Cargá tu campaña</h2>
-        <p class="hint">Sumá un año anterior para comparar cómo venía el sector.</p>
+        <h2>Cargar una campaña anterior</h2>
+        <p class="hint">Sumar un año anterior sirve para comparar cómo venía el sector.</p>
         <AddSeason
           previous
           :scenario-id="scenario.id"
@@ -190,7 +190,7 @@ onMounted(load)
           @created="onSeasonCreated"
         />
         <p v-if="created" role="status">
-          Se agregó la campaña {{ seasonName(created.start_date, created.end_date) }}. Cargá
+          Se agregó la campaña {{ seasonName(created.start_date, created.end_date) }}. Falta cargar
           <RouterLink
             :to="{
               name: 'sector',

@@ -63,7 +63,7 @@ async function load() {
     if (version !== loadVersion) return
     rows.value = loadedRows
   } catch {
-    if (version === loadVersion) loadError.value = 'No se pudieron cargar tus escenarios.'
+    if (version === loadVersion) loadError.value = 'No se pudieron cargar los escenarios.'
   } finally {
     if (version === loadVersion) loading.value = false
   }
@@ -153,7 +153,7 @@ watch(() => route.name, load, { immediate: true })
       </div>
     </template>
     <div v-else class="empty panel">
-      <p>Creá un escenario para empezar a cargar sus sectores y campañas.</p>
+      <p>Para empezar, crear un escenario y después cargar sus sectores y campañas.</p>
       <button type="button" class="btn btn-primary" @click="creating = true">
         Nuevo escenario
       </button>

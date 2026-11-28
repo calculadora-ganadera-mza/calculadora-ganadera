@@ -30,7 +30,7 @@ async function add() {
     emit('created', await createSeason(props.scenarioId, nextYear.value))
   } catch (err) {
     error.value =
-      err instanceof ApiError ? err.message : 'No se pudo agregar la campaña. Probá de nuevo.'
+      err instanceof ApiError ? err.message : 'No se pudo agregar la campaña. Volver a intentar.'
   } finally {
     saving.value = false
   }

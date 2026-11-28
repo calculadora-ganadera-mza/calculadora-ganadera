@@ -25,7 +25,7 @@ async function signOut() {
     closeMenu()
     await router.replace('/login')
   } catch {
-    logoutError.value = 'No se pudo cerrar sesión. Intentá de nuevo.'
+    logoutError.value = 'No se pudo cerrar sesión. Volver a intentar.'
   } finally {
     loggingOut.value = false
   }

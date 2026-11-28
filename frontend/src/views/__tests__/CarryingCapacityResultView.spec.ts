@@ -138,7 +138,7 @@ describe('Resultado de receptividad', () => {
     const wrapper = await open()
 
     expect(calculateCarryingCapacity).toHaveBeenCalledWith(2, { ...herd, rainfall_mm: 300 })
-    expect(wrapper.find('.subtitle').text()).toContain('La Esperanza · Sector 1 · campaña 2026/27')
+    expect(wrapper.find('.subtitle').text()).toContain('La EsperanzaSector 1Campaña 2026/27')
     const sector = wrapper.findAll('a').find((a) => a.text() === 'ver sector')!
     expect(sector.attributes('href')).toBe('/farm/7/sectors/2?season=12')
     expect(wrapper.findAll('.kpi .value').map((value) => value.text())).toEqual([

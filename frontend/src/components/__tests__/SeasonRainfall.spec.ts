@@ -120,7 +120,7 @@ describe('SeasonRainfall', () => {
         await wrapper.get('form').trigger('submit')
         await flushPromises()
         expect(wrapper.get('[role="alert"]').text()).toBe(
-          'Ingresá una lluvia mayor que 0 para poder calcular.',
+          'Para calcular, la lluvia tiene que ser mayor que 0.',
         )
       }
       expect(updateSeasonRainfall).not.toHaveBeenCalled()

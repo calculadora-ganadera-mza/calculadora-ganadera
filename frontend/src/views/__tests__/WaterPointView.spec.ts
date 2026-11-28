@@ -36,7 +36,7 @@ describe('Ubicar aguada', () => {
     await flushPromises()
 
     expect(wrapper.get('[role="alert"]').text()).toBe(
-      'Marcá la ubicación de la aguada en el sector.',
+      'Falta marcar la ubicación de la aguada en el sector.',
     )
     expect(waterRequest).not.toHaveBeenCalled()
   })

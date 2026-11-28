@@ -165,7 +165,7 @@ describe('Mi campo', () => {
   it('avisa si no pudo cargar y deja reintentar', async () => {
     vi.mocked(listScenarios).mockRejectedValueOnce(new Error('Error 500'))
     const { wrapper } = await openAt('/farm/scenarios')
-    expect(wrapper.text()).toContain('No se pudieron cargar tus escenarios.')
+    expect(wrapper.text()).toContain('No se pudieron cargar los escenarios.')
 
     await wrapper.get('[role="alert"] button').trigger('click')
     await flushPromises()

@@ -194,11 +194,11 @@ async function recalculate(herd: HerdData) {
   if (!draft || !unit.value || draft.busy) return
   const { rainfallMm, bullsPer100Cows } = draft
   if (rainfallMm === '' || !Number.isFinite(rainfallMm) || rainfallMm <= 0) {
-    draft.error = 'Ingresá una lluvia mayor que cero.'
+    draft.error = 'La lluvia tiene que ser mayor que cero.'
     return
   }
   if (bullsPer100Cows !== '' && (!Number.isFinite(bullsPer100Cows) || bullsPer100Cows <= 0)) {
-    draft.error = 'Ingresá una cantidad de toros mayor que cero o dejá el campo vacío.'
+    draft.error = 'Los toros cada 100 vacas tienen que ser más que cero, o el campo queda vacío.'
     return
   }
 
@@ -220,7 +220,7 @@ async function recalculate(herd: HerdData) {
     saveMessage.value = ''
     saveError.value = ''
   } catch (err) {
-    draft.error = err instanceof ApiError ? err.message : 'No se pudo simular. Probá de nuevo.'
+    draft.error = err instanceof ApiError ? err.message : 'No se pudo simular. Volver a intentar.'
   } finally {
     draft.busy = false
   }
@@ -240,8 +240,9 @@ onMounted(load)
       <div>
         <h1>Receptividad</h1>
         <p v-if="scenario && unit && season" class="subtitle">
-          {{ scenario.name }} · {{ unit.name }} · campaña
-          {{ seasonLabel(season.start_date, season.end_date) }} ·
+          <span>{{ scenario.name }}</span>
+          <span>{{ unit.name }}</span>
+          <span>Campaña {{ seasonLabel(season.start_date, season.end_date) }}</span>
           <RouterLink
             :to="{
               name: 'sector',
@@ -314,6 +315,7 @@ onMounted(load)
           :categories="categories"
           id-prefix="simulation"
           :initial="campaignHerd"
+          :season="season"
           :busy="simulation.busy"
           :action="simulation.busy ? 'Recalculando…' : 'Recalcular'"
           :error="simulation.error"
@@ -507,6 +509,9 @@ onMounted(load)
   color: var(--color-primary);
 }
 .subtitle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
   margin: 0;
   color: var(--color-text-muted);
 }

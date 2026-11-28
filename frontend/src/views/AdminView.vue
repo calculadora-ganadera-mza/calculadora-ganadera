@@ -78,7 +78,7 @@ async function saveParameter(row: ParameterRow) {
     row.draft = saved.value ?? ''
     row.status = 'Guardado.'
   } catch (err) {
-    row.error = messageOf(err, 'No se pudo guardar. Probá de nuevo.')
+    row.error = messageOf(err, 'No se pudo guardar. Volver a intentar.')
   }
 }
 
@@ -103,7 +103,7 @@ async function saveCategory(row: CategoryRow) {
     })
     Object.assign(row, toCategoryRow(saved), { status: 'Guardado.' })
   } catch (err) {
-    row.error = messageOf(err, 'No se pudo guardar. Probá de nuevo.')
+    row.error = messageOf(err, 'No se pudo guardar. Volver a intentar.')
   }
 }
 

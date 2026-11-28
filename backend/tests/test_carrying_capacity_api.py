@@ -523,6 +523,27 @@ def category_ids(session) -> dict[str, int]:
     return dict(session.execute(select(AnimalCategory.code, AnimalCategory.id)).all())
 
 
+def test_both_herds_list_the_categories_in_the_same_order(api, session, unit_id):
+    add_water_point(api, unit_id)
+    ids = category_ids(session)
+    herd = herd_with_cows(
+        session,
+        categories=[
+            {"animal_category_id": ids["cow"], "quantity": 10},
+            {"animal_category_id": ids["bull"], "quantity": 1},
+            {"animal_category_id": ids["heifer"], "quantity": 2},
+        ],
+    )
+
+    result = calculate(api, unit_id, **herd).json()
+
+    names = ["Vaca", "Toro", "Vaquillona", "Terneras de reposición"]
+    breeding = result["max_breeding_herd"]["categories"]
+    assert [c["name"] for c in breeding] == names
+    scaled = result["scaled_herd"]["categories"]
+    assert [c["name"] for c in scaled if c["name"] in names] == names
+
+
 def test_scaled_herd_keeps_the_loaded_proportions(api, session, unit_id):
     add_water_point(api, unit_id)
     ids = category_ids(session)

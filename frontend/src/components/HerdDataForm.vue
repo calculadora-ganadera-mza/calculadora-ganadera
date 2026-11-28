@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import type { AnimalCategory, HerdData, RangeCondition } from '@/api/herds'
 import { RANGE_CONDITION_LABELS } from '@/utils/herd'
+import { formatDate } from '@/utils/season'
 
 const props = defineProps<{
   categories: AnimalCategory[]
@@ -11,6 +12,8 @@ const props = defineProps<{
   disabled?: boolean
   error: string
   action: string
+  // Campaña del rodeo: el entore tiene que caer dentro de ella
+  season?: { start_date: string; end_date: string }
 }>()
 const emit = defineEmits<{ attempt: []; submit: [data: HerdData] }>()
 
@@ -25,7 +28,9 @@ const RANGE_CONDITIONS = Object.entries(RANGE_CONDITION_LABELS).map(([value, lab
   label,
 }))
 
+// Problema del formulario. Los de las fechas del entore van debajo de su campo.
 const validationError = ref('')
+const breedingField = ref<'start' | 'end'>()
 const initial = props.initial
 const quantities = ref<Record<number, number | ''>>(
   Object.fromEntries(
@@ -48,18 +53,33 @@ function toRate(pct: number | '', original?: number | null) {
   return original != null && pct === toPct(original) ? original : pct / 100
 }
 
-// Revisa el formulario; devuelve el primer problema o '' si está bien
+// Revisa el formulario; devuelve el primer problema o '' si está bien. Si el
+// problema es de una fecha del entore, deja marcado ese campo.
 function validate(): string {
+  breedingField.value = undefined
   const counts = formCategories.value.map((c) => quantities.value[c.id])
   if (counts.some((q) => q !== '' && q !== undefined && (q < 0 || !Number.isInteger(q))))
     return 'Las cantidades tienen que ser números enteros, sin negativos.'
-  if (!rangeCondition.value) return 'Elegí el estado del campo.'
+  if (!rangeCondition.value) return 'Falta elegir el estado del campo.'
   for (const pct of [replacementPct.value, weaningPct.value])
     if (pct !== '' && (pct < 0 || pct > 100)) return 'Los porcentajes van de 0 a 100.'
-  if (Boolean(breedingStart.value) !== Boolean(breedingEnd.value))
+  if (Boolean(breedingStart.value) !== Boolean(breedingEnd.value)) {
+    breedingField.value = breedingStart.value ? 'end' : 'start'
     return 'El entore se carga con inicio y fin, o sin ninguno.'
-  if (breedingStart.value && breedingEnd.value <= breedingStart.value)
+  }
+  if (breedingStart.value && breedingEnd.value <= breedingStart.value) {
+    breedingField.value = 'end'
     return 'El fin del entore tiene que ser posterior al inicio.'
+  }
+  const season = props.season
+  if (season && breedingStart.value && breedingStart.value < season.start_date) {
+    breedingField.value = 'start'
+    return `El entore tiene que empezar desde el ${formatDate(season.start_date)}, cuando empieza la campaña.`
+  }
+  if (season && breedingEnd.value && breedingEnd.value > season.end_date) {
+    breedingField.value = 'end'
+    return `El entore tiene que terminar hasta el ${formatDate(season.end_date)}, cuando termina la campaña.`
+  }
   const cow = formCategories.value.find((c) => c.code === 'cow')
   const cows = cow ? Number(quantities.value[cow.id] || 0) : 0
   if (cows > 0 && (replacementPct.value === '' || weaningPct.value === '' || !breedingStart.value))
@@ -152,15 +172,45 @@ function submit() {
       </label>
       <div class="field">
         <label :for="`breeding-start-${idPrefix}`">Inicio del entore</label>
-        <input :id="`breeding-start-${idPrefix}`" v-model="breedingStart" type="date" />
+        <input
+          :id="`breeding-start-${idPrefix}`"
+          v-model="breedingStart"
+          type="date"
+          :aria-invalid="breedingField === 'start' || undefined"
+          :aria-describedby="breedingField === 'start' ? `breeding-error-${idPrefix}` : undefined"
+        />
+        <p
+          v-if="breedingField === 'start'"
+          :id="`breeding-error-${idPrefix}`"
+          class="error"
+          role="alert"
+        >
+          {{ validationError }}
+        </p>
       </div>
       <div class="field">
         <label :for="`breeding-end-${idPrefix}`">Fin del entore</label>
-        <input :id="`breeding-end-${idPrefix}`" v-model="breedingEnd" type="date" />
+        <input
+          :id="`breeding-end-${idPrefix}`"
+          v-model="breedingEnd"
+          type="date"
+          :aria-invalid="breedingField === 'end' || undefined"
+          :aria-describedby="breedingField === 'end' ? `breeding-error-${idPrefix}` : undefined"
+        />
+        <p
+          v-if="breedingField === 'end'"
+          :id="`breeding-error-${idPrefix}`"
+          class="error"
+          role="alert"
+        >
+          {{ validationError }}
+        </p>
       </div>
     </fieldset>
 
-    <p v-if="validationError || error" class="error" role="alert">{{ validationError || error }}</p>
+    <p v-if="(validationError && !breedingField) || error" class="error" role="alert">
+      {{ breedingField ? error : validationError || error }}
+    </p>
     <slot name="status" />
     <button type="submit" :disabled="busy || disabled">{{ action }}</button>
   </form>
@@ -198,6 +248,10 @@ legend {
 
 .field label {
   font-weight: 600;
+}
+
+input[aria-invalid='true'][type='date'] {
+  border-color: var(--color-danger);
 }
 
 input:not([type='checkbox']),

@@ -119,7 +119,7 @@ describe('Seguimiento', () => {
     vi.mocked(listScenarios).mockResolvedValue([])
     const { wrapper } = await openAt('/tracking')
 
-    expect(wrapper.text()).toContain('Todavía no tenés un escenario.')
+    expect(wrapper.text()).toContain('Todavía no hay un escenario.')
     expect(wrapper.get('main a, section a').attributes('href')).toBe('/farm')
     expect(listProductionUnits).not.toHaveBeenCalled()
   })

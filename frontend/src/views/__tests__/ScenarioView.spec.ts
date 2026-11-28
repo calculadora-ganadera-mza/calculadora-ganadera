@@ -42,7 +42,7 @@ describe('Pantalla del escenario', () => {
     const { wrapper } = await openAt('/farm/7')
 
     expect(wrapper.get('h1').text()).toBe('La Aguada')
-    expect(wrapper.get('.summary').text()).toBe('Sectores 2 · Superficie 150 ha')
+    expect(wrapper.get('.summary').text()).toBe('Sectores 2Superficie 150 ha')
     expect(wrapper.get('.campaign h2').text()).toBe('Campaña 2026/27 actual')
     expect(wrapper.find('#rainfall-12').exists()).toBe(true)
     const rows = wrapper.findAll('tbody tr').map((row) => row.findAll('td').map((c) => c.text()))
@@ -54,6 +54,17 @@ describe('Pantalla del escenario', () => {
     const map = wrapper.getComponent({ name: 'UnitsMap' })
     expect(map.props('units')).toEqual([NORTH, SOUTH])
     expect(map.props('readOnly')).toBe(true)
+  })
+
+  it('la leyenda muestra solo lo que hay en el mapa', async () => {
+    vi.mocked(listScenarioWaterPoints).mockResolvedValue([])
+    vi.mocked(listProductionUnits).mockResolvedValue([
+      { ...NORTH, usable_area_ha: 0 },
+      { ...SOUTH, usable_area_ha: 0 },
+    ])
+    const { wrapper } = await openAt('/farm/7')
+
+    expect(wrapper.find('.map-legend').exists()).toBe(false)
   })
 
   it('lista las campañas de la más nueva a la más vieja y arranca en la actual', async () => {

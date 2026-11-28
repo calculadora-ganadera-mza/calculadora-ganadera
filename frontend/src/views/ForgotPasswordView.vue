@@ -26,7 +26,7 @@ async function sendCode() {
   notice.value = ''
   if (emailInput.value && !emailInput.value.reportValidity()) return
   if (email.value.length < 5 || email.value.length > 100) {
-    error.value = 'Escribí un correo válido.'
+    error.value = 'El correo no es válido.'
     return
   }
   pending.value = 'send'
@@ -39,7 +39,7 @@ async function sendCode() {
     error.value =
       err instanceof ApiError
         ? err.message
-        : 'No se pudo pedir el código. Revisá el correo e intentá de nuevo.'
+        : 'No se pudo pedir el código. Revisar el correo y volver a intentar.'
   } finally {
     pending.value = null
   }
@@ -64,7 +64,7 @@ async function submitReset() {
     error.value =
       err instanceof ApiError
         ? err.message
-        : 'No se pudo cambiar la contraseña. Revisá los datos e intentá de nuevo.'
+        : 'No se pudo cambiar la contraseña. Revisar los datos y volver a intentar.'
   } finally {
     pending.value = null
   }
@@ -75,7 +75,7 @@ async function submitReset() {
   <section class="auth-form">
     <h1>Recuperar contraseña</h1>
     <p v-if="!codeSent" class="hint">
-      Escribí tu correo. Si tenés una cuenta, te enviamos un código de 6 dígitos.
+      Escribir el correo de la cuenta. Si existe, llega un código de 6 dígitos.
     </p>
 
     <form v-if="!codeSent" @submit.prevent="sendCode">

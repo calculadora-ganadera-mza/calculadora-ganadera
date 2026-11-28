@@ -8,7 +8,7 @@ const HERD = {
   cow_equivalents: 3.25,
   categories: [
     { animal_category_id: 1, name: 'Vaca con cría', current_quantity: 10, quantity: 3 },
-    { animal_category_id: 4, name: 'Ternero de destete', current_quantity: 2, quantity: 1 },
+    { animal_category_id: 4, name: 'Terneras de reposición', current_quantity: 2, quantity: 1 },
   ],
 }
 
@@ -22,7 +22,7 @@ describe('ScaledHerd', () => {
     expect(wrapper.get('h2').text()).toBe('Mi rodeo ajustado al campo')
     expect(rows).toEqual([
       ['Vaca con cría', '10', '3'],
-      ['Ternero de destete', '2', '1'],
+      ['Terneras de reposición', '2', '1'],
     ])
     expect(wrapper.findAll('tfoot td').map((cell) => cell.text())).toEqual(['10,5 EV', '3,3 EV'])
   })

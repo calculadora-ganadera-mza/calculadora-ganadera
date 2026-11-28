@@ -155,3 +155,82 @@ it('impide cerrar un polígono si el lado de cierre cruza otro lado', () => {
     Object.assign(L.Browser, { svg })
   }
 })
+
+describe('gestos, nombres y textos del mapa', () => {
+  let svg: boolean
+  let wrapper: VueWrapper | undefined
+  let createMap: ReturnType<typeof vi.spyOn>
+
+  // Simula una pantalla táctil o una con mouse
+  function pointer(coarse: boolean) {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({ matches: coarse && query === '(pointer: coarse)' })),
+    )
+  }
+
+  function open(props: Partial<InstanceType<typeof UnitsMap>['$props']> = {}) {
+    wrapper = mount(UnitsMap, {
+      props: {
+        units: [unitBetween(1, [-68.5, -34.6], [-68.4, -34.5])],
+        draft: null,
+        editingId: null,
+        ...props,
+      },
+    })
+    return createMap.mock.results[0]!.value as L.Map
+  }
+
+  beforeEach(() => {
+    createMap = vi.spyOn(L, 'map')
+    svg = L.Browser.svg
+    Object.assign(L.Browser, { svg: true })
+  })
+
+  afterEach(() => {
+    wrapper?.unmount()
+    wrapper = undefined
+    createMap.mockRestore()
+    vi.unstubAllGlobals()
+    Object.assign(L.Browser, { svg })
+  })
+
+  it('con mouse, la rueda no hace zoom y el mapa se arrastra', () => {
+    pointer(false)
+    const map = open()
+
+    expect(map.scrollWheelZoom.enabled()).toBe(false)
+    expect(map.doubleClickZoom.enabled()).toBe(true)
+    expect(map.dragging.enabled()).toBe(true)
+    expect(wrapper!.find('.touch-hint').exists()).toBe(false)
+  })
+
+  it('en pantallas táctiles un dedo no mueve el mapa y una nota lo explica', () => {
+    pointer(true)
+    const map = open()
+
+    expect(map.dragging.enabled()).toBe(false)
+    expect(map.touchZoom.enabled()).toBe(true)
+    expect(wrapper!.get('.touch-hint').text()).toBe('Usar dos dedos para mover el mapa.')
+  })
+
+  it('el nombre del sector queda entre los polígonos y las aguadas', () => {
+    pointer(false)
+    const map = open({ showLabels: true })
+
+    const pane = map.getPane('sectorLabels')!
+    expect(Number(pane.style.zIndex)).toBeGreaterThan(400)
+    expect(Number(pane.style.zIndex)).toBeLessThan(600)
+    expect(pane.querySelector('.sector-label')?.textContent).toBe('Sector 1')
+  })
+
+  it('la barra de dibujo habla en impersonal', () => {
+    pointer(false)
+    open()
+
+    expect(L.PM.Utils.getTranslation('tooltips.firstVertex')).toBe(
+      'Tocar el mapa para marcar la primera esquina',
+    )
+    expect(wrapper!.find('[title="Dibujar el contorno"]').exists()).toBe(true)
+  })
+})

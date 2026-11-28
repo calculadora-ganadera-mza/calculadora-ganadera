@@ -9,8 +9,23 @@ interface TokenResponse {
   token_type: string
 }
 
+/** Error de inicio de sesión o de registro, con el código de la respuesta. */
+export class AuthError extends Error {
+  constructor(
+    readonly status: number,
+    // Campo que no pasó la validación (422), si el servidor lo dice
+    readonly field?: string,
+  ) {
+    super(`Falló la autenticación (${status})`)
+  }
+}
+
 async function acceptToken(response: Response): Promise<void> {
-  if (!response.ok) throw new Error(`Falló la autenticación (${response.status})`)
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+    const field = Array.isArray(body?.detail) ? body.detail[0]?.loc?.at(-1) : undefined
+    throw new AuthError(response.status, typeof field === 'string' ? field : undefined)
+  }
   const token: TokenResponse = await response.json()
   useAuthStore().accessToken = token.access_token
   useAuthStore().authenticationRequired = false
@@ -71,7 +86,7 @@ export async function logout(): Promise<void> {
     method: 'POST',
     credentials: 'include',
   })
-  if (!response.ok) throw new Error('No se pudo cerrar la sesión; intentá de nuevo')
+  if (!response.ok) throw new Error('No se pudo cerrar la sesión. Volver a intentar.')
   useAuthStore().accessToken = null
   useAuthStore().authenticationRequired = false
 }
@@ -101,7 +116,7 @@ export async function resetPassword(data: {
 /** Ruta relativa de la API; reintenta una vez y comparte la renovación entre pedidos simultáneos. */
 export async function authenticatedFetch(path: string, init: RequestInit = {}): Promise<Response> {
   if (!path.startsWith('/') || path.startsWith('//'))
-    throw new Error('Usá una ruta relativa de la API')
+    throw new Error('Se espera una ruta relativa de la API')
   const send = () => {
     const headers = new Headers(init.headers)
     if (useAuthStore().accessToken)

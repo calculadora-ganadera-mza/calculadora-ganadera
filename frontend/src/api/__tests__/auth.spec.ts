@@ -65,6 +65,23 @@ describe('cliente de autenticación', () => {
     expect(fetch).toHaveBeenCalledTimes(2)
   })
 
+  it('el registro rechazado lleva el código de respuesta y el campo que no pasó', async () => {
+    const auth = await import('../auth')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 409 })))
+    await expect(
+      auth.register({ name: 'Ana', email: 'ana@example.com', password: 'clave-segura' }),
+    ).rejects.toMatchObject({ status: 409, field: undefined })
+
+    const invalid = { detail: [{ loc: ['body', 'password'], msg: 'muy corta' }] }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify(invalid), { status: 422 })),
+    )
+    await expect(
+      auth.register({ name: 'Ana', email: 'ana@example.com', password: 'corta' }),
+    ).rejects.toMatchObject({ status: 422, field: 'password' })
+  })
+
   it('pide el código para recuperar la contraseña', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 202 }))
     vi.stubGlobal('fetch', fetchMock)

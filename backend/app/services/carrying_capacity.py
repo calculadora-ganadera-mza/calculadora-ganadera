@@ -130,8 +130,12 @@ REFERENCE_PARAMETER_KEYS = sorted(
         WATER_RADIUS_KEY,
     }
 )
-# Categorías del rodeo de cría máximo, en el orden en que se muestran
+# Categorías del rodeo de cría máximo
 HERD_CODES = ["cow", "bull", "calf", "heifer"]
+# Nombre de la fila de las terneras que se quedan para reponer vacas. La
+# categoría calf se llama distinto porque también abarca a los terneros que
+# salen al destete.
+REPLACEMENT_CALVES_NAME = "Terneras de reposición"
 
 
 @dataclass(frozen=True)
@@ -562,17 +566,24 @@ def herd_categories(session: Session) -> dict[str, AnimalCategory]:
     return {category.code: category for category in rows}
 
 
+def row_name(code: str, category: AnimalCategory) -> str:
+    """Nombre de la fila de una categoría en las tablas del resultado."""
+    return REPLACEMENT_CALVES_NAME if code == CALF else category.name
+
+
 def herd_quantities(
     quantities: Mapping[str, float], categories: dict[str, AnimalCategory]
 ) -> list[HerdQuantity]:
-    """Cabezas por código de categoría, en el formato y el orden de la API."""
+    """Cabezas por código de categoría, en el formato de la API y en el orden de
+    la tabla, el mismo de Mi rodeo ajustado al campo."""
     return [
         HerdQuantity(
-            animal_category_id=categories[code].id,
-            name=categories[code].name,
+            animal_category_id=category.id,
+            name=row_name(code, category),
             quantity=quantities[code],
         )
-        for code in HERD_CODES
+        for code, category in categories.items()
+        if code in quantities
     ]
 
 
@@ -606,7 +617,7 @@ def scaled_read(
         categories=[
             ScaledHerdQuantity(
                 animal_category_id=category.id,
-                name=category.name,
+                name=row_name(code, category),
                 current_quantity=current[code],
                 quantity=scaled.quantities[code],
             )

@@ -10,9 +10,10 @@ import {
   type HerdData,
   type Herd,
 } from '@/api/herds'
+import type { Season } from '@/api/scenarios'
 import HerdDataForm from './HerdDataForm.vue'
 
-const props = defineProps<{ seasonId: number; unitId: number }>()
+const props = defineProps<{ season: Season; unitId: number }>()
 
 const loading = ref(true)
 // La carga falló: no se muestra el formulario y se puede reintentar
@@ -32,7 +33,7 @@ async function load() {
   try {
     const [loadedCategories, herds] = await Promise.all([
       listAnimalCategories(),
-      listHerds(props.seasonId),
+      listHerds(props.season.id),
     ])
     categories.value = loadedCategories
     initialHerd.value = herds.find((herd) => herd.production_unit_id === props.unitId)
@@ -54,12 +55,12 @@ async function save(data: HerdData) {
   try {
     const herd = herdId.value
       ? await updateHerd(herdId.value, data)
-      : await createHerd(props.seasonId, { ...data, production_unit_id: props.unitId })
+      : await createHerd(props.season.id, { ...data, production_unit_id: props.unitId })
     herdId.value = herd.id
     saved.value = true
   } catch (err) {
     error.value =
-      err instanceof ApiError ? err.message : 'No se pudieron guardar los datos. Probá de nuevo.'
+      err instanceof ApiError ? err.message : 'No se pudieron guardar los datos. Volver a intentar.'
   } finally {
     saving.value = false
   }
@@ -83,6 +84,7 @@ onMounted(load)
       :busy="saving"
       :action="saving ? 'Guardando…' : 'Guardar rodeo'"
       :error="error"
+      :season="season"
       @attempt="clearStatus"
       @submit="save"
     >

@@ -58,7 +58,10 @@ describe('Pantalla del sector', () => {
     expect(map.props('units')).toEqual([NORTH])
     expect(map.props('referenceUnits')).toEqual([SOUTH])
     expect(map.props('waterPoints')).toEqual([WELL])
-    expect(wrapper.getComponent({ name: 'HerdForm' }).props()).toEqual({ seasonId: 12, unitId: 1 })
+    expect(wrapper.getComponent({ name: 'HerdForm' }).props()).toEqual({
+      season: season(12, 2026, true),
+      unitId: 1,
+    })
     const links = wrapper.findAll('.breadcrumb a').map((a) => a.attributes('href'))
     expect(links).toEqual(['/farm/scenarios', '/farm/7'])
   })
@@ -76,7 +79,7 @@ describe('Pantalla del sector', () => {
     const { wrapper } = await openAt('/farm/7/sectors/1?season=11')
 
     expect(wrapper.get('.season-meta').text()).toContain('Campaña 2025/26')
-    expect(wrapper.getComponent({ name: 'HerdForm' }).props()).toEqual({ seasonId: 11, unitId: 1 })
+    expect(wrapper.getComponent({ name: 'HerdForm' }).props('season').id).toBe(11)
     const links = wrapper.findAll('.breadcrumb a').map((a) => a.attributes('href'))
     expect(links).toEqual(['/farm/scenarios', '/farm/7?season=11'])
     expect(href(wrapper, 'Cambiar campaña')).toBe('/farm/7?season=11')
@@ -94,7 +97,7 @@ describe('Pantalla del sector', () => {
     const { wrapper } = await openAt('/farm/7/sectors/1?season=99')
 
     expect(wrapper.get('.season-meta').text()).toContain('Campaña 2026/27')
-    expect(wrapper.getComponent({ name: 'HerdForm' }).props('seasonId')).toBe(12)
+    expect(wrapper.getComponent({ name: 'HerdForm' }).props('season').id).toBe(12)
   })
 
   it('carga el rodeo de otra campaña al cambiar la dirección', async () => {
@@ -104,7 +107,7 @@ describe('Pantalla del sector', () => {
     await router.push('/farm/7/sectors/1?season=12')
     await flushPromises()
 
-    expect(wrapper.getComponent({ name: 'HerdForm' }).props('seasonId')).toBe(12)
+    expect(wrapper.getComponent({ name: 'HerdForm' }).props('season').id).toBe(12)
   })
 
   it('avisa si el sector no tiene aguadas o si alguna no tiene los litros', async () => {
@@ -124,6 +127,32 @@ describe('Pantalla del sector', () => {
     vi.mocked(listScenarioWaterPoints).mockResolvedValueOnce([{ ...WELL, refill_l_day: null }])
     const single = await openAt('/farm/7/sectors/1')
     expect(single.wrapper.get('.cards').text()).toContain('Falta cargar los litros de la aguada.')
+  })
+
+  it('sin aguadas explica por qué no hay superficie aprovechable y no muestra su leyenda', async () => {
+    vi.mocked(listScenarioWaterPoints).mockResolvedValue([])
+    vi.mocked(listProductionUnits).mockResolvedValue([{ ...NORTH, usable_area_ha: 0 }, SOUTH])
+    const { wrapper } = await openAt('/farm/7/sectors/1?season=12')
+
+    const card = wrapper.findAll('.cards > div')[1]!
+    expect(card.text()).toContain('Sin aguadas no hay superficie aprovechable')
+    expect(card.get('a').text()).toBe('Ubicar aguada')
+    expect(card.get('a').attributes('href')).toBe('/farm/7/sectors/1/water-points/new?season=12')
+    expect(wrapper.get('.map-legend').text()).toBe('Sector vecino')
+  })
+
+  it('la leyenda no muestra «Aguada» si el sector solo tiene aguadas compartidas', async () => {
+    const neighbor = {
+      ...WELL,
+      id: 20,
+      production_unit_id: 2,
+      shared: true,
+      neighbor_unit_ids: [1],
+    }
+    vi.mocked(listScenarioWaterPoints).mockResolvedValue([neighbor])
+    const { wrapper } = await openAt('/farm/7/sectors/1')
+
+    expect(wrapper.get('.map-legend').text()).not.toContain('Aguada')
   })
 
   it('muestra las aguadas propias y como referencia las compartidas por vecinos', async () => {

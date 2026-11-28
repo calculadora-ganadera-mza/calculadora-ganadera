@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { login, register } from '../api/auth'
+import { AuthError, login, register } from '../api/auth'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,6 +17,30 @@ watch(
   () => route.query.reset,
   (value) => {
     resetNotice.value = value === '1'
+  },
+)
+
+// Campos del registro, para decir cuál revisar
+const FIELDS: Record<string, string> = {
+  name: 'el nombre y apellido',
+  email: 'el correo electrónico',
+  password: 'la contraseña',
+}
+
+function registerError(err: unknown): string {
+  if (err instanceof AuthError && err.status === 409) return 'Ya existe una cuenta con ese correo.'
+  if (err instanceof AuthError && err.status === 422) {
+    const field = err.field && FIELDS[err.field]
+    return field ? `Revisar ${field}.` : 'Revisar los datos de la cuenta.'
+  }
+  return 'No se pudo crear la cuenta. Volver a intentar.'
+}
+
+// La pestaña del navegador dice en qué formulario se está
+watch(
+  () => creating.value,
+  (value) => {
+    document.title = value ? 'Crear cuenta' : 'Iniciar sesión'
   },
 )
 
@@ -41,10 +65,10 @@ async function submit() {
       await login(email.value, password.value)
     }
     await router.replace('/')
-  } catch {
+  } catch (err) {
     error.value = creating.value
-      ? 'No se pudo crear la cuenta. Revisá los datos o intentá con otro correo.'
-      : 'No se pudo iniciar sesión. Revisá tu correo y contraseña.'
+      ? registerError(err)
+      : 'No se pudo iniciar sesión. Revisar el correo y la contraseña.'
   } finally {
     busy.value = false
   }
@@ -56,7 +80,7 @@ async function submit() {
     <h1>{{ creating ? 'Crear cuenta' : 'Iniciar sesión' }}</h1>
     <form @submit.prevent="submit">
       <p v-if="!creating && resetNotice" class="notice" role="status">
-        La contraseña se actualizó. Ingresá con la nueva.
+        La contraseña se actualizó. Ya se puede ingresar con la nueva.
       </p>
       <template v-if="creating">
         <label
@@ -79,7 +103,9 @@ async function submit() {
           required
           minlength="8"
           maxlength="100"
+          :aria-describedby="creating ? 'password-hint' : undefined"
       /></label>
+      <p v-if="creating" id="password-hint" class="hint">Mínimo 8 caracteres.</p>
       <p v-if="error" role="alert">{{ error }}</p>
       <button :disabled="busy" type="submit">
         {{ busy ? 'Un momento…' : creating ? 'Crear cuenta' : 'Ingresar' }}
@@ -129,6 +155,11 @@ button:disabled {
 .notice {
   margin: 0;
   color: var(--color-success);
+}
+.hint {
+  margin: -8px 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
 }
 .forgot-link {
   justify-self: center;
