@@ -130,7 +130,7 @@ REFERENCE_PARAMETER_KEYS = sorted(
         WATER_RADIUS_KEY,
     }
 )
-# Categorías del rodeo de cría máximo, en el orden en que se muestran
+# Categorías del rodeo de cría máximo
 HERD_CODES = ["cow", "bull", "calf", "heifer"]
 # Nombre de la fila de las terneras que se quedan para reponer vacas. La
 # categoría calf se llama distinto porque también abarca a los terneros que

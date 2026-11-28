@@ -8,7 +8,7 @@ const HERD = {
   categories: [
     { animal_category_id: 1, name: 'Vaca', quantity: 4 },
     { animal_category_id: 2, name: 'Toro', quantity: 1 },
-    { animal_category_id: 4, name: 'Ternero de destete', quantity: 1 },
+    { animal_category_id: 4, name: 'Terneras de reposición', quantity: 1 },
     { animal_category_id: 3, name: 'Vaquillona', quantity: 1 },
   ],
   weaned_calves: { males: 1, females: 1 },
@@ -22,7 +22,7 @@ describe('MaxBreedingHerd', () => {
     const rows = wrapper.findAll('tbody tr').map((row) => row.text())
 
     expect(wrapper.get('h2 button').text()).toBe('Rodeo de cría máximo')
-    expect(rows).toEqual(['Vaca4', 'Toro1', 'Ternero de destete1', 'Vaquillona1'])
+    expect(rows).toEqual(['Vaca4', 'Toro1', 'Terneras de reposición1', 'Vaquillona1'])
     expect(wrapper.get('.total').text()).toBe('6,3 EV')
     expect(wrapper.text()).toContain('Terneros destetados por año: 1 macho y 1 hembra.')
   })

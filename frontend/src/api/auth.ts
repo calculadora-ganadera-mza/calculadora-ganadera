@@ -116,7 +116,7 @@ export async function resetPassword(data: {
 /** Ruta relativa de la API; reintenta una vez y comparte la renovación entre pedidos simultáneos. */
 export async function authenticatedFetch(path: string, init: RequestInit = {}): Promise<Response> {
   if (!path.startsWith('/') || path.startsWith('//'))
-    throw new Error('Usá una ruta relativa de la API')
+    throw new Error('Se espera una ruta relativa de la API')
   const send = () => {
     const headers = new Headers(init.headers)
     if (useAuthStore().accessToken)

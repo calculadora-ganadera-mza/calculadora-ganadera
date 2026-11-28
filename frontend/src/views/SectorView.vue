@@ -317,8 +317,12 @@ watch(
           read-only
           @reshape="reshaped = $event"
         />
-        <div v-if="!withoutWater || unit.usable_area_ha > 0 || neighbors.length" class="map-legend">
-          <span v-if="!withoutWater"><i class="water-key"></i>Aguada</span>
+        <div
+          v-if="ownPoints.length || unit.usable_area_ha > 0 || neighbors.length"
+          class="map-legend"
+        >
+          <!-- Las compartidas se dibujan distinto: la leyenda muestra solo las propias -->
+          <span v-if="ownPoints.length"><i class="water-key"></i>Aguada</span>
           <span v-if="unit.usable_area_ha > 0">
             <i class="coverage-key"></i>Superficie aprovechable
           </span>

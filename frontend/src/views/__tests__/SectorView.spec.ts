@@ -141,6 +141,20 @@ describe('Pantalla del sector', () => {
     expect(wrapper.get('.map-legend').text()).toBe('Sector vecino')
   })
 
+  it('la leyenda no muestra «Aguada» si el sector solo tiene aguadas compartidas', async () => {
+    const neighbor = {
+      ...WELL,
+      id: 20,
+      production_unit_id: 2,
+      shared: true,
+      neighbor_unit_ids: [1],
+    }
+    vi.mocked(listScenarioWaterPoints).mockResolvedValue([neighbor])
+    const { wrapper } = await openAt('/farm/7/sectors/1')
+
+    expect(wrapper.get('.map-legend').text()).not.toContain('Aguada')
+  })
+
   it('muestra las aguadas propias y como referencia las compartidas por vecinos', async () => {
     const neighbor = {
       ...WELL,

@@ -26,7 +26,7 @@ async function sendCode() {
   notice.value = ''
   if (emailInput.value && !emailInput.value.reportValidity()) return
   if (email.value.length < 5 || email.value.length > 100) {
-    error.value = 'Falta un correo válido.'
+    error.value = 'El correo no es válido.'
     return
   }
   pending.value = 'send'
